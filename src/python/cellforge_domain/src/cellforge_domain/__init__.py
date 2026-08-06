@@ -55,6 +55,15 @@ from cellforge_domain.models import (
     TaskDefinition,
     TraceabilityPolicy,
 )
+from cellforge_domain.schemas import (
+    DRAFT_2020_12,
+    RegisteredSchema,
+    SchemaDocumentKind,
+    SchemaKey,
+    SchemaRegistry,
+    SchemaRegistryError,
+    schema_kind_for_model,
+)
 from cellforge_domain.serialization import to_canonical_json
 
 __all__ = [
@@ -86,6 +95,7 @@ __all__ = [
     "DeploymentProfileIdentity",
     "DeploymentRuntime",
     "DomainModel",
+    "DRAFT_2020_12",
     "ExecutionMode",
     "FindingSeverity",
     "FrameRole",
@@ -97,9 +107,15 @@ __all__ = [
     "RecipeCompatibility",
     "RecipeIdentity",
     "RecipeStatus",
+    "RegisteredSchema",
     "Scenario",
     "ScenarioAssertions",
     "ScenarioIdentity",
+    "SchemaDocumentKind",
+    "SchemaKey",
+    "SchemaRegistry",
+    "SchemaRegistryError",
+    "schema_kind_for_model",
     "SceneReference",
     "SemanticVersion",
     "Sha256Digest",

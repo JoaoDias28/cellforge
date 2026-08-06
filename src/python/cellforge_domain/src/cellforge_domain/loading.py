@@ -3,13 +3,16 @@
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import yaml
 from pydantic import ValidationError
 
 from cellforge_domain.base import DomainModel
 from cellforge_domain.findings import FindingSeverity, SourceLoadError, ValidationFinding
+
+if TYPE_CHECKING:
+    from cellforge_domain.schemas import SchemaDocumentKind, SchemaRegistry
 
 
 def _source_location(source_path: Path, location: tuple[str | int, ...]) -> str:
@@ -54,7 +57,13 @@ def _parse_document(source_path: Path, text: str) -> Any:
     )
 
 
-def load_document[ModelT: DomainModel](source: str | Path, model_type: type[ModelT]) -> ModelT:
+def load_document[ModelT: DomainModel](
+    source: str | Path,
+    model_type: type[ModelT],
+    *,
+    schema_registry: "SchemaRegistry | None" = None,
+    schema_kind: "SchemaDocumentKind | None" = None,
+) -> ModelT:
     """Load one YAML/JSON mapping and validate it as ``model_type``.
 
     Public error messages include the resolved source path but never parser, filesystem, or
@@ -105,8 +114,23 @@ def load_document[ModelT: DomainModel](source: str | Path, model_type: type[Mode
             findings=(finding,),
         )
 
+    document = dict(value)
+    if schema_registry is not None:
+        if schema_kind is None:
+            from cellforge_domain.schemas import schema_kind_for_model
+
+            schema_kind = schema_kind_for_model(model_type)
+        schema_findings = schema_registry.validate(schema_kind, document, source_path)
+        if schema_findings:
+            raise SourceLoadError(
+                source_path=source_path,
+                code="schema.validation-failed",
+                message="Source document failed JSON Schema validation.",
+                findings=schema_findings,
+            )
+
     try:
-        return model_type.model_validate(dict(value))
+        return model_type.model_validate(document)
     except ValidationError as error:
         raise SourceLoadError(
             source_path=source_path,

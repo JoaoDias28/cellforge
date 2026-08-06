@@ -98,3 +98,20 @@ For selected scenarios, store normalized expected event sequences. Exclude nonde
 ## 5. Performance budgets
 
 Budgets are defined per cell and skill. The platform should detect regressions rather than impose one global cycle-time value.
+
+## 6. Schema and example validation
+
+`make validate-examples` validates every canonical schema as JSON Schema Draft 2020-12, converts
+the pen example YAML documents to JSON-compatible values, validates them against the schema selected
+by document kind and `schema_version`, and then applies the pure Pydantic domain contracts.
+
+The same check is available without Make:
+
+```bash
+uv run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples/pen_engraving
+```
+
+Recipe schema paths, recipe document paths, recipe-to-cell compatibility, and deployment-profile
+paths are checked relative to `cell.yaml`. A failure line includes its source file and JSON Pointer,
+stable rule/code, and human-readable message. This validation never authorizes physical execution or
+implements a safety function.

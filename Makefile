@@ -17,7 +17,8 @@ test:
 	$(UV) run --frozen pytest
 
 validate-examples:
-	@echo "Schema/example validation is not wired; Task 003 will implement it." 1>&2; exit 2
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples/pen_engraving
 
 ros-build:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --symlink-install --event-handlers console_direct+'

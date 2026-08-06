@@ -1,0 +1,14 @@
+schema_version: 0.1.0
+recipe:
+  id: intentionally-invalid
+  version: 1
+  name: Invalid status fixture
+  status: UNREVIEWED
+compatibility:
+  cell_ids: []
+  required_capabilities: []
+parameters: {}
+timeouts:
+  process: 1.0
+traceability:
+  record_fields: []
