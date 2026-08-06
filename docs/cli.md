@@ -10,6 +10,7 @@ cellforge project init <path>
 cellforge validate <project>
 cellforge inspect <project>
 cellforge schema list
+cellforge build <project> --target <profile-id> --mode <mode> --source-revision <git-sha> [--output manifest.json]
 cellforge example copy pen-engraving <path>
 ```
 
@@ -26,8 +27,23 @@ authority. Schema validity never authorizes commissioning or physical execution.
 copying the canonical schemas under `schemas/` and updating the recipe schema reference. `validate`
 uses project-local canonical schemas only after verifying that every file is byte-identical to the
 schemas bundled with the CLI; otherwise validation fails. It performs Task 003 schema, domain, and
-cross-file checks; spatial USD, capability resolution,
-behavior-tree semantics, approvals, and deployment policy belong to later tasks.
+cross-file checks. `build` adds exact component/capability/adapter resolution, source-reference and
+behavior-tree checks, recipe/mode policy, target dependency selection, and manifest generation.
+
+## Deterministic build
+
+`build` requires an exact target profile, execution mode, and 40-character lowercase Git commit
+hash. It returns the canonical manifest in JSON output and optionally creates a file with `--output`.
+An existing output is never overwritten. Repeating a build over byte-identical inputs produces the
+same manifest and SHA-256 bundle ID; changing any inventoried source changes its content hash and
+therefore the bundle ID.
+
+The compiler selects simulation adapters only for simulation and hardware adapters for
+commissioning/production. Production rejects non-qualified components, missing hardware adapters,
+unapproved recipes, and unknown material classifications. It then fails closed at the production
+evidence placeholder because Task 006 does not yet implement evidence verification. A successful
+schema or simulation build is not authorization for physical operation and does not implement a
+functional-safety function.
 
 ## Stable exit codes
 

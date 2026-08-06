@@ -10,7 +10,7 @@ lint:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen ruff format --check .
 	$(UV) run --frozen ruff check .
-	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests tests
+	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_bundle/src src/python/cellforge_bundle/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests tests
 
 test:
 	$(UV) sync --locked --all-packages

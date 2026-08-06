@@ -7,7 +7,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from cellforge_domain import FindingSeverity, SchemaRegistry, SchemaRegistryError, ValidationFinding
+from cellforge_bundle import ManifestWriteError, compile_project, write_manifest
+from cellforge_domain import (
+    ExecutionMode,
+    FindingSeverity,
+    SchemaRegistry,
+    SchemaRegistryError,
+    ValidationFinding,
+)
 from cellforge_domain.example_validation import format_finding
 
 from cellforge_cli.exit_codes import ExitCode
@@ -70,6 +77,22 @@ def build_parser() -> argparse.ArgumentParser:
     inspect = commands.add_parser("inspect", help="summarize a valid project")
     inspect.add_argument("project", type=Path)
 
+    build = commands.add_parser("build", help="compile a deterministic bundle manifest")
+    build.add_argument("project", type=Path)
+    build.add_argument("--target", required=True, help="exact target profile ID")
+    build.add_argument(
+        "--mode",
+        required=True,
+        choices=tuple(mode.value for mode in ExecutionMode),
+        help="execution mode to resolve",
+    )
+    build.add_argument(
+        "--source-revision",
+        required=True,
+        help="exact lowercase 40-character Git commit hash",
+    )
+    build.add_argument("--output", type=Path, help="create manifest JSON without overwriting")
+
     schema = commands.add_parser("schema", help="work with canonical schemas")
     schema_commands = schema.add_subparsers(dest="schema_command", required=True)
     schema_commands.add_parser("list", help="list schema kinds and versions")
@@ -107,7 +130,7 @@ def _dispatch(arguments: argparse.Namespace) -> CommandResult:
 
     try:
         schema_directory: Path | CommandResult = resources.schema_directory
-        if command in {"validate", "inspect"}:
+        if command in {"validate", "inspect", "build"}:
             schema_directory = _verified_project_schemas(
                 command, Path(arguments.project), resources.schema_directory
             )
@@ -128,6 +151,15 @@ def _dispatch(arguments: argparse.Namespace) -> CommandResult:
         return _validate(Path(arguments.project), registry)
     if command == "inspect":
         return _inspect(Path(arguments.project), registry)
+    if command == "build":
+        return _build(
+            Path(arguments.project),
+            schema_directory,
+            target=str(arguments.target),
+            mode=ExecutionMode(str(arguments.mode)),
+            source_revision=str(arguments.source_revision),
+            output=Path(arguments.output) if arguments.output is not None else None,
+        )
     if command == "schema":
         return _schema_list(registry)
     if command == "example":
@@ -226,6 +258,70 @@ def _inspect(project: Path, registry: SchemaRegistry) -> CommandResult:
         exit_code=ExitCode.SUCCESS,
         message=f"CellForge project: {summary.name} ({summary.cell_id})",
         data=summary.as_dict(),
+    )
+
+
+def _build(
+    project: Path,
+    schemas: Path,
+    *,
+    target: str,
+    mode: ExecutionMode,
+    source_revision: str,
+    output: Path | None,
+) -> CommandResult:
+    report = compile_project(
+        project,
+        schemas,
+        target_profile=target,
+        mode=mode,
+        source_revision=source_revision,
+    )
+    data: dict[str, object] = {
+        "execution_mode": mode.value,
+        "path": str(project.resolve()),
+        "stages": [stage.model_dump(mode="json") for stage in report.stages],
+        "target_profile": target,
+    }
+    if not report.valid or report.manifest is None or report.manifest_json is None:
+        exit_code = (
+            ExitCode.INPUT_NOT_FOUND
+            if any(finding.code == "compiler.project-not-found" for finding in report.findings)
+            else ExitCode.VALIDATION_FAILED
+        )
+        return CommandResult(
+            command="build",
+            exit_code=exit_code,
+            message=f"Bundle compilation failed with {len(report.findings)} finding(s).",
+            data=data,
+            findings=report.findings,
+        )
+
+    data["bundle_id"] = report.manifest.bundle_id
+    data["manifest"] = report.manifest.model_dump(mode="json", by_alias=True)
+    if output is not None:
+        try:
+            written = write_manifest(output, report.manifest_json)
+        except ManifestWriteError as error:
+            finding = ValidationFinding(
+                code="cli.manifest-write-failed",
+                severity=FindingSeverity.ERROR,
+                path=f"{error.output_path}#",
+                message=error.message,
+            )
+            return CommandResult(
+                command="build",
+                exit_code=ExitCode.OPERATION_FAILED,
+                message=error.message,
+                data=data,
+                findings=(finding,),
+            )
+        data["output"] = str(written)
+    return CommandResult(
+        command="build",
+        exit_code=ExitCode.SUCCESS,
+        message=f"Compiled immutable manifest {report.manifest.bundle_id}.",
+        data=data,
     )
 
 
@@ -367,6 +463,10 @@ def _render(result: CommandResult, *, json_output: bool) -> None:
                         f"({schema['filename']})",
                         file=stream,
                     )
+    elif result.ok and result.command == "build":
+        print(f"bundle_id: {result.data['bundle_id']}", file=stream)
+        if "output" in result.data:
+            print(f"output: {result.data['output']}", file=stream)
     elif result.ok and result.command == "inspect":
         for key in (
             "path",

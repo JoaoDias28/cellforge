@@ -377,15 +377,41 @@ class DeploymentProfile(DomainModel):
         return values
 
 
+class BundleCapabilityReference(DomainModel):
+    task_id: StableIdentifier
+    contract: StableIdentifier
+    version: SemanticVersion
+    provider_instance: StableIdentifier
+    endpoint: StableIdentifier
+
+
 class BundleComponentReference(DomainModel):
     instance_id: StableIdentifier
     component: ComponentTypeIdentifier
     version: SemanticVersion
+    package_path: str | None = None
+    adapter_package: StableIdentifier | None = None
+    adapter_entrypoint: NonEmptyString | None = None
+    adapter_minimum_version: SemanticVersion | None = None
 
 
 class BundleRecipeReference(DomainModel):
     id: StableIdentifier
     version: RecipeVersion
+    status: RecipeStatus | None = None
+    path: NonEmptyString | None = None
+    sha256: Sha256Digest | None = None
+
+
+class BundleTaskReference(DomainModel):
+    id: StableIdentifier
+    path: NonEmptyString
+    sha256: Sha256Digest
+
+
+class BundleEvidenceSummary(DomainModel):
+    required: bool = False
+    status: StableIdentifier = "not-required"
 
 
 class BundleFile(DomainModel):
@@ -402,7 +428,14 @@ class BundleManifest(DomainModel):
     source_revision: GitRevision
     cell_id: UUID
     target_profile: StableIdentifier
+    execution_mode: ExecutionMode = ExecutionMode.SIMULATION
+    capabilities: tuple[BundleCapabilityReference, ...] = ()
     components: tuple[BundleComponentReference, ...]
     recipes: tuple[BundleRecipeReference, ...]
+    tasks: tuple[BundleTaskReference, ...] = ()
     calibrations: tuple[NonEmptyString, ...] = ()
+    native_packages: tuple[StableIdentifier, ...] = ()
+    containers: tuple[NonEmptyString, ...] = ()
+    external_prerequisites: tuple[NonEmptyString, ...] = ()
+    evidence: BundleEvidenceSummary = Field(default_factory=BundleEvidenceSummary)
     files: tuple[BundleFile, ...]

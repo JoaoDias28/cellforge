@@ -115,3 +115,18 @@ Recipe schema paths, recipe document paths, recipe-to-cell compatibility, and de
 paths are checked relative to `cell.yaml`. A failure line includes its source file and JSON Pointer,
 stable rule/code, and human-readable message. This validation never authorizes physical execution or
 implements a safety function.
+
+## 7. Compiler and bundle-manifest tests
+
+Task 006 compiler tests run headlessly and deterministically. They cover:
+
+- byte-identical repeated manifests and recomputation of the SHA-256 bundle ID;
+- recipe changes altering both the recipe digest and bundle ID;
+- exact component, adapter, runtime-package, recipe, and task freezing;
+- simulated-only components, unapproved recipes, and unavailable evidence blocking production;
+- malformed project input and invalid source revisions returning structured findings;
+- missing behavior-tree references failing instead of silently succeeding;
+- immutable manifest output refusing to overwrite an existing file;
+- the CLI build success and output-failure paths.
+
+These are compiler/domain tests. They are not hardware, ROS, Isaac Sim, or safety-validation evidence.

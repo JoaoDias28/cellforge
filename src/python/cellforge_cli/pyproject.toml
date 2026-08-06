@@ -7,12 +7,13 @@ name = "cellforge-cli"
 version = "0.1.0"
 description = "Headless engineering CLI for CellForge projects"
 requires-python = ">=3.12"
-dependencies = ["cellforge-domain==0.1.0"]
+dependencies = ["cellforge-bundle==0.1.0", "cellforge-domain==0.1.0"]
 
 [project.scripts]
 cellforge = "cellforge_cli.main:main"
 
 [tool.uv.sources]
+cellforge-bundle = { workspace = true }
 cellforge-domain = { workspace = true }
 
 [tool.hatch.build.targets.wheel]

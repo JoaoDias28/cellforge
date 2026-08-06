@@ -23,7 +23,7 @@ members = ["src/python/*"]
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers", "-ra"]
-testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_cli/tests", "tests"]
+testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_bundle/tests", "src/python/cellforge_cli/tests", "tests"]
 
 [tool.ruff]
 line-length = 100

@@ -8,6 +8,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "cellforge-bundle",
     "cellforge-cli",
     "cellforge-domain",
     "cellforge-workspace",
@@ -32,15 +33,30 @@ wheels = [
 ]
 
 [[package]]
-name = "cellforge-cli"
+name = "cellforge-bundle"
 version = "0.1.0"
-source = { editable = "src/python/cellforge_cli" }
+source = { editable = "src/python/cellforge_bundle" }
 dependencies = [
     { name = "cellforge-domain" },
 ]
 
 [package.metadata]
 requires-dist = [{ name = "cellforge-domain", editable = "src/python/cellforge_domain" }]
+
+[[package]]
+name = "cellforge-cli"
+version = "0.1.0"
+source = { editable = "src/python/cellforge_cli" }
+dependencies = [
+    { name = "cellforge-bundle" },
+    { name = "cellforge-domain" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cellforge-bundle", editable = "src/python/cellforge_bundle" },
+    { name = "cellforge-domain", editable = "src/python/cellforge_domain" },
+]
 
 [[package]]
 name = "cellforge-domain"
