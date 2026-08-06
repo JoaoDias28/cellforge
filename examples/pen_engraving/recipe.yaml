@@ -1,0 +1,58 @@
+schema_version: 0.1.0
+recipe:
+  id: pen-aluminium-reference
+  version: 1
+  name: Aluminium pen reference engraving
+  status: TESTED
+compatibility:
+  cell_ids:
+    - 0d3c6b63-a57f-4207-8638-e4cf76efec90
+  required_capabilities:
+    - robot_motion.execute_trajectory
+    - gripper.open
+    - gripper.close
+    - process.select_program
+    - process.execute_cycle
+    - vision.locate_object
+    - vision.inspect_object
+    - fixture.clamp
+    - fixture.release
+    - fixture.verify_seated
+product:
+  sku: PEN-ALU-REF
+  material: anodized_aluminium
+  allowed_colors: [black, blue, red]
+parameters:
+  fixture_id: pen_rotary_fixture_reference
+  laser_program: ALU_REFERENCE_01
+  engraving_frame: pen_mark_frame
+  robot_speed_scale: 0.25
+limits:
+  max_pose_correction_mm: 2.0
+  max_rotation_correction_deg: 4.0
+  max_text_length: 32
+timeouts:
+  locate: 3.0
+  robot_motion: 20.0
+  fixture: 4.0
+  process: 15.0
+  inspection: 5.0
+retry_policy:
+  locate_attempts: 2
+  pick_attempts: 2
+  process_attempts: 1
+inspection:
+  method: contrast_and_text_match
+  minimum_contrast: 0.75
+  text_must_match: true
+traceability:
+  record_fields:
+    - input_text
+    - measured_pose
+    - selected_laser_program
+    - inspection_measurements
+  capture_before_image: true
+  capture_after_image: true
+approval:
+  evidence:
+    - scenario:nominal

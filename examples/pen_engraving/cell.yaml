@@ -1,0 +1,111 @@
+schema_version: 0.1.0
+cell:
+  id: 0d3c6b63-a57f-4207-8638-e4cf76efec90
+  name: Pen Engraving Reference Cell
+  description: Simulation-first reference cell for pick, fixture, engrave, inspect, and unload.
+scene:
+  usd: scene.usda
+  root_prim: /World
+components:
+  - id: robot-001
+    alias: robot
+    component: generic.six_axis_robot.reference
+    version: 0.1.0
+    usd_prim: /World/Robot
+    adapter_mode: target_selected
+    config:
+      controller_namespace: /robot
+  - id: gripper-001
+    alias: pen_gripper
+    component: generic.parallel_gripper.pen
+    version: 0.1.0
+    usd_prim: /World/Robot/Gripper
+    adapter_mode: target_selected
+    config: {}
+  - id: laser-001
+    alias: laser
+    component: generic.laser_marker.reference
+    version: 0.1.0
+    usd_prim: /World/Laser
+    adapter_mode: target_selected
+    config:
+      protocol: simulated
+  - id: camera-001
+    alias: vision_camera
+    component: generic.vision_camera.reference
+    version: 0.1.0
+    usd_prim: /World/Camera
+    adapter_mode: target_selected
+    config:
+      profile: pen_reference
+  - id: fixture-001
+    alias: pen_fixture
+    component: generic.pen_fixture.reference
+    version: 0.1.0
+    usd_prim: /World/Fixture
+    adapter_mode: target_selected
+    config: {}
+  - id: safety-status-001
+    alias: safety_status
+    component: generic.external_safety_status.reference
+    version: 0.1.0
+    usd_prim: /World/SafetyStatus
+    adapter_mode: target_selected
+    config:
+      modeled_only: true
+connections:
+  - id: mechanical-robot-gripper
+    kind: mechanical
+    from:
+      component: robot-001
+      port: tool_flange
+    to:
+      component: gripper-001
+      port: robot_mount
+    config:
+      adapter_plate: none
+  - id: safety-laser-permission
+    kind: safety
+    from:
+      component: safety-status-001
+      port: laser_emission_permitted
+    to:
+      component: laser-001
+      port: laser_emission_permitted
+    config:
+      implementation: external_rated_hardware
+      modeled_only: true
+  - id: safety-robot-permission
+    kind: safety
+    from:
+      component: safety-status-001
+      port: safe_motion_permitted
+    to:
+      component: robot-001
+      port: safe_motion_permitted
+    config:
+      implementation: external_rated_hardware
+      modeled_only: true
+tasks:
+  - id: pen_engraving
+    behavior_tree: behavior_tree.xml
+    required_capabilities:
+      - robot_motion.execute_trajectory
+      - gripper.open
+      - gripper.close
+      - process.select_program
+      - process.execute_cycle
+      - vision.locate_object
+      - vision.inspect_object
+      - fixture.clamp
+      - fixture.release
+      - fixture.verify_seated
+recipes:
+  - schema: ../../schemas/recipe.schema.json
+    path: recipe.yaml
+calibrations: []
+scenarios:
+  - scenarios/nominal.yaml
+  - scenarios/laser_timeout.yaml
+deployment_profiles:
+  - deployment-sim.yaml

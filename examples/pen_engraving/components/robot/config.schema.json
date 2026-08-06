@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"controller_namespace":{"type":"string"}},"additionalProperties":true}

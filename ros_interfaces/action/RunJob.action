@@ -1,0 +1,22 @@
+# Goal
+string job_id
+string cell_id
+string recipe_id
+uint32 recipe_version
+string task_id
+string input_payload_json
+string execution_mode
+string idempotency_key
+---
+# Result
+bool success
+string result_code
+string result_message
+string output_payload_json
+string trace_id
+---
+# Feedback
+string cell_state
+string active_node
+float32 progress
+string message

@@ -1,0 +1,43 @@
+schema_version: 0.1.0
+component:
+  id: generic.external_safety_status.reference
+  version: 0.1.0
+  kind: safety_device
+  name: External safety status model
+  manufacturer: Generic
+  model: SAFETY-STATUS-REF
+  description: Models read-only status from independent rated safety hardware. It does not implement safety functions.
+  license: internal-reference
+assets:
+  visual_usd: assets/safety_visual.usd
+  collision_usd: assets/safety_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /SafetyStatus/root
+ports:
+  mechanical: []
+  software: []
+  industrial_io: []
+  safety:
+    - id: laser_emission_permitted
+      direction: output
+      type: safety.status.laser_emission_permitted
+      required: true
+    - id: safe_motion_permitted
+      direction: output
+      type: safety.status.safe_motion_permitted
+      required: true
+config_schema: config.schema.json
+capabilities: []
+adapters:
+  simulation:
+    package: cellforge_adapter_safety_status_sim
+    entrypoint: SafetyStatusSimulationAdapter
+    minimum_version: 0.1.0
+    fidelity: L0
+  hardware: null
+support:
+  level: simulated
+  simulation_level: L0
+  owner: safety-integration

@@ -1,0 +1,58 @@
+schema_version: 0.1.0
+component:
+  id: generic.six_axis_robot.reference
+  version: 0.1.0
+  kind: robot
+  name: Reference six-axis robot
+  manufacturer: Generic
+  model: REF-6A
+  description: Simulation-first placeholder to be replaced by the selected supported robot.
+  license: internal-reference
+assets:
+  visual_usd: assets/robot_visual.usd
+  collision_usd: assets/robot_collision.usd
+  urdf: robot_description/robot.urdf.xacro
+  srdf: robot_description/robot.srdf
+frames:
+  - id: base
+    role: root
+    usd_prim: /Robot/base
+  - id: tool_flange
+    role: mount
+    usd_prim: /Robot/tool0
+ports:
+  mechanical:
+    - id: tool_flange
+      direction: output
+      type: iso_9409_reference
+      frame: tool_flange
+      required: false
+  software:
+    - id: trajectory
+      direction: input
+      type: robot_motion.execute_trajectory.v1
+      required: true
+  industrial_io: []
+  safety:
+    - id: safe_motion_permitted
+      direction: input
+      type: safety.status.safe_motion_permitted
+      required: true
+config_schema: config.schema.json
+capabilities:
+  - contract: robot_motion.execute_trajectory
+    version: 1.0.0
+    endpoint: execute_trajectory
+    modes: [simulation, commissioning, production]
+adapters:
+  simulation:
+    package: cellforge_adapter_robot_sim
+    entrypoint: RobotSimulationAdapter
+    minimum_version: 0.1.0
+    fidelity: L2
+  hardware: null
+fault_catalog: docs/faults.md
+support:
+  level: simulated
+  simulation_level: L2
+  owner: automation-platform

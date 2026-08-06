@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/component.schema.json",
+  "title": "CellForge component type",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "component",
+    "assets",
+    "frames",
+    "ports",
+    "capabilities",
+    "adapters",
+    "support"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "kind",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]+$"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$"
+        },
+        "kind": {
+          "enum": [
+            "robot",
+            "end_effector",
+            "sensor",
+            "process_machine",
+            "fixture",
+            "conveyor",
+            "external_axis",
+            "io_module",
+            "product_carrier",
+            "passive_geometry",
+            "safety_device"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manufacturer": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "license": {
+          "type": "string"
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visual_usd",
+        "collision_usd"
+      ],
+      "properties": {
+        "visual_usd": {
+          "type": "string"
+        },
+        "collision_usd": {
+          "type": "string"
+        },
+        "urdf": {
+          "type": "string"
+        },
+        "srdf": {
+          "type": "string"
+        },
+        "thumbnail": {
+          "type": "string"
+        }
+      }
+    },
+    "variants": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "uniqueItems": true
+      }
+    },
+    "frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "role"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "root",
+              "mount",
+              "tool",
+              "sensor",
+              "process",
+              "calibration",
+              "product"
+            ]
+          },
+          "usd_prim": {
+            "type": "string"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mechanical",
+        "software",
+        "industrial_io",
+        "safety"
+      ],
+      "properties": {
+        "mechanical": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "software": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "industrial_io": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        },
+        "safety": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/port"
+          }
+        }
+      }
+    },
+    "config_schema": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "contract",
+          "version",
+          "endpoint"
+        ],
+        "properties": {
+          "contract": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "endpoint": {
+            "type": "string"
+          },
+          "modes": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "simulation",
+                "commissioning",
+                "production"
+              ]
+            },
+            "uniqueItems": true
+          },
+          "limits": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "adapters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "simulation",
+        "hardware"
+      ],
+      "properties": {
+        "simulation": {
+          "$ref": "#/$defs/adapter"
+        },
+        "hardware": {
+          "$ref": "#/$defs/adapter"
+        }
+      }
+    },
+    "fault_catalog": {
+      "type": "string"
+    },
+    "support": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "simulation_level"
+      ],
+      "properties": {
+        "level": {
+          "enum": [
+            "metadata_only",
+            "simulated",
+            "bench_tested",
+            "production_qualified",
+            "deprecated"
+          ]
+        },
+        "simulation_level": {
+          "enum": [
+            "L0",
+            "L1",
+            "L2",
+            "L3"
+          ]
+        },
+        "owner": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "direction",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "direction": {
+          "enum": [
+            "input",
+            "output",
+            "bidirectional"
+          ]
+        },
+        "type": {
+          "type": "string"
+        },
+        "frame": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "metadata": {
+          "type": "object"
+        }
+      }
+    },
+    "adapter": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "package",
+        "entrypoint"
+      ],
+      "properties": {
+        "package": {
+          "type": "string"
+        },
+        "entrypoint": {
+          "type": "string"
+        },
+        "minimum_version": {
+          "type": "string"
+        },
+        "fidelity": {
+          "enum": [
+            "L0",
+            "L1",
+            "L2",
+            "L3"
+          ]
+        }
+      }
+    }
+  }
+}

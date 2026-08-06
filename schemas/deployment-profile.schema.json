@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/deployment-profile.schema.json",
+  "title": "CellForge deployment target profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile",
+    "platform",
+    "runtime",
+    "network",
+    "modes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "required": [
+        "arch",
+        "os",
+        "ros_distribution"
+      ],
+      "properties": {
+        "arch": {
+          "enum": [
+            "amd64",
+            "arm64"
+          ]
+        },
+        "os": {
+          "type": "string"
+        },
+        "ros_distribution": {
+          "type": "string"
+        },
+        "gpu": {
+          "type": "object"
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "native_packages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "containers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "network": {
+      "type": "object"
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "simulation",
+          "commissioning",
+          "production"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "external_prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

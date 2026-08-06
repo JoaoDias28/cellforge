@@ -1,0 +1,53 @@
+schema_version: 0.1.0
+component:
+  id: generic.vision_camera.reference
+  version: 0.1.0
+  kind: sensor
+  name: Reference 2D vision camera
+  manufacturer: Generic
+  model: CAMERA-REF
+  license: internal-reference
+assets:
+  visual_usd: assets/camera_visual.usd
+  collision_usd: assets/camera_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /Camera/root
+  - id: optical
+    role: sensor
+    usd_prim: /Camera/optical
+ports:
+  mechanical: []
+  software:
+    - id: locate
+      direction: input
+      type: vision.locate_object.v1
+      required: true
+    - id: inspect
+      direction: input
+      type: vision.inspect_object.v1
+      required: true
+  industrial_io: []
+  safety: []
+config_schema: config.schema.json
+capabilities:
+  - contract: vision.locate_object
+    version: 1.0.0
+    endpoint: locate_object
+    modes: [simulation, commissioning, production]
+  - contract: vision.inspect_object
+    version: 1.0.0
+    endpoint: inspect_object
+    modes: [simulation, commissioning, production]
+adapters:
+  simulation:
+    package: cellforge_adapter_vision_sim
+    entrypoint: VisionSimulationAdapter
+    minimum_version: 0.1.0
+    fidelity: L2
+  hardware: null
+support:
+  level: simulated
+  simulation_level: L2
+  owner: automation-platform

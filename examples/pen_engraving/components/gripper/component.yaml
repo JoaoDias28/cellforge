@@ -1,0 +1,61 @@
+schema_version: 0.1.0
+component:
+  id: generic.parallel_gripper.pen
+  version: 0.1.0
+  kind: end_effector
+  name: Pen parallel gripper
+  manufacturer: Internal
+  model: PEN-GRIP-V1
+  license: internal
+assets:
+  visual_usd: assets/gripper_visual.usd
+  collision_usd: assets/gripper_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /Gripper/root
+  - id: robot_mount
+    role: mount
+    usd_prim: /Gripper/mount
+  - id: tcp
+    role: tool
+    usd_prim: /Gripper/tcp
+ports:
+  mechanical:
+    - id: robot_mount
+      direction: input
+      type: iso_9409_reference
+      frame: robot_mount
+      required: true
+  software:
+    - id: open
+      direction: input
+      type: gripper.open.v1
+      required: true
+    - id: close
+      direction: input
+      type: gripper.close.v1
+      required: true
+  industrial_io: []
+  safety: []
+config_schema: config.schema.json
+capabilities:
+  - contract: gripper.open
+    version: 1.0.0
+    endpoint: open
+    modes: [simulation, commissioning, production]
+  - contract: gripper.close
+    version: 1.0.0
+    endpoint: close
+    modes: [simulation, commissioning, production]
+adapters:
+  simulation:
+    package: cellforge_adapter_gripper_sim
+    entrypoint: GripperSimulationAdapter
+    minimum_version: 0.1.0
+    fidelity: L2
+  hardware: null
+support:
+  level: simulated
+  simulation_level: L2
+  owner: automation-platform

@@ -1,0 +1,17 @@
+# Goal
+string command_id
+string skill_id
+string input_payload_json
+string execution_mode
+builtin_interfaces/Duration timeout
+---
+# Result
+bool success
+string result_code
+string result_message
+string output_payload_json
+---
+# Feedback
+float32 progress
+string phase
+string message

@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/recipe.schema.json",
+  "title": "CellForge recipe",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "recipe",
+    "compatibility",
+    "parameters",
+    "timeouts",
+    "traceability"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "recipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "name",
+        "status"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "DRAFT",
+            "VALIDATED",
+            "TESTED",
+            "APPROVED",
+            "RETIRED"
+          ]
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cell_ids",
+        "required_capabilities"
+      ],
+      "properties": {
+        "cell_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "component_constraints": {
+          "type": "object"
+        }
+      }
+    },
+    "product": {
+      "type": "object"
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "limits": {
+      "type": "object"
+    },
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      }
+    },
+    "retry_policy": {
+      "type": "object"
+    },
+    "inspection": {
+      "type": "object"
+    },
+    "traceability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "record_fields"
+      ],
+      "properties": {
+        "record_fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "capture_before_image": {
+          "type": "boolean"
+        },
+        "capture_after_image": {
+          "type": "boolean"
+        }
+      }
+    },
+    "approval": {
+      "type": "object"
+    }
+  }
+}

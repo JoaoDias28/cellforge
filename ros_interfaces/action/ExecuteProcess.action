@@ -1,0 +1,19 @@
+# Goal
+string command_id
+string program_id
+string variable_data_json
+string recipe_id
+uint32 recipe_version
+builtin_interfaces/Duration timeout
+---
+# Result
+bool success
+string result_code
+string result_message
+string process_data_json
+bool outcome_certain
+---
+# Feedback
+string phase
+float32 progress
+string message

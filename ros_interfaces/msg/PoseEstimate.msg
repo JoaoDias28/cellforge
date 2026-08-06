@@ -1,0 +1,6 @@
+geometry_msgs/PoseStamped pose
+float32 confidence
+string object_id
+string source_frame
+string covariance_json
+string metadata_json

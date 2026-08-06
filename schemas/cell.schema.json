@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/cell.schema.json",
+  "title": "CellForge cell project",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "cell",
+    "scene",
+    "components",
+    "connections",
+    "tasks",
+    "recipes",
+    "deployment_profiles"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usd"
+      ],
+      "properties": {
+        "usd": {
+          "type": "string"
+        },
+        "root_prim": {
+          "type": "string",
+          "default": "/World"
+        }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/component_instance"
+      },
+      "minItems": 1
+    },
+    "connections": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connection"
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "behavior_tree"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "behavior_tree": {
+            "type": "string"
+          },
+          "required_capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "recipes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "schema",
+          "path"
+        ],
+        "properties": {
+          "schema": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "calibrations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deployment_profiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "component_instance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "alias",
+        "component",
+        "version",
+        "usd_prim",
+        "adapter_mode",
+        "config"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "alias": {
+          "type": "string"
+        },
+        "component": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "usd_prim": {
+          "type": "string"
+        },
+        "variants": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "adapter_mode": {
+          "enum": [
+            "simulation",
+            "hardware",
+            "target_selected"
+          ]
+        },
+        "config": {
+          "type": "object"
+        },
+        "calibration_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "connection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "from",
+        "to"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "mechanical",
+            "software",
+            "industrial_io",
+            "safety"
+          ]
+        },
+        "from": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "to": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "config": {
+          "type": "object"
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component",
+        "port"
+      ],
+      "properties": {
+        "component": {
+          "type": "string"
+        },
+        "port": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

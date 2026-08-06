@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/scenario.schema.json",
+  "title": "CellForge simulation scenario",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "scenario",
+    "job",
+    "initial_state",
+    "assertions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1.0"
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "seed"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "job": {
+      "type": "object"
+    },
+    "initial_state": {
+      "type": "object"
+    },
+    "randomization": {
+      "type": "object"
+    },
+    "faults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "at",
+          "target",
+          "fault"
+        ],
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "fault": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "assertions": {
+      "type": "object",
+      "required": [
+        "final_status"
+      ],
+      "properties": {
+        "final_status": {
+          "type": "string"
+        },
+        "required_events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "max_cycle_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      }
+    }
+  }
+}

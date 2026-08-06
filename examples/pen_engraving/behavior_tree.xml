@@ -1,0 +1,22 @@
+<root BTCPP_format="4" main_tree_to_execute="PenEngraving">
+  <BehaviorTree ID="PenEngraving">
+    <Sequence name="run_pen_engraving">
+      <ValidateFrozenJob/>
+      <CheckSafetyHealthy/>
+      <CheckRequiredDevicesReady/>
+      <LocateProduct profile="{vision_profile}" output_pose="{product_pose}"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <PickProduct pose="{product_pose}"/>
+      </RetryUntilSuccessful>
+      <LoadFixture/>
+      <VerifyFixture/>
+      <MoveRobotToProcessSafePose/>
+      <SelectProcessProgram program="{laser_program}"/>
+      <ExecuteProcess variable_data="{engraving_data}"/>
+      <InspectProduct expected="{engraving_data}" measurements="{inspection}"/>
+      <UnloadProduct/>
+      <RouteByInspection inspection="{inspection}"/>
+      <RecordProductionResult/>
+    </Sequence>
+  </BehaviorTree>
+</root>

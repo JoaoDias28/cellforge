@@ -1,0 +1,6 @@
+string cell_id
+string recipe_json
+string execution_mode
+---
+bool valid
+string validation_report_json

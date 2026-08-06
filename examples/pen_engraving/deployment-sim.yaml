@@ -1,0 +1,28 @@
+schema_version: 0.1.0
+profile:
+  id: pen-sim-amd64
+  name: Pen simulation workstation
+platform:
+  arch: amd64
+  os: ubuntu-24.04
+  ros_distribution: jazzy
+  gpu:
+    required: true
+    vendor: nvidia
+runtime:
+  native_packages:
+    - cellforge_supervisor
+    - cellforge_job_gateway
+    - cellforge_trace
+    - cellforge_adapter_robot_sim
+    - cellforge_adapter_gripper_sim
+    - cellforge_adapter_laser_sim
+    - cellforge_adapter_vision_sim
+    - cellforge_adapter_fixture_sim
+    - cellforge_adapter_safety_status_sim
+  containers: []
+network:
+  ros_domain_id: 42
+modes: [simulation]
+external_prerequisites:
+  - Isaac Sim 6.x compatible installation

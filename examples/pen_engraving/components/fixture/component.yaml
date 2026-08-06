@@ -1,0 +1,65 @@
+schema_version: 0.1.0
+component:
+  id: generic.pen_fixture.reference
+  version: 0.1.0
+  kind: fixture
+  name: Reference pen fixture
+  manufacturer: Internal
+  model: PEN-FIXTURE-REF
+  license: internal
+assets:
+  visual_usd: assets/fixture_visual.usd
+  collision_usd: assets/fixture_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /Fixture/root
+  - id: product
+    role: product
+    usd_prim: /Fixture/product
+ports:
+  mechanical: []
+  software:
+    - id: clamp
+      direction: input
+      type: fixture.clamp.v1
+      required: true
+    - id: release
+      direction: input
+      type: fixture.release.v1
+      required: true
+    - id: verify_seated
+      direction: input
+      type: fixture.verify_seated.v1
+      required: true
+  industrial_io:
+    - id: seated
+      direction: output
+      type: digital.boolean
+      required: true
+  safety: []
+config_schema: config.schema.json
+capabilities:
+  - contract: fixture.clamp
+    version: 1.0.0
+    endpoint: clamp
+    modes: [simulation, commissioning, production]
+  - contract: fixture.release
+    version: 1.0.0
+    endpoint: release
+    modes: [simulation, commissioning, production]
+  - contract: fixture.verify_seated
+    version: 1.0.0
+    endpoint: verify_seated
+    modes: [simulation, commissioning, production]
+adapters:
+  simulation:
+    package: cellforge_adapter_fixture_sim
+    entrypoint: FixtureSimulationAdapter
+    minimum_version: 0.1.0
+    fidelity: L2
+  hardware: null
+support:
+  level: simulated
+  simulation_level: L2
+  owner: automation-platform

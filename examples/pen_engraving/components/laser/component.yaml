@@ -1,0 +1,74 @@
+schema_version: 0.1.0
+component:
+  id: generic.laser_marker.reference
+  version: 0.1.0
+  kind: process_machine
+  name: Reference laser marker
+  manufacturer: Generic
+  model: LASER-REF
+  license: internal-reference
+assets:
+  visual_usd: assets/laser_visual.usd
+  collision_usd: assets/laser_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /Laser/root
+  - id: workpiece
+    role: process
+    usd_prim: /Laser/workpiece
+ports:
+  mechanical: []
+  software:
+    - id: select_program
+      direction: input
+      type: process.select_program.v1
+      required: true
+    - id: execute_cycle
+      direction: input
+      type: process.execute_cycle.v1
+      required: true
+  industrial_io:
+    - id: ready
+      direction: output
+      type: digital.boolean
+      required: true
+    - id: busy
+      direction: output
+      type: digital.boolean
+      required: true
+    - id: cycle_complete
+      direction: output
+      type: digital.boolean
+      required: true
+    - id: cycle_start
+      direction: input
+      type: digital.boolean
+      required: true
+  safety:
+    - id: laser_emission_permitted
+      direction: input
+      type: safety.status.laser_emission_permitted
+      required: true
+config_schema: config.schema.json
+capabilities:
+  - contract: process.select_program
+    version: 1.0.0
+    endpoint: select_program
+    modes: [simulation, commissioning, production]
+  - contract: process.execute_cycle
+    version: 1.0.0
+    endpoint: execute_cycle
+    modes: [simulation, commissioning, production]
+adapters:
+  simulation:
+    package: cellforge_adapter_laser_sim
+    entrypoint: LaserSimulationAdapter
+    minimum_version: 0.1.0
+    fidelity: L2
+  hardware: null
+fault_catalog: docs/faults.md
+support:
+  level: simulated
+  simulation_level: L2
+  owner: automation-platform
