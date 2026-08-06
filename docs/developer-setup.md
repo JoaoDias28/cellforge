@@ -18,11 +18,20 @@ make test
 
 The committed `uv.lock` is the reproducible dependency source for CI and development. Do not use
 `uv sync --upgrade` during ordinary setup; dependency upgrades should be explicit, reviewed lock
-file changes. The `cellforge_domain` package currently has no runtime dependencies.
+file changes. Runtime dependencies and their removal paths are documented in each Python package
+README.
 
-Task 001 does not implement schema/example validation. `make validate-examples` deliberately exits
-with status 2 and explains that Task 003 must wire the validator. This failure must not be waived or
-reported as successful validation.
+`make validate-examples` runs the pure Task 003 schema, domain, and cross-file validator. The Task
+004 console entry point is available after synchronization:
+
+```bash
+cellforge --help
+cellforge example copy pen-engraving /tmp/pen-example
+cellforge validate /tmp/pen-example
+```
+
+See `docs/cli.md` for commands, JSON output, and stable exit codes. These engineering commands do
+not require ROS or Isaac Sim and do not authorize physical execution.
 
 ## ROS 2 workspace
 
