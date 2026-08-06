@@ -41,5 +41,28 @@ deployment profiles relative to the referencing `cell.yaml`.
 Use `to_canonical_json(model)` whenever serialized bytes participate in comparison or hashing. It
 emits schema aliases and recursively sorts object keys.
 
+Load a local component registry and resolve a validated cell with:
+
+```python
+registry = FilesystemComponentRegistry.from_directory(
+    component_root,
+    schema_registry=schema_registry,
+)
+report = resolve_cell(cell, registry, ExecutionMode.SIMULATION)
+```
+
+The registry accepts distinct semantic versions and rejects duplicate component ID/version keys.
+Resolution requires exact component versions, links declared cell connection endpoints, validates
+port direction and type compatibility, resolves each task capability to one exact versioned
+provider, and checks support level plus adapter availability for the requested execution mode.
+`ResolutionReport` is sorted for deterministic canonical serialization and includes a component/task
+dependency graph and stable findings. Important resolver codes include
+`resolver.component-missing`, `resolver.component-version-conflict`, `resolver.port-missing`,
+`resolver.mechanical-port-incompatible`, `resolver.capability-missing`, and
+`resolver.support-level-unsupported`.
+
+Modeled safety connections are resolved only as descriptive dependencies. Neither registry loading
+nor resolution approves recipes, authorizes physical operation, or implements a safety function.
+
 No dependency in this package may import or require a production ROS graph, simulation runtime,
 web service, external network connection, or vendor SDK.
