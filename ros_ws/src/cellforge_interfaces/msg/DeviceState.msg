@@ -1,0 +1,10 @@
+std_msgs/Header header
+string component_instance_id
+string state
+bool ready
+bool busy
+bool faulted
+string active_command_id
+string fault_code
+string fault_message
+string details_json

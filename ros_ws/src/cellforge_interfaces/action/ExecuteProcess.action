@@ -1,23 +1,19 @@
 # Goal
-string job_id
-string cell_id
+string command_id
+string program_id
+string variable_data_json
 string recipe_id
 uint32 recipe_version
-string task_id
-string input_payload_json
-string execution_mode
-string idempotency_key
 builtin_interfaces/Duration timeout
 ---
 # Result
 bool success
 string result_code
 string result_message
-string output_payload_json
-string trace_id
+string process_data_json
+bool outcome_certain
 ---
 # Feedback
-string cell_state
-string active_node
+string phase
 float32 progress
 string message

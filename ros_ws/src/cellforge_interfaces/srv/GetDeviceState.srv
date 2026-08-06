@@ -1,0 +1,5 @@
+string component_instance_id
+---
+bool success
+string result_code
+cellforge_interfaces/DeviceState state

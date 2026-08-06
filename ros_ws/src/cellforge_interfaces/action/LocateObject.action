@@ -1,0 +1,16 @@
+# Goal
+string command_id
+string object_type
+string profile_id
+string region_of_interest_json
+builtin_interfaces/Duration timeout
+---
+# Result
+bool success
+string result_code
+string result_message
+cellforge_interfaces/PoseEstimate[] estimates
+---
+# Feedback
+string phase
+float32 progress

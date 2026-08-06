@@ -1,0 +1,17 @@
+# Goal
+string command_id
+string inspection_profile
+string expected_json
+builtin_interfaces/Duration timeout
+---
+# Result
+bool success
+string result_code
+string result_message
+bool accepted
+string measurements_json
+string evidence_uri
+---
+# Feedback
+string phase
+float32 progress

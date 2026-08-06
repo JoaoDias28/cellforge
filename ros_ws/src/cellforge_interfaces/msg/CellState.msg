@@ -1,0 +1,9 @@
+std_msgs/Header header
+string cell_id
+string state
+bool safety_healthy
+bool all_required_devices_ready
+string active_job_id
+string active_trace_id
+string bundle_id
+cellforge_interfaces/DeviceState[] devices
