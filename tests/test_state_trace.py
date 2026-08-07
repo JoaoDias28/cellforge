@@ -812,44 +812,28 @@ class TestSqliteConcurrency:
         import sqlite3
 
         conn = sqlite3.connect(str(db))
-        conn.execute(
-            "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
-            "command_id, sequence, event_type, severity, payload_json, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                "11111111-1111-1111-1111-111111111111",
-                "22222222-2222-2222-2222-222222222222",
-                "cell-ref",
-                "robot-001",
-                "33333333-3333-3333-3333-333333333333",
-                1,
-                "device.state.changed",
-                "INFO",
-                "{}",
-                datetime.now(UTC).isoformat(),
-            ),
-        )
-        conn.commit()
-        with pytest.raises(sqlite3.IntegrityError):
-            conn.execute(
-                "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
-                "command_id, sequence, event_type, severity, payload_json, recorded_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    "11111111-1111-1111-1111-111111111111",
-                    "22222222-2222-2222-2222-222222222222",
-                    "cell-ref",
-                    "robot-001",
-                    "33333333-3333-3333-3333-333333333333",
-                    1,
-                    "device.state.changed",
-                    "INFO",
-                    "{}",
-                    datetime.now(UTC).isoformat(),
-                ),
-            )
-            conn.commit()
-        conn.close()
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                conn.execute(
+                    "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
+                    "command_id, sequence, event_type, severity, payload_json, recorded_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        "11111111-1111-1111-1111-111111111111",
+                        "22222222-2222-2222-2222-222222222222",
+                        "cell-ref",
+                        "robot-001",
+                        "33333333-3333-3333-3333-333333333333",
+                        1,
+                        "device.state.changed",
+                        "INFO",
+                        "{}",
+                        datetime.now(UTC).isoformat(),
+                    ),
+                )
+                conn.commit()
+        finally:
+            conn.close()
 
     def test_chronological_query_after_concurrent_writes(self, tmp_path: Path) -> None:
         db = tmp_path / "chrono.db"
