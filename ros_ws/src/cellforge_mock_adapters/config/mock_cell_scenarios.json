@@ -1,0 +1,123 @@
+{
+  "schema_version": "0.1.0",
+  "nodes": {
+    "mock_robot": {
+      "component_instance_id": "robot-001",
+      "device_kind": "robot",
+      "restart": "ready",
+      "operations": {
+        "robot_motion.action.execute_trajectory": {
+          "duration_seconds": 0.25,
+          "fault": null
+        }
+      }
+    },
+    "mock_gripper": {
+      "component_instance_id": "gripper-001",
+      "device_kind": "gripper",
+      "restart": "ready",
+      "operations": {
+        "gripper.action.open": {
+          "duration_seconds": 0.1,
+          "fault": null
+        },
+        "gripper.action.close": {
+          "duration_seconds": 0.1,
+          "fault": null
+        }
+      },
+      "device": {
+        "jaw_initial": "open"
+      }
+    },
+    "mock_fixture": {
+      "component_instance_id": "fixture-001",
+      "device_kind": "fixture",
+      "restart": "ready",
+      "operations": {
+        "fixture.action.clamp": {
+          "duration_seconds": 0.1,
+          "fault": null
+        },
+        "fixture.action.release": {
+          "duration_seconds": 0.1,
+          "fault": null
+        },
+        "fixture.action.verify_seated": {
+          "duration_seconds": 0.05,
+          "fault": null
+        }
+      },
+      "device": {
+        "seated": true,
+        "clamped_initial": false
+      }
+    },
+    "mock_vision_locator": {
+      "component_instance_id": "camera-001",
+      "device_kind": "vision_locator",
+      "restart": "ready",
+      "operations": {
+        "vision.action.locate_object": {
+          "duration_seconds": 0.1,
+          "fault": null
+        }
+      },
+      "device": {
+        "object_present": true,
+        "within_correction_limit": true,
+        "object_id": "pen-001",
+        "confidence": 0.99,
+        "pose": {
+          "x": 0.4,
+          "y": 0.0,
+          "z": 0.15,
+          "qx": 0.0,
+          "qy": 0.0,
+          "qz": 0.0,
+          "qw": 1.0
+        }
+      }
+    },
+    "mock_inspection": {
+      "component_instance_id": "camera-001",
+      "device_kind": "inspection",
+      "restart": "ready",
+      "operations": {
+        "vision.action.inspect_object": {
+          "duration_seconds": 0.1,
+          "fault": null
+        }
+      },
+      "device": {
+        "accepted": true,
+        "measurements": {
+          "contrast": 0.9,
+          "text_match": true
+        }
+      }
+    },
+    "mock_laser": {
+      "component_instance_id": "laser-001",
+      "device_kind": "process_machine",
+      "restart": "ready",
+      "operations": {
+        "process.action.select_program": {
+          "duration_seconds": 0.05,
+          "fault": null
+        },
+        "process.action.execute_cycle": {
+          "duration_seconds": 0.5,
+          "fault": null
+        }
+      },
+      "device": {
+        "known_programs": [
+          "ALU_REFERENCE_01"
+        ],
+        "interlock_permitted": true,
+        "verification_passed": true
+      }
+    }
+  }
+}

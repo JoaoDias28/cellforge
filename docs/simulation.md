@@ -16,6 +16,24 @@ Isaac Sim adapters       contract mocks
 
 Isaac Sim uses the ROS 2 bridge. Simulation control should be exposed to the test runner through ROS 2 simulation interfaces or a small studio service, allowing deterministic reset, pause, step, and scenario setup.
 
+### 2.1 L0 contract mocks
+
+The `cellforge_mock_adapters` package provides L0 (configurable timing, deterministic outcomes,
+fault injection) mocks for the six reference device families: robot motion, gripper, fixture,
+vision locator, process machine, and inspection. Each mock publishes canonical `DeviceState`,
+serves the canonical ROS actions, and runs the generic adapter contract suite. Timing, outcomes,
+and faults are selected purely by scenario configuration; no source changes are needed to inject
+a fault.
+
+Launch the complete mock cell on a Jazzy host:
+
+```bash
+ros2 launch cellforge_mock_adapters mock_cell.launch.py
+```
+
+L0 mocks have no geometry, physics, sensor data, or process-quality evidence. They implement
+no safety-rated function and consume safety status as read-only configuration.
+
 ## 3. Scenario runner
 
 The headless runner shall:

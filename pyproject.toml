@@ -36,3 +36,15 @@ select = ["E", "F", "I", "UP"]
 python_version = "3.12"
 strict = true
 warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = [
+    "rclpy", "rclpy.*",
+    "launch", "launch.*",
+    "launch_ros", "launch_ros.*",
+    "ament_index_python", "ament_index_python.*",
+    "builtin_interfaces", "builtin_interfaces.*",
+    "geometry_msgs", "geometry_msgs.*",
+    "std_msgs", "std_msgs.*",
+]
+ignore_missing_imports = true
