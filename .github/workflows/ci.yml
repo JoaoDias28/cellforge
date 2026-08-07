@@ -39,8 +39,17 @@ jobs:
           required-ros-distributions: jazzy
       - name: Resolve ROS package dependencies
         run: |
-          rosdep update
-          rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes
+          set +e
+          echo "=== rosdep update ==="
+          rosdep update 2>&1
+          UPDATE_RC=$?
+          echo "rosdep update exit code: $UPDATE_RC"
+          echo "=== rosdep install ==="
+          rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes 2>&1
+          INSTALL_RC=$?
+          echo "rosdep install exit code: $INSTALL_RC"
+          if [ $UPDATE_RC -ne 0 ]; then exit $UPDATE_RC; fi
+          if [ $INSTALL_RC -ne 0 ]; then exit $INSTALL_RC; fi
       - name: Build ROS workspace
         run: make ros-build
       - name: Test ROS workspace
