@@ -39,9 +39,8 @@ jobs:
           required-ros-distributions: jazzy
       - name: Resolve ROS package dependencies
         run: |
-          mkdir -p "$HOME/.ros/rosdep/sources.cache" && touch "$HOME/.ros/rosdep/sources.cache/index"
-          rosdep update --rosdistro jazzy 2>&1 || echo "rosdep update failed (continuing with cached/distro data)"
-          rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes
+          rosdep update
+          rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy -y
       - name: Build ROS workspace
         run: make ros-build
       - name: Test ROS workspace
