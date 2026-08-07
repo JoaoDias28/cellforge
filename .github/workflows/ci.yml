@@ -40,7 +40,7 @@ jobs:
       - name: Resolve ROS package dependencies
         run: |
           rosdep update
-          rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes
+          rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy -r --yes
       - name: Build ROS workspace
         run: make ros-build
       - name: Test ROS workspace
