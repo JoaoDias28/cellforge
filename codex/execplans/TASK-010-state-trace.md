@@ -131,9 +131,9 @@ Device considered stale if `(now - heartbeat.stamp) > timeout`. State aggregator
 - Rollback: delete the package directory and revert Makefile change
 
 ## Progress
-- [ ] 2026-08-07 — package scaffolding and trace store implementation
-- [ ] 2026-08-07 — state aggregator node
-- [ ] 2026-08-07 — tests, lint, commit
+- [x] 2026-08-07 — package scaffolding and trace store implementation
+- [x] 2026-08-07 — state aggregator node
+- [x] 2026-08-07 — tests, lint, commit
 
 ## Decisions
 - 2026-08-07 — Combine state aggregator and trace recorder in one package (`cellforge_state_trace`) since they share the ROS package dependency and are both core runtime services
@@ -141,3 +141,19 @@ Device considered stale if `(now - heartbeat.stamp) > timeout`. State aggregator
 - 2026-08-07 — Sequence numbers are per-event monotonic, persisted in SQLite, resumed on restart via `SELECT max(sequence)`
 - 2026-08-07 — Stale device detection timeout defaults to 3.0s (3x the 1Hz heartbeat rate)
 - 2026-08-07 — Pure Python tests (no ROS dependency) follow the SDK test pattern
+- 2026-08-07 — Separated pure state logic (`state_logic.py`) from ROS node (`aggregator.py`) so tests can run without rclpy
+
+## Results
+- New package `cellforge_state_trace` in `ros_ws/src/` with three modules:
+  - `trace_store.py`: `TraceEventStore` ABC, `SqliteTraceEventStore`, query helpers
+  - `state_logic.py`: `DeviceStateEntry`, `compute_top_level_cell_state` (pure Python, testable without ROS)
+  - `aggregator.py`: `StateAggregatorNode` ROS 2 node with stale-device detection and `CellState` publication
+- 40 tests in `tests/test_state_trace.py`:
+  - 30 pass (contract tests, SQLite tests, ordering, readiness, stale detection)
+  - 10 skipped due to Windows temp directory permission (pre-existing environmental issue)
+- Accepted deliverables: state aggregator node, stale-device detection, event sequence numbering, SQLite event store, trace query utility
+- Acceptance criteria: cell readiness reflects device+safety state, events survive restart, commands correlated to job/trace IDs
+- ruff check: all clear; mypy: 0 new errors; validate-examples: "Validated 5 canonical schemas"
+- ros-build/ros-test: unavailable (no ROS Jazzy on Windows)
+- Limitations: no rosbag2 integration, no Prometheus metrics, no supervisor integration (Task 011)
+- Follow-up: Task 011 supervisor will consume aggregator output and trace events
