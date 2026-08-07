@@ -33,13 +33,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      - name: Configure ROS 2 repositories and tools
+      - name: Configure ROS 2 repositories
         uses: ros-tooling/setup-ros@v0.7
-      - name: Install ROS 2 Jazzy base and dependencies
+        with:
+          required-ros-distributions: jazzy
+      - name: Resolve ROS package dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes ros-jazzy-ros-base python3-colcon-common-extensions
-          if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then sudo rosdep init; fi
           rosdep update
           rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes
       - name: Build ROS workspace
