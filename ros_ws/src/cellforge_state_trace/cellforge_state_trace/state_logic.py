@@ -18,6 +18,7 @@ CELL_STATE_MAINTENANCE = "MAINTENANCE"
 CELL_STATE_STOPPING = "STOPPING"
 
 _DEFAULT_HEARTBEAT_TIMEOUT_S = 3.0
+_DEFAULT_SAFETY_TIMEOUT_S = 3.0
 
 
 @dataclass
@@ -75,18 +76,52 @@ class DeviceStateEntry:
         self.details_json = message.details_json
 
 
+@dataclass
+class SafetyStatusEntry:
+    """Read-only safety status with freshness tracking.
+
+    Safety enforcement belongs to rated hardware. This is a fail-closed software
+    readiness indication that refuses normal operation when safety status is absent
+    or stale. It never implements, overrides, or bypasses any protective function.
+    """
+
+    healthy: bool = False
+    last_received_at: datetime | None = None
+    timeout_s: float = _DEFAULT_SAFETY_TIMEOUT_S
+
+    @property
+    def stale_or_missing(self) -> bool:
+        """Return True when safety data has never arrived or exceeded the timeout."""
+        if self.last_received_at is None:
+            return True
+        return datetime.now(UTC) - self.last_received_at > timedelta(seconds=self.timeout_s)
+
+    @property
+    def effective_healthy(self) -> bool:
+        """Return True only when safety is confirmed healthy and fresh."""
+        return self.healthy and not self.stale_or_missing
+
+    def update(self, healthy: bool, *, timestamp: datetime | None = None) -> None:
+        self.healthy = healthy
+        self.last_received_at = timestamp if timestamp is not None else datetime.now(UTC)
+
+
 def compute_top_level_cell_state(
     *,
     all_required_ready: bool,
     safety_healthy: bool,
     any_faulted: bool,
     any_busy: bool,
-    any_stale: bool,
+    any_required_stale: bool,
 ) -> str:
-    """Return the canonical top-level cell state from device and safety inputs."""
+    """Return the canonical top-level cell state from device and safety inputs.
+
+    ``any_required_stale`` considers only the configured required-device set.
+    Optional/non-required stale devices do not prevent readiness.
+    """
     if any_faulted:
         return CELL_STATE_RECOVERABLE_FAULT
-    if any_stale:
+    if any_required_stale:
         return CELL_STATE_STARTING
     if all_required_ready and safety_healthy:
         return CELL_STATE_READY if not any_busy else CELL_STATE_RUNNING

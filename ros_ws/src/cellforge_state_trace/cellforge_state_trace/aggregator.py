@@ -27,6 +27,7 @@ from std_msgs.msg import Header
 from cellforge_state_trace.state_logic import (
     CELL_STATE_OFFLINE,
     DeviceStateEntry,
+    SafetyStatusEntry,
     compute_top_level_cell_state,
 )
 
@@ -41,10 +42,14 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         self.declare_parameter("device_topics", [""])
         self.declare_parameter("required_device_ids", [""])
         self.declare_parameter("safety_topic", "/safety/state")
+        self.declare_parameter("safety_timeout_s", 3.0)
         self.declare_parameter("publish_rate_hz", 1.0)
 
         self._cell_id = str(self.get_parameter("cell_id").value)
         self._bundle_id = str(self.get_parameter("bundle_id").value)
+        safety_timeout = float(self.get_parameter("safety_timeout_s").value)
+        self._safety_entry = SafetyStatusEntry(timeout_s=safety_timeout)
+
         self._required_ids: set[str] = set(
             str(v) for v in self.get_parameter("required_device_ids").value if str(v)
         )
@@ -53,7 +58,6 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         for instance_id in self._required_ids:
             self._devices[instance_id] = DeviceStateEntry(component_instance_id=instance_id)
 
-        self._safety: RosSafetyState | None = None
         self._group = MutuallyExclusiveCallbackGroup()
 
         device_topics = [str(t) for t in self.get_parameter("device_topics").value if str(t)]
@@ -84,9 +88,10 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
 
         self.get_logger().info(
             "State aggregator started — subscribed to %d device topics, "
-            "safety on '%s', requiring %d devices.",
+            "safety on '%s' (timeout %.1fs), requiring %d devices.",
             len(device_topics),
             safety_topic,
+            safety_timeout,
             len(self._required_ids),
         )
 
@@ -97,7 +102,7 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         self._devices[instance_id].update(message)
 
     def _on_safety_state(self, message: RosSafetyState) -> None:
-        self._safety = message
+        self._safety_entry.update(message.healthy)
 
     def _publish_cell_state(self) -> None:
         ros_devices: list[RosDeviceState] = []
@@ -123,26 +128,28 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
             ros_device.details_json = entry.details_json
             ros_devices.append(ros_device)
 
-        safety_healthy = self._safety.healthy if self._safety is not None else False
+        safety_healthy = self._safety_entry.effective_healthy
 
         required_entries = [
             entry for eid, entry in self._devices.items() if eid in self._required_ids
         ]
         if required_entries:
-            all_required_ready = all(entry.ready and not entry.stale for entry in required_entries)
+            all_required_ready = all(entry.ready for entry in required_entries)
         else:
-            all_required_ready = bool(self._safety is not None and safety_healthy)
+            all_required_ready = safety_healthy and not self._safety_entry.stale_or_missing
 
         any_faulted = any(entry.faulted for entry in self._devices.values())
         any_busy = any(entry.busy and not entry.stale for entry in self._devices.values())
-        any_stale = any(entry.stale for entry in self._devices.values())
+        any_required_stale = any(
+            entry.stale for eid, entry in self._devices.items() if eid in self._required_ids
+        )
 
         cell_state = compute_top_level_cell_state(
             all_required_ready=all_required_ready,
             safety_healthy=safety_healthy,
             any_faulted=any_faulted,
             any_busy=any_busy,
-            any_stale=any_stale,
+            any_required_stale=any_required_stale,
         )
 
         message = RosCellState()
@@ -151,7 +158,7 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         message.cell_id = self._cell_id
         message.state = cell_state
         message.safety_healthy = safety_healthy
-        message.all_required_devices_ready = all_required_ready
+        message.all_required_devices_ready = all_required_ready and safety_healthy
         message.active_job_id = ""
         message.active_trace_id = ""
         message.bundle_id = self._bundle_id

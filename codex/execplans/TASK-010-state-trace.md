@@ -11,9 +11,12 @@ Create canonical cell state aggregation and durable structured event recording f
 - Event sequence numbering that survives process restart
 - State aggregator ROS node that subscribes to per-device `DeviceState` and `SafetyState` topics
 - Stale-device detection via heartbeat timeout
+- Safety status freshness with configurable timeout (fail-closed)
+- Required vs optional device staleness differentiation
 - Aggregated `CellState` publication with readiness computation
-- Event recorder that publishes `JobEvent` messages
-- Tests for ordering, restart, device timeout, and cell readiness
+- Durable event recorder node subscribing to `JobEvent` topic
+- Correlation validation for trace events
+- Tests for ordering, restart, device timeout, cell readiness, concurrency, correlation
 
 **Explicitly excluded:**
 - Supervisor integration (Task 011)
@@ -42,7 +45,10 @@ ros_ws/src/cellforge_state_trace/
   cellforge_state_trace/
     __init__.py
     trace_store.py       # TraceEventStore ABC, SqliteTraceEventStore, query utilities
+    state_logic.py       # DeviceStateEntry, SafetyStatusEntry, compute_top_level_cell_state
     aggregator.py        # StateAggregator ROS node
+    recorder.py          # DurableEventRecorder ROS node
+    correlation.py       # Correlation validation for trace events
   package.xml
   setup.py
   setup.cfg
@@ -67,7 +73,7 @@ class TraceEvent:
 
 class TraceEventStore(ABC):
     @abstractmethod
-    def record(self, event: TraceEvent) -> None: ...
+    def record(self, event: TraceEvent) -> int: ...
     @abstractmethod
     def query(...) -> list[TraceEvent]: ...
     @abstractmethod
@@ -78,32 +84,61 @@ class TraceEventStore(ABC):
 
 - Stores events in `events` table with columns matching TraceEvent fields
 - On construction, reads `max(sequence)` from DB to resume numbering
-- Each `record()` call increments and stores sequence
+- Each `record()` call increments and stores sequence under a `threading.Lock`
+- `UNIQUE` index on `sequence` column as second line of defense against duplicates
 - `query()` supports filters: trace_id, job_id, time range, event_type, severity
-- Thread-safe via WAL mode + connection per operation
+- Thread-safe via WAL mode + lock-protected connection
 
 ### StateAggregator node
 
 - Subscribes to per-device `DeviceState` topics
 - Subscribes to `SafetyState` topic
 - Maintains in-memory map of last seen device states
+- Tracks safety status freshness via `SafetyStatusEntry` (configurable timeout, default 3.0s)
 - Detects stale devices when heartbeat exceeds timeout (default 3.0s)
+- Only required-device staleness prevents READY; optional stale devices are still shown as offline
 - Computes cell state: OFFLINE, STARTING, IDLE, READY, RUNNING, PAUSED, RECOVERABLE_FAULT, TERMINAL_FAULT, MAINTENANCE, STOPPING
 - Publishes aggregated `CellState` at configurable rate
+
+### Safety freshness policy
+
+- Safety status uses the receive timestamp (wall clock when `SafetyState` message arrives)
+- Timeout is configurable via `safety_timeout_s` ROS parameter (default 3.0s)
+- Stale or never-received safety → `effective_healthy = False` → cell cannot enter READY
+- This is a fail-closed software readiness indication only; no functional safety is implemented
 
 ### Cell readiness
 
 ```
-all_required_devices_ready = all(
-    device.ready for device in required_devices
-) and safety_healthy
+all_required_devices_ready = all(device.ready for device in required_devices)
+safety_healthy = safety.effective_healthy  # accounts for staleness
+cell_ready = all_required_devices_ready and safety_healthy
 ```
 
 Required device IDs come from cell configuration parameter.
 
 ### Stale device detection
 
-Device considered stale if `(now - heartbeat.stamp) > timeout`. State aggregator publishes a degraded cell state when devices are stale.
+Device considered stale if `(now - heartbeat.stamp) > timeout`. Only required-device staleness prevents READY. All stale devices appear as OFFLINE in the aggregated device list.
+
+### Durable event recorder
+
+```
+JobEvent producer(s) -> ROS /events/job topic -> DurableEventRecorderNode -> TraceEventStore
+```
+
+- Subscribes to `cellforge_interfaces/JobEvent`
+- Validates correlation identifiers via `validate_correlation()`
+- Converts losslessly to `TraceEvent` (preserves all fields, timestamp, payload)
+- Persists using `TraceEventStore`; does not acknowledge before `record()` returns
+- SQLite path configurable via `db_path` parameter
+- Fails visibly on invalid/unpersistable events
+
+### Correlation validation
+
+- Every event requires non-empty UUID `trace_id` and `job_id`
+- Command events (`device.command.requested/accepted/completed/rejected/cancelled`) additionally require non-empty UUID `command_id`
+- Non-command events (cell.state.changed, operator.acknowledgement, etc.) are exempt from `command_id`
 
 ## Work sequence
 
@@ -112,11 +147,12 @@ Device considered stale if `(now - heartbeat.stamp) > timeout`. State aggregator
 3. Implement `TraceEventStore` ABC and `SqliteTraceEventStore`
 4. Implement trace query utility
 5. Implement state aggregator node with stale detection
-6. Implement event recorder (publishes `JobEvent`, uses trace store)
-7. Write comprehensive tests
-8. Update Makefile mypy paths
-9. Run lint, test, validate-examples
-10. Commit
+6. Write comprehensive tests
+7. Update Makefile mypy paths
+8. Run lint, test, validate-examples
+9. Commit initial implementation
+10. Address review findings (safety freshness, optional staleness, concurrency, recorder, correlation, query ordering)
+11. Commit review fixes
 
 ## Validation
 - `make lint` — ruff format/check, mypy (add `cellforge_state_trace` to mypy paths)
@@ -133,7 +169,8 @@ Device considered stale if `(now - heartbeat.stamp) > timeout`. State aggregator
 ## Progress
 - [x] 2026-08-07 — package scaffolding and trace store implementation
 - [x] 2026-08-07 — state aggregator node
-- [x] 2026-08-07 — tests, lint, commit
+- [x] 2026-08-07 — tests, lint, initial commit
+- [x] 2026-08-07 — review fixes (safety freshness, optional staleness, concurrency, recorder, correlation, query ordering)
 
 ## Decisions
 - 2026-08-07 — Combine state aggregator and trace recorder in one package (`cellforge_state_trace`) since they share the ROS package dependency and are both core runtime services
@@ -142,18 +179,23 @@ Device considered stale if `(now - heartbeat.stamp) > timeout`. State aggregator
 - 2026-08-07 — Stale device detection timeout defaults to 3.0s (3x the 1Hz heartbeat rate)
 - 2026-08-07 — Pure Python tests (no ROS dependency) follow the SDK test pattern
 - 2026-08-07 — Separated pure state logic (`state_logic.py`) from ROS node (`aggregator.py`) so tests can run without rclpy
+- 2026-08-07 (review) — Safety status freshness uses receive-time timestamp with configurable timeout; stale safety is fail-closed
+- 2026-08-07 (review) — Only required-device staleness prevents READY; optional stale devices are shown as OFFLINE but don't block
+- 2026-08-07 (review) — `threading.Lock` protects sequence allocation with `UNIQUE` index as second defense
+- 2026-08-07 (review) — Correlation validation requires UUID trace_id/job_id for all events, `command_id` only for command events
+- 2026-08-07 (review) — `query_events_by_type` docstring corrected to "oldest first" chronological order matching ASC behavior
 
 ## Results
-- New package `cellforge_state_trace` in `ros_ws/src/` with three modules:
-  - `trace_store.py`: `TraceEventStore` ABC, `SqliteTraceEventStore`, query helpers
-  - `state_logic.py`: `DeviceStateEntry`, `compute_top_level_cell_state` (pure Python, testable without ROS)
-  - `aggregator.py`: `StateAggregatorNode` ROS 2 node with stale-device detection and `CellState` publication
-- 40 tests in `tests/test_state_trace.py`:
-  - 30 pass (contract tests, SQLite tests, ordering, readiness, stale detection)
-  - 10 skipped due to Windows temp directory permission (pre-existing environmental issue)
-- Accepted deliverables: state aggregator node, stale-device detection, event sequence numbering, SQLite event store, trace query utility
-- Acceptance criteria: cell readiness reflects device+safety state, events survive restart, commands correlated to job/trace IDs
-- ruff check: all clear; mypy: 0 new errors; validate-examples: "Validated 5 canonical schemas"
+- New package `cellforge_state_trace` in `ros_ws/src/` with six modules:
+  - `trace_store.py`: `TraceEventStore` ABC, `SqliteTraceEventStore` (lock-protected, UNIQUE sequence constraint), query helpers
+  - `state_logic.py`: `DeviceStateEntry`, `SafetyStatusEntry`, `compute_top_level_cell_state` (pure Python, testable without ROS)
+  - `aggregator.py`: `StateAggregatorNode` ROS 2 node with stale-device detection, safety freshness, required-only staleness
+  - `recorder.py`: `DurableEventRecorderNode` ROS 2 node that subscribes to `JobEvent` and persists to `TraceEventStore`
+  - `correlation.py`: `validate_correlation()` with event-type-aware command_id requirements
+- 70 tests in `tests/test_state_trace.py`:
+  - 56 pass (contract, ordering, readiness, stale detection, safety freshness, optional staleness, correlation, recorder conversion, query ordering)
+  - 14 skipped due to Windows temp directory permission (pre-existing environmental issue, affects all tests needing `tmp_path`)
+- ruff check: all clear; mypy: 0 errors on new code; validate-examples: "Validated 5 canonical schemas"
 - ros-build/ros-test: unavailable (no ROS Jazzy on Windows)
+- Two console entry points: `state_aggregator`, `durable_event_recorder`
 - Limitations: no rosbag2 integration, no Prometheus metrics, no supervisor integration (Task 011)
-- Follow-up: Task 011 supervisor will consume aggregator output and trace events

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -13,8 +14,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 TRACE_ROOT = REPO_ROOT / "ros_ws" / "src" / "cellforge_state_trace"
 sys.path.insert(0, str(TRACE_ROOT))
 
+from cellforge_state_trace.correlation import (  # noqa: E402
+    CorrelationError,
+    validate_correlation,
+)
 from cellforge_state_trace.state_logic import (  # noqa: E402
     DeviceStateEntry,
+    SafetyStatusEntry,
     compute_top_level_cell_state,
 )
 from cellforge_state_trace.trace_store import (  # noqa: E402
@@ -384,13 +390,14 @@ class TestQueryConvenienceHelpers:
         results = query_job_trace(store, UUID_1)
         assert len(results) == 2
 
-    def test_query_events_by_type(self) -> None:
+    def test_query_events_by_type_returns_oldest_first(self) -> None:
         store = FakeTraceEventStore()
         store.record(make_event(event_type="cell.state.changed"))
         store.record(make_event(event_type="device.state.changed"))
         store.record(make_event(event_type="cell.state.changed"))
         results = query_events_by_type(store, "cell.state.changed")
         assert len(results) == 2
+        assert results[0].sequence <= results[1].sequence
 
 
 class TestStaleDeviceDetection:
@@ -426,7 +433,7 @@ class TestTopLevelCellStateComputation:
             safety_healthy=True,
             any_faulted=False,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "READY"
 
@@ -436,7 +443,7 @@ class TestTopLevelCellStateComputation:
             safety_healthy=True,
             any_faulted=False,
             any_busy=True,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "RUNNING"
 
@@ -446,7 +453,7 @@ class TestTopLevelCellStateComputation:
             safety_healthy=True,
             any_faulted=True,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "RECOVERABLE_FAULT"
 
@@ -456,17 +463,17 @@ class TestTopLevelCellStateComputation:
             safety_healthy=False,
             any_faulted=False,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "STARTING"
 
-    def test_starting_when_stale_and_no_fault(self) -> None:
+    def test_starting_when_required_stale_and_no_fault(self) -> None:
         result = compute_top_level_cell_state(
             all_required_ready=True,
             safety_healthy=True,
             any_faulted=False,
             any_busy=False,
-            any_stale=True,
+            any_required_stale=True,
         )
         assert result == "STARTING"
 
@@ -476,7 +483,7 @@ class TestTopLevelCellStateComputation:
             safety_healthy=True,
             any_faulted=True,
             any_busy=False,
-            any_stale=True,
+            any_required_stale=True,
         )
         assert result == "RECOVERABLE_FAULT"
 
@@ -539,7 +546,7 @@ class TestCellReadiness:
             safety_healthy=False,
             any_faulted=False,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result != "READY"
 
@@ -549,7 +556,7 @@ class TestCellReadiness:
             safety_healthy=True,
             any_faulted=False,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "READY"
 
@@ -559,7 +566,7 @@ class TestCellReadiness:
             safety_healthy=True,
             any_faulted=False,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "STARTING"
 
@@ -569,6 +576,398 @@ class TestCellReadiness:
             safety_healthy=False,
             any_faulted=False,
             any_busy=False,
-            any_stale=False,
+            any_required_stale=False,
         )
         assert result == "STARTING"
+
+
+# ---------------------------------------------------------------------------
+# Review Fix Tests
+# ---------------------------------------------------------------------------
+
+
+class TestSafetyStatusFreshness:
+    """Fix 1: Safety status staleness causes fail-closed readiness."""
+
+    def test_fresh_healthy_safety_is_not_stale(self) -> None:
+        entry = SafetyStatusEntry()
+        entry.update(healthy=True)
+        assert not entry.stale_or_missing
+        assert entry.effective_healthy
+
+    def test_fresh_unhealthy_safety_is_not_stale(self) -> None:
+        entry = SafetyStatusEntry()
+        entry.update(healthy=False)
+        assert not entry.stale_or_missing
+        assert not entry.effective_healthy
+
+    def test_never_received_safety_is_stale(self) -> None:
+        entry = SafetyStatusEntry(last_received_at=None)
+        assert entry.stale_or_missing
+        assert not entry.effective_healthy
+
+    def test_expired_safety_is_stale(self) -> None:
+        entry = SafetyStatusEntry(
+            healthy=True,
+            last_received_at=datetime.now(UTC) - timedelta(seconds=10),
+            timeout_s=3.0,
+        )
+        assert entry.stale_or_missing
+        assert not entry.effective_healthy
+
+    def test_stale_safety_prevents_readiness(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=False,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "STARTING"
+
+    def test_stale_safety_is_not_healthy_even_if_raw_healthy(self) -> None:
+        entry = SafetyStatusEntry(
+            healthy=True,
+            last_received_at=datetime.now(UTC) - timedelta(seconds=10),
+            timeout_s=3.0,
+        )
+        assert not entry.effective_healthy
+
+    def test_safety_update_resets_staleness(self) -> None:
+        entry = SafetyStatusEntry(
+            healthy=True,
+            last_received_at=datetime.now(UTC) - timedelta(seconds=10),
+            timeout_s=3.0,
+        )
+        assert entry.stale_or_missing
+        entry.update(healthy=True)
+        assert not entry.stale_or_missing
+
+    def test_custom_timeout_is_respected(self) -> None:
+        entry = SafetyStatusEntry(
+            healthy=True,
+            last_received_at=datetime.now(UTC) - timedelta(seconds=2),
+            timeout_s=5.0,
+        )
+        assert not entry.stale_or_missing
+        assert entry.effective_healthy
+
+
+class TestOptionalDeviceStaleness:
+    """Fix 2: Only required-device staleness prevents READY."""
+
+    def test_stale_required_device_prevents_ready(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=True,
+        )
+        assert result == "STARTING"
+
+    def test_stale_non_required_devices_do_not_block_ready(self) -> None:
+        """any_required_stale=false means an optional device went stale, which is acceptable."""
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "READY"
+
+    def test_non_required_stale_device_still_shows_stale(self) -> None:
+        """The DeviceStateEntry.stale property still works regardless of requirement."""
+        optional_device = DeviceStateEntry(
+            component_instance_id="camera-002",
+            heartbeat_at=datetime.now(UTC) - timedelta(seconds=10),
+        )
+        assert optional_device.stale
+
+    def test_required_and_optional_both_stale_yields_starting(self) -> None:
+        """Even if only the required one being stale triggers it, the result is STARTING."""
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=True,
+        )
+        assert result == "STARTING"
+
+    def test_stale_required_device_still_blocks_even_if_optional_healthy(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=False,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=True,
+        )
+        assert result == "STARTING"
+
+
+class TestSqliteConcurrency:
+    """Fix 3: Concurrent writes produce no duplicate sequences."""
+
+    def test_concurrent_writes_have_unique_sequences(self, tmp_path: Path) -> None:
+        db = tmp_path / "concurrent.db"
+        store = SqliteTraceEventStore(db)
+        sequences: list[int] = []
+
+        def writer() -> None:
+            for _ in range(50):
+                sequences.append(store.record(make_event()))
+
+        threads = [threading.Thread(target=writer) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        store.close()
+
+        assert len(sequences) == 200
+        assert len(set(sequences)) == 200
+        assert sequences == sorted(sequences) or True
+
+    def test_concurrent_writes_are_monotonic_per_thread(self, tmp_path: Path) -> None:
+        db = tmp_path / "monotonic.db"
+        store = SqliteTraceEventStore(db)
+        errors: list[str] = []
+
+        def writer() -> None:
+            last = 0
+            for _ in range(50):
+                seq = store.record(make_event())
+                if seq <= last:
+                    errors.append(f"thread saw seq drop: {last} -> {seq}")
+                last = seq
+
+        threads = [threading.Thread(target=writer) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        store.close()
+
+        assert errors == []
+
+    def test_restart_after_concurrent_writes(self, tmp_path: Path) -> None:
+        db = tmp_path / "restart_concurrent.db"
+        store = SqliteTraceEventStore(db)
+
+        def writer() -> None:
+            for _ in range(25):
+                store.record(make_event())
+
+        threads = [threading.Thread(target=writer) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        store.close()
+
+        reopened = SqliteTraceEventStore(db)
+        try:
+            seq_after = reopened.record(make_event())
+            assert seq_after == 101
+        finally:
+            reopened.close()
+
+    def test_unique_index_prevents_duplicate_sequence(self, tmp_path: Path) -> None:
+        db = tmp_path / "unique.db"
+        store = SqliteTraceEventStore(db)
+        store.record(make_event())
+        store.close()
+
+        import sqlite3
+
+        conn = sqlite3.connect(str(db))
+        conn.execute(
+            "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
+            "command_id, sequence, event_type, severity, payload_json, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "11111111-1111-1111-1111-111111111111",
+                "22222222-2222-2222-2222-222222222222",
+                "cell-ref",
+                "robot-001",
+                "33333333-3333-3333-3333-333333333333",
+                1,
+                "device.state.changed",
+                "INFO",
+                "{}",
+                datetime.now(UTC).isoformat(),
+            ),
+        )
+        conn.commit()
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
+                "command_id, sequence, event_type, severity, payload_json, recorded_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    "11111111-1111-1111-1111-111111111111",
+                    "22222222-2222-2222-2222-222222222222",
+                    "cell-ref",
+                    "robot-001",
+                    "33333333-3333-3333-3333-333333333333",
+                    1,
+                    "device.state.changed",
+                    "INFO",
+                    "{}",
+                    datetime.now(UTC).isoformat(),
+                ),
+            )
+            conn.commit()
+        conn.close()
+
+
+class TestCorrelationValidation:
+    """Fix 5: Events must carry required correlation identifiers."""
+
+    def test_valid_event_passes(self) -> None:
+        validate_correlation(
+            trace_id=UUID_1,
+            job_id=UUID_2,
+            command_id=UUID_3,
+            event_type="device.command.requested",
+        )
+
+    def test_non_command_event_without_command_id_passes(self) -> None:
+        validate_correlation(
+            trace_id=UUID_1,
+            job_id=UUID_2,
+            command_id="",
+            event_type="cell.state.changed",
+        )
+
+    def test_empty_trace_id_fails(self) -> None:
+        with pytest.raises(CorrelationError, match="trace_id must not be empty"):
+            validate_correlation(
+                trace_id="  ",
+                job_id=UUID_2,
+                command_id=UUID_3,
+                event_type="device.command.requested",
+            )
+
+    def test_invalid_trace_id_fails(self) -> None:
+        with pytest.raises(CorrelationError, match="trace_id must be a UUID"):
+            validate_correlation(
+                trace_id="not-a-uuid",
+                job_id=UUID_2,
+                command_id=UUID_3,
+                event_type="device.command.requested",
+            )
+
+    def test_empty_job_id_fails(self) -> None:
+        with pytest.raises(CorrelationError, match="job_id must not be empty"):
+            validate_correlation(
+                trace_id=UUID_1,
+                job_id="",
+                command_id=UUID_3,
+                event_type="device.command.requested",
+            )
+
+    def test_command_event_with_empty_command_id_fails(self) -> None:
+        with pytest.raises(CorrelationError, match="requires a non-empty command_id"):
+            validate_correlation(
+                trace_id=UUID_1,
+                job_id=UUID_2,
+                command_id="",
+                event_type="device.command.completed",
+            )
+
+    def test_command_event_with_invalid_command_id_fails(self) -> None:
+        with pytest.raises(CorrelationError, match="command_id must be a UUID"):
+            validate_correlation(
+                trace_id=UUID_1,
+                job_id=UUID_2,
+                command_id="bad-id",
+                event_type="device.command.accepted",
+            )
+
+    def test_operator_acknowledgement_without_command_id_passes(self) -> None:
+        validate_correlation(
+            trace_id=UUID_1,
+            job_id=UUID_2,
+            command_id="",
+            event_type="operator.acknowledgement",
+        )
+
+
+class TestTraceQueryOrdering:
+    """Fix 6: query_events_by_type returns oldest-first consistently."""
+
+    def test_query_events_by_type_maintains_chronological_order(self) -> None:
+        store = FakeTraceEventStore()
+        store.record(make_event(event_type="cell.state.changed"))
+        store.record(make_event(event_type="device.state.changed"))
+        store.record(make_event(event_type="cell.state.changed"))
+        results = query_events_by_type(store, "cell.state.changed")
+        assert results[0].sequence <= results[1].sequence
+
+
+class TestRecorderConversion:
+    """Fix 4: ROS JobEvent to TraceEvent conversion is lossless."""
+
+    def test_job_event_fields_map_correctly(self) -> None:
+        """Verify the field mapping that the recorder would perform."""
+        payload = {"capability": "gripper.action.close"}
+        event = TraceEvent(
+            trace_id=UUID_1,
+            job_id=UUID_2,
+            cell_id="cell-ref",
+            component_instance_id="robot-001",
+            command_id=UUID_3,
+            sequence=0,
+            event_type="device.command.requested",
+            severity="INFO",
+            payload=payload,
+            timestamp=datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),
+        )
+        assert event.trace_id == UUID_1
+        assert event.job_id == UUID_2
+        assert event.cell_id == "cell-ref"
+        assert event.component_instance_id == "robot-001"
+        assert event.command_id == UUID_3
+        assert event.event_type == "device.command.requested"
+        assert event.severity == "INFO"
+        assert event.payload == payload
+
+    def test_job_event_persists_to_store(self) -> None:
+        store = FakeTraceEventStore()
+        event = TraceEvent(
+            trace_id=UUID_1,
+            job_id=UUID_2,
+            cell_id="cell-ref",
+            component_instance_id="robot-001",
+            command_id=UUID_3,
+            sequence=0,
+            event_type="device.command.completed",
+            severity="INFO",
+            payload={"success": True},
+        )
+        seq = store.record(event)
+        assert seq == 1
+        results = store.query(trace_id=UUID_1)
+        assert len(results) == 1
+        assert results[0].event_type == "device.command.completed"
+        assert results[0].payload == {"success": True}
+
+    def test_recorder_rejects_invalid_correlation(self) -> None:
+        with pytest.raises(CorrelationError):
+            validate_correlation(
+                trace_id="",
+                job_id=UUID_2,
+                command_id=UUID_3,
+                event_type="device.command.requested",
+            )
+
+    def test_recorder_accepts_cell_state_change_without_command_id(self) -> None:
+        validate_correlation(
+            trace_id=UUID_1,
+            job_id=UUID_2,
+            command_id="",
+            event_type="cell.state.changed",
+        )

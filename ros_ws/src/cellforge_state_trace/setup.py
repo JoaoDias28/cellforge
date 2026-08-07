@@ -20,6 +20,7 @@ setup(
     entry_points={
         "console_scripts": [
             "state_aggregator = cellforge_state_trace.aggregator:main",
+            "durable_event_recorder = cellforge_state_trace.recorder:main",
         ],
     },
 )

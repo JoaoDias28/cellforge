@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS events (
     recorded_at TEXT NOT NULL
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_sequence ON events(sequence);
 CREATE INDEX IF NOT EXISTS idx_events_trace_id ON events(trace_id);
 CREATE INDEX IF NOT EXISTS idx_events_job_id ON events(job_id);
 CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type);
@@ -106,7 +108,11 @@ CREATE INDEX IF NOT EXISTS idx_events_recorded_at ON events(recorded_at);
 
 
 class SqliteTraceEventStore(TraceEventStore):
-    """SQLite-backed append-only trace event store with restart-safe sequencing."""
+    """SQLite-backed append-only trace event store with restart-safe sequencing.
+
+    Sequence allocation is protected by a threading lock.  A ``UNIQUE`` index on
+    ``sequence`` provides a second line of defense against duplicates.
+    """
 
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
@@ -116,33 +122,36 @@ class SqliteTraceEventStore(TraceEventStore):
         self._conn.executescript(_DDL)
         self._conn.commit()
         self._sequence = self._load_max_sequence()
+        self._lock = threading.Lock()
 
     def _load_max_sequence(self) -> int:
         row = self._conn.execute("SELECT COALESCE(MAX(sequence), 0) FROM events").fetchone()
         return int(row[0]) if row else 0
 
     def record(self, event: TraceEvent) -> int:
-        next_seq = self._sequence + 1
-        self._conn.execute(
-            "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
-            "command_id, sequence, event_type, severity, payload_json, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                event.trace_id,
-                event.job_id,
-                event.cell_id,
-                event.component_instance_id,
-                event.command_id,
-                next_seq,
-                event.event_type,
-                event.severity,
-                json.dumps(event.payload, sort_keys=True),
-                event.timestamp.isoformat(),
-            ),
-        )
-        self._conn.commit()
-        self._sequence = next_seq
-        return next_seq
+        """Atomically allocate next sequence, insert, and commit under lock."""
+        with self._lock:
+            next_seq = self._sequence + 1
+            self._conn.execute(
+                "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
+                "command_id, sequence, event_type, severity, payload_json, recorded_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    event.trace_id,
+                    event.job_id,
+                    event.cell_id,
+                    event.component_instance_id,
+                    event.command_id,
+                    next_seq,
+                    event.event_type,
+                    event.severity,
+                    json.dumps(event.payload, sort_keys=True),
+                    event.timestamp.isoformat(),
+                ),
+            )
+            self._conn.commit()
+            self._sequence = next_seq
+            return next_seq
 
     def query(
         self,
@@ -204,12 +213,12 @@ def query_events_in_range(
 
 
 def query_job_trace(store: TraceEventStore, trace_id: str) -> list[TraceEvent]:
-    """Return all events for a single trace."""
+    """Return all events for a single trace in chronological order."""
     return store.query(trace_id=trace_id, limit=10000)
 
 
 def query_events_by_type(
     store: TraceEventStore, event_type: str, *, limit: int = 1000
 ) -> list[TraceEvent]:
-    """Return the most recent events of a given type."""
+    """Return events of a given type in chronological order (oldest first)."""
     return store.query(event_type=event_type, limit=limit)
