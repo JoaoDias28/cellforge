@@ -25,19 +25,19 @@ import rclpy
 from cellforge_device_sdk.ids import validate_uuid
 from cellforge_device_sdk.models import CapabilityCommand, CommandResult, DeviceState
 from cellforge_device_sdk.state import RosDeviceStatePublisher
-from cellforge_interfaces.action import (  # type: ignore[import-not-found]
+from cellforge_interfaces.action import (
     ExecuteProcess,
     ExecuteSkill,
     InspectObject,
     LocateObject,
 )
-from cellforge_interfaces.msg import (  # type: ignore[import-not-found]
+from cellforge_interfaces.msg import (
     DeviceState as RosDeviceState,
 )
 from cellforge_interfaces.msg import (
     PoseEstimate,
 )
-from cellforge_interfaces.srv import GetDeviceState  # type: ignore[import-not-found]
+from cellforge_interfaces.srv import GetDeviceState
 from geometry_msgs.msg import PoseStamped
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup

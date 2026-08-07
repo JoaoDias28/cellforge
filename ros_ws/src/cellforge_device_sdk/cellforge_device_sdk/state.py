@@ -107,7 +107,7 @@ class RosDeviceStatePublisher:
         """Publish one ``cellforge_interfaces/DeviceState`` generated message."""
 
         try:
-            from cellforge_interfaces.msg import (  # type: ignore[import-not-found]
+            from cellforge_interfaces.msg import (
                 DeviceState as RosDeviceState,
             )
         except ImportError as error:  # pragma: no cover - requires a ROS Jazzy environment
