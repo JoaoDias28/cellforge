@@ -39,8 +39,10 @@ jobs:
           required-ros-distributions: jazzy
       - name: Resolve ROS package dependencies
         run: |
-          sudo apt-get update
-          for i in 1 2 3; do rosdep update && break || sleep 10; done
+          sudo apt-get install --yes ros-jazzy-rosdep
+          if [ ! -f "$HOME/.ros/rosdep/sources.cache/index" ]; then
+            rosdep update --rosdistro jazzy || true
+          fi
           rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes
       - name: Build ROS workspace
         run: make ros-build
