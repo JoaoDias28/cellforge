@@ -43,6 +43,7 @@ jobs:
           sudo apt-get install --yes ros-jazzy-ros-base python3-colcon-common-extensions
       - name: Resolve ROS package dependencies
         run: |
+          if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then sudo rosdep init; fi
           rosdep update
           rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy --yes
       - name: Build ROS workspace
