@@ -12,8 +12,6 @@ behavior-tree logic.
 
 from __future__ import annotations
 
-import json
-from datetime import UTC, datetime
 from pathlib import Path
 
 import rclpy
@@ -24,7 +22,11 @@ from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.node import Node
 
 from cellforge_state_trace.correlation import CorrelationError, validate_correlation
-from cellforge_state_trace.trace_store import SqliteTraceEventStore, TraceEvent, TraceEventStore
+from cellforge_state_trace.trace_store import (
+    SqliteTraceEventStore,
+    TraceEventStore,
+    convert_job_event_to_trace_event,
+)
 
 
 class DurableEventRecorderNode(Node):  # type: ignore[misc]
@@ -69,34 +71,10 @@ class DurableEventRecorderNode(Node):  # type: ignore[misc]
             return
 
         try:
-            payload = json.loads(message.payload_json) if message.payload_json.strip() else {}
-        except json.JSONDecodeError:
-            self.get_logger().error(
-                f"Invalid payload_json for trace '{message.trace_id}', event dropped."
-            )
+            trace_event = convert_job_event_to_trace_event(message)
+        except ValueError as exc:
+            self.get_logger().error(f"Conversion failed for trace '{message.trace_id}': {exc}")
             return
-        if not isinstance(payload, dict):
-            self.get_logger().error(
-                f"payload_json must be a JSON object for trace '{message.trace_id}', event dropped."
-            )
-            return
-
-        sec = message.header.stamp.sec
-        nanosec = message.header.stamp.nanosec
-        timestamp = datetime.fromtimestamp(sec + nanosec / 1_000_000_000.0, tz=UTC)
-
-        trace_event = TraceEvent(
-            trace_id=message.trace_id,
-            job_id=message.job_id,
-            cell_id=message.cell_id,
-            component_instance_id=message.component_instance_id,
-            command_id=message.command_id,
-            sequence=0,
-            event_type=message.event_type,
-            severity=message.severity,
-            payload=payload,
-            timestamp=timestamp,
-        )
 
         try:
             seq = self._store.record(trace_event)

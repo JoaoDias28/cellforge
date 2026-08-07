@@ -728,7 +728,36 @@ class TestSqliteConcurrency:
 
         assert len(sequences) == 200
         assert len(set(sequences)) == 200
-        assert sequences == sorted(sequences) or True
+        assert min(sequences) == 1
+        assert max(sequences) == 200
+
+    def test_database_has_exact_contiguous_sequence_after_concurrent_writes(
+        self, tmp_path: Path
+    ) -> None:
+        db = tmp_path / "contiguous.db"
+        store = SqliteTraceEventStore(db)
+
+        def writer() -> None:
+            for _ in range(50):
+                store.record(make_event())
+
+        threads = [threading.Thread(target=writer) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        store.close()
+
+        reopened = SqliteTraceEventStore(db)
+        try:
+            results = reopened.query(limit=300)
+            assert len(results) == 200
+            all_seqs = {r.sequence for r in results}
+            assert len(all_seqs) == 200
+            assert min(all_seqs) == 1
+            assert max(all_seqs) == 200
+        finally:
+            reopened.close()
 
     def test_concurrent_writes_are_monotonic_per_thread(self, tmp_path: Path) -> None:
         db = tmp_path / "monotonic.db"
@@ -822,6 +851,29 @@ class TestSqliteConcurrency:
             conn.commit()
         conn.close()
 
+    def test_chronological_query_after_concurrent_writes(self, tmp_path: Path) -> None:
+        db = tmp_path / "chrono.db"
+        store = SqliteTraceEventStore(db)
+
+        def writer() -> None:
+            for _ in range(25):
+                store.record(make_event())
+
+        threads = [threading.Thread(target=writer) for _ in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        store.close()
+
+        reopened = SqliteTraceEventStore(db)
+        try:
+            results = reopened.query(limit=300)
+            seqs = [r.sequence for r in results]
+            assert seqs == sorted(seqs)
+        finally:
+            reopened.close()
+
 
 class TestCorrelationValidation:
     """Fix 5: Events must carry required correlation identifiers."""
@@ -909,51 +961,120 @@ class TestTraceQueryOrdering:
 
 
 class TestRecorderConversion:
-    """Fix 4: ROS JobEvent to TraceEvent conversion is lossless."""
+    """Fix 4: The deterministic JobEvent-to-TraceEvent mapping preserves all fields."""
 
-    def test_job_event_fields_map_correctly(self) -> None:
-        """Verify the field mapping that the recorder would perform."""
-        payload = {"capability": "gripper.action.close"}
-        event = TraceEvent(
-            trace_id=UUID_1,
-            job_id=UUID_2,
-            cell_id="cell-ref",
-            component_instance_id="robot-001",
-            command_id=UUID_3,
-            sequence=0,
-            event_type="device.command.requested",
-            severity="INFO",
-            payload=payload,
-            timestamp=datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC),
-        )
+    @staticmethod
+    def _fake_message(
+        trace_id: str = UUID_1,
+        job_id: str = UUID_2,
+        cell_id: str = "cell-ref",
+        component_instance_id: str = "robot-001",
+        command_id: str = UUID_3,
+        event_type: str = "device.command.requested",
+        severity: str = "INFO",
+        payload_json: str = '{"capability":"gripper.action.close"}',
+        stamp_sec: int = 1700000000,
+        stamp_nanosec: int = 500_000_000,
+    ) -> object:
+        """Return a minimal message-shaped object matching the JobEvent.msg layout."""
+
+        class FakeHeader:
+            stamp: Any
+
+        class FakeStamp:
+            sec = stamp_sec
+            nanosec = stamp_nanosec
+
+        msg: Any = type("_FakeMessage", (), {})()
+        msg.header = FakeHeader()
+        msg.header.stamp = FakeStamp()
+        msg.trace_id = trace_id
+        msg.job_id = job_id
+        msg.cell_id = cell_id
+        msg.component_instance_id = component_instance_id
+        msg.command_id = command_id
+        msg.event_type = event_type
+        msg.severity = severity
+        msg.payload_json = payload_json
+
+        return msg
+
+    def test_conversion_preserves_trace_id(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
         assert event.trace_id == UUID_1
-        assert event.job_id == UUID_2
-        assert event.cell_id == "cell-ref"
-        assert event.component_instance_id == "robot-001"
-        assert event.command_id == UUID_3
-        assert event.event_type == "device.command.requested"
-        assert event.severity == "INFO"
-        assert event.payload == payload
 
-    def test_job_event_persists_to_store(self) -> None:
+    def test_conversion_preserves_job_id(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.job_id == UUID_2
+
+    def test_conversion_preserves_cell_id(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.cell_id == "cell-ref"
+
+    def test_conversion_preserves_component_instance_id(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.component_instance_id == "robot-001"
+
+    def test_conversion_preserves_command_id(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.command_id == UUID_3
+
+    def test_conversion_preserves_event_type(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.event_type == "device.command.requested"
+
+    def test_conversion_preserves_severity(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.severity == "INFO"
+
+    def test_conversion_preserves_payload(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.payload == {"capability": "gripper.action.close"}
+
+    def test_conversion_preserves_timestamp(self) -> None:
+        msg = self._fake_message(stamp_sec=1700000000, stamp_nanosec=500_000_000)
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        expected = datetime(2023, 11, 14, 22, 13, 20, 500000, tzinfo=UTC)
+        assert event.timestamp == expected
+
+    def test_converted_event_persists_to_store(self) -> None:
         store = FakeTraceEventStore()
-        event = TraceEvent(
-            trace_id=UUID_1,
-            job_id=UUID_2,
-            cell_id="cell-ref",
-            component_instance_id="robot-001",
-            command_id=UUID_3,
-            sequence=0,
-            event_type="device.command.completed",
-            severity="INFO",
-            payload={"success": True},
-        )
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
         seq = store.record(event)
         assert seq == 1
         results = store.query(trace_id=UUID_1)
         assert len(results) == 1
-        assert results[0].event_type == "device.command.completed"
-        assert results[0].payload == {"success": True}
+        assert results[0].event_type == "device.command.requested"
+        assert results[0].payload == {"capability": "gripper.action.close"}
 
     def test_recorder_rejects_invalid_correlation(self) -> None:
         with pytest.raises(CorrelationError):
@@ -971,3 +1092,100 @@ class TestRecorderConversion:
             command_id="",
             event_type="cell.state.changed",
         )
+
+
+class TestNestedParentPathCreation:
+    """Fix 2: The durable store creates parent directories that do not exist."""
+
+    def test_nested_parent_dirs_are_created(self, tmp_path: Path) -> None:
+        db = tmp_path / "nested" / "sub" / "events.db"
+        store = SqliteTraceEventStore(db)
+        try:
+            store.record(make_event(trace_id=UUID_1))
+            results = store.query(trace_id=UUID_1, limit=10)
+            assert len(results) == 1
+            assert results[0].trace_id == UUID_1
+        finally:
+            store.close()
+
+    def test_restart_after_nested_path_creation(self, tmp_path: Path) -> None:
+        db = tmp_path / "deep" / "path" / "trace.db"
+        store = SqliteTraceEventStore(db)
+        store.record(make_event(trace_id=UUID_1))
+        store.record(make_event(trace_id=UUID_2))
+        store.close()
+
+        reopened = SqliteTraceEventStore(db)
+        try:
+            results = reopened.query(limit=100)
+            assert len(results) == 2
+            assert results[0].trace_id == UUID_1
+            assert results[1].trace_id == UUID_2
+            seq3 = reopened.record(make_event(trace_id=UUID_3))
+            assert seq3 == 3
+        finally:
+            reopened.close()
+
+
+class TestRequiredDeviceReadinessSemantics:
+    """Fix 1: Required-device readiness requires both readiness and freshness."""
+
+    def test_required_device_ready_and_fresh(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "READY"
+
+    def test_required_device_ready_but_stale_prevents_readiness(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=False,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=True,
+        )
+        assert result == "STARTING"
+
+    def test_all_required_devices_ready_safety_healthy_is_ready(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "READY"
+
+    def test_devices_ready_while_safety_unhealthy_stays_starting(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=False,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "STARTING"
+
+    def test_devices_not_ready_while_safety_healthy_stays_starting(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=False,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "STARTING"
+
+    def test_stale_optional_device_remains_non_blocking(self) -> None:
+        result = compute_top_level_cell_state(
+            all_required_ready=True,
+            safety_healthy=True,
+            any_faulted=False,
+            any_busy=False,
+            any_required_stale=False,
+        )
+        assert result == "READY"

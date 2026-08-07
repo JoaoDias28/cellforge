@@ -116,6 +116,7 @@ class SqliteTraceEventStore(TraceEventStore):
 
     def __init__(self, db_path: Path) -> None:
         self._db_path = db_path
+        db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
@@ -222,3 +223,37 @@ def query_events_by_type(
 ) -> list[TraceEvent]:
     """Return events of a given type in chronological order (oldest first)."""
     return store.query(event_type=event_type, limit=limit)
+
+
+def convert_job_event_to_trace_event(message: Any) -> TraceEvent:
+    """Convert a ROS ``JobEvent``-shaped object to a durable ``TraceEvent``.
+
+    The *message* argument may be a generated ROS message or any object with the same
+    shape (``header.stamp.sec/nanosec``, ``trace_id``, ``job_id``, ``cell_id``,
+    ``component_instance_id``, ``command_id``, ``event_type``, ``severity``,
+    ``payload_json``).  This function is intentionally ROS-free so it can be tested
+    without a runtime.
+    """
+    try:
+        payload = json.loads(message.payload_json) if message.payload_json.strip() else {}
+    except (json.JSONDecodeError, AttributeError):
+        raise ValueError("payload_json must be valid JSON")
+    if not isinstance(payload, dict):
+        raise ValueError("payload_json must contain a JSON object")
+
+    sec = message.header.stamp.sec
+    nanosec = message.header.stamp.nanosec
+    timestamp = datetime.fromtimestamp(sec + nanosec / 1_000_000_000.0, tz=UTC)
+
+    return TraceEvent(
+        trace_id=message.trace_id,
+        job_id=message.job_id,
+        cell_id=message.cell_id,
+        component_instance_id=message.component_instance_id,
+        command_id=message.command_id,
+        sequence=0,
+        event_type=message.event_type,
+        severity=message.severity,
+        payload=payload,
+        timestamp=timestamp,
+    )

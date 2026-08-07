@@ -134,9 +134,9 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
             entry for eid, entry in self._devices.items() if eid in self._required_ids
         ]
         if required_entries:
-            all_required_ready = all(entry.ready for entry in required_entries)
+            all_required_ready = all(entry.ready and not entry.stale for entry in required_entries)
         else:
-            all_required_ready = safety_healthy and not self._safety_entry.stale_or_missing
+            all_required_ready = True
 
         any_faulted = any(entry.faulted for entry in self._devices.values())
         any_busy = any(entry.busy and not entry.stale for entry in self._devices.values())
@@ -158,7 +158,7 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         message.cell_id = self._cell_id
         message.state = cell_state
         message.safety_healthy = safety_healthy
-        message.all_required_devices_ready = all_required_ready and safety_healthy
+        message.all_required_devices_ready = all_required_ready
         message.active_job_id = ""
         message.active_trace_id = ""
         message.bundle_id = self._bundle_id
