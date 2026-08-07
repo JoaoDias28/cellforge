@@ -44,6 +44,7 @@ module = [
     "launch_ros", "launch_ros.*",
     "ament_index_python", "ament_index_python.*",
     "builtin_interfaces", "builtin_interfaces.*",
+    "cellforge_interfaces", "cellforge_interfaces.*",
     "geometry_msgs", "geometry_msgs.*",
     "std_msgs", "std_msgs.*",
 ]
