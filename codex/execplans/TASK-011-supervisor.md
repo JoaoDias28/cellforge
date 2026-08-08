@@ -113,6 +113,8 @@ migration.
 - [x] 2026-08-08 — the third Jazzy run built the complete workspace and reached all supervisor
   gtests, exposing empty blackboard placeholders, mock goal lifetime, sequential-job release, and
   clang-tidy compilation-database issues; each was corrected before merge
+- [x] 2026-08-08 — the fourth Jazzy run rejected a nonexistent server-goal `SharedPtr` alias in
+  the new test retention containers; both now use explicit `std::shared_ptr` types
 
 ## Decisions
 - 2026-08-08 — Use only `behaviortree_cpp` plus ROS core packages; do not add the optional
@@ -153,4 +155,5 @@ signature consistently with `ament_target_dependencies`. Its second run reached 
 and confirmed Jazzy provides BehaviorTree.CPP 4.9.0, where mutable `TreeNode::config()` is
 protected; preflight now uses the public const accessor. Its third run built every ROS package,
 passed clang-format, and reached all supervisor gtests; the branch now includes the runtime and test
-harness corrections those tests exposed.
+harness corrections those tests exposed. Its fourth run identified and corrected the explicit
+server-goal pointer type required by Jazzy's `rclcpp_action` API.

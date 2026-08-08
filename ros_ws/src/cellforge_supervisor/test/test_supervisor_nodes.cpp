@@ -78,7 +78,7 @@ rclcpp_action::Server<ExecuteSkill>::SharedPtr makeServer(const rclcpp::Node::Sh
                                                           MockOutcome outcome,
                                                           std::atomic_int& accepted,
                                                           std::atomic_bool& cancelled) {
-  auto held_goals = std::make_shared<std::vector<ServerGoalHandle::SharedPtr>>();
+  auto held_goals = std::make_shared<std::vector<std::shared_ptr<ServerGoalHandle>>>();
   return rclcpp_action::create_server<ExecuteSkill>(
       node, action_name,
       [](const rclcpp_action::GoalUUID&, std::shared_ptr<const ExecuteSkill::Goal>) {
