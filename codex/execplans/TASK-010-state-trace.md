@@ -172,7 +172,7 @@ JobEvent producer(s) -> ROS /events/job topic -> DurableEventRecorderNode -> Tra
 ## Progress
 - [x] 2026-08-08 — audited Tasks 001-010 against acceptance criteria and reproduced the ROS Jazzy CI failure
 - [x] 2026-08-08 — fixed environment sourcing, real Jazzy smoke-test execution, node construction, fail-closed readiness, package dependencies, and cross-platform interface parity
-- [ ] 2026-08-08 — full repository and GitHub Actions verification
+- [x] 2026-08-08 — full repository and GitHub Actions verification
 - [x] 2026-08-07 — package scaffolding and trace store implementation
 - [x] 2026-08-07 — state aggregator node
 - [x] 2026-08-07 — tests, lint, initial commit
@@ -202,10 +202,14 @@ JobEvent producer(s) -> ROS /events/job topic -> DurableEventRecorderNode -> Tra
   - `aggregator.py`: `StateAggregatorNode` ROS 2 node with stale-device detection, safety freshness, required-only staleness
   - `recorder.py`: `DurableEventRecorderNode` ROS 2 node that subscribes to `JobEvent` and persists to `TraceEventStore`
   - `correlation.py`: `validate_correlation()` with event-type-aware command_id requirements
-- 70 tests in `tests/test_state_trace.py`:
-  - 56 pass (contract, ordering, readiness, stale detection, safety freshness, optional staleness, correlation, recorder conversion, query ordering)
-  - 14 skipped due to Windows temp directory permission (pre-existing environmental issue, affects all tests needing `tmp_path`)
-- ruff check: all clear; mypy: 0 errors on new code; validate-examples: "Validated 5 canonical schemas"
-- ros-build/ros-test: unavailable (no ROS Jazzy on Windows)
+- Local repository verification: Ruff format/check clean, strict mypy clean, 181 pytest tests passed,
+  and validation passed for 5 canonical schemas, 6 component configuration schemas, and 11
+  example YAML documents.
+- GitHub Actions run 23 on Ubuntu 24.04 / ROS 2 Jazzy: rosdep resolution passed, all 4 ROS
+  packages built, and 15 colcon tests completed with 0 errors, 0 failures, and 0 skipped.
+- The Python 3.12 Actions job passed lint/type checks, all repository tests, and the explicit
+  schema/example validation gate.
+- The audit corrected the previously skipped Task 009 ROS action/service smoke test and added
+  Task 010 Jazzy integration coverage for aggregator startup/readiness and durable event recording.
 - Two console entry points: `state_aggregator`, `durable_event_recorder`
 - Limitations: no rosbag2 integration, no Prometheus metrics, no supervisor integration (Task 011)
