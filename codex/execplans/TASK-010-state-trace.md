@@ -179,6 +179,7 @@ JobEvent producer(s) -> ROS /events/job topic -> DurableEventRecorderNode -> Tra
 - [x] 2026-08-07 — review fixes (safety freshness, optional staleness, concurrency, recorder, correlation, query ordering)
 
 ## Decisions
+- 2026-08-08 (CI) — `ament_python` is the package build type, not a resolvable Jazzy rosdep key; keep it in each package's `<export><build_type>` and declare only installable runtime/test dependencies.
 - 2026-08-08 (audit) — Source the underlay and built workspace before enabling Bash nounset because generated colcon setup scripts legitimately probe unset variables.
 - 2026-08-08 (audit) — An empty required-device configuration cannot authorize readiness; it fails closed as missing required state.
 - 2026-08-08 (audit) — Jazzy smoke tests must execute after `rclpy.init()` and exercise actual action/service and state/trace node paths; a pre-import skip is not valid evidence.
