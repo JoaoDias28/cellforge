@@ -80,7 +80,7 @@ if(BUILD_TESTING)
   endif()
 
   ament_clang_format(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-format")
-  ament_clang_tidy()
+  ament_clang_tidy(${CMAKE_BINARY_DIR})
 endif()
 
 ament_export_targets(export_cellforge_supervisor HAS_LIBRARY_TARGET)

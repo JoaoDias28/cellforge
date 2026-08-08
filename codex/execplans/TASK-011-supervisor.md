@@ -115,6 +115,9 @@ migration.
   clang-tidy compilation-database issues; each was corrected before merge
 - [x] 2026-08-08 — the fourth Jazzy run rejected a nonexistent server-goal `SharedPtr` alias in
   the new test retention containers; both now use explicit `std::shared_ptr` types
+- [x] 2026-08-08 — the fifth Jazzy run passed validation, async-node tests, and clang-format;
+  the remaining full-node self-join race was removed with a persistent worker, and clang-tidy now
+  receives the generated package build directory
 
 ## Decisions
 - 2026-08-08 — Use only `behaviortree_cpp` plus ROS core packages; do not add the optional
@@ -137,10 +140,15 @@ migration.
 - 2026-08-08 — Treat a BehaviorTree blackboard input as seeded only when its entry contains a
   value; BehaviorTree.CPP 4.9 creates empty placeholder entries while instantiating XML mappings.
 - 2026-08-08 — Release the single-job slot before publishing any terminal `RunJob` result so an
-  immediate sequential goal cannot observe stale active state. The prior worker remains joinable
-  and is joined by `handleAccepted` before the next worker starts.
+  immediate sequential goal cannot observe stale active state. The persistent worker finishes the
+  current execution before dequeuing the next accepted goal handle.
 - 2026-08-08 — Retain intentionally hanging mock action goal handles until cancellation and export
   CMake compile commands so the tests model an active ROS action and `ament_clang_tidy` can run.
+- 2026-08-08 — Keep one persistent supervisor worker waiting on a condition-variable queue instead
+  of replacing and joining a `jthread` for each accepted goal. The atomic gate still admits only one
+  active goal, while sequential goals no longer risk joining the current execution thread.
+- 2026-08-08 — Pass `${CMAKE_BINARY_DIR}` to `ament_clang_tidy`, following the Jazzy CMake API, so
+  the linter searches the package build directory containing `compile_commands.json`.
 
 ## Results
 Implementation is complete. The package includes the supervisor executable, loadable node plugin,
@@ -156,4 +164,6 @@ and confirmed Jazzy provides BehaviorTree.CPP 4.9.0, where mutable `TreeNode::co
 protected; preflight now uses the public const accessor. Its third run built every ROS package,
 passed clang-format, and reached all supervisor gtests; the branch now includes the runtime and test
 harness corrections those tests exposed. Its fourth run identified and corrected the explicit
-server-goal pointer type required by Jazzy's `rclcpp_action` API.
+server-goal pointer type required by Jazzy's `rclcpp_action` API. Its fifth run passed the pure
+validation and async-node suites and isolated the final full-node worker-recycling and clang-tidy
+discovery corrections now present on the branch.

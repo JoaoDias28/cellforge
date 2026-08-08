@@ -119,6 +119,22 @@ SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
       std::bind(&SupervisorNode::handleCancel, this, std::placeholders::_1),
       std::bind(&SupervisorNode::handleAccepted, this, std::placeholders::_1));
 
+  worker_ = std::jthread([this](std::stop_token stop_token) {
+    while (true) {
+      std::shared_ptr<GoalHandleRunJob> goal_handle;
+      {
+        std::unique_lock lock(worker_mutex_);
+        worker_condition_.wait(lock, stop_token,
+                               [this]() { return pending_goal_handle_ != nullptr; });
+        if (stop_token.stop_requested() && pending_goal_handle_ == nullptr) {
+          return;
+        }
+        goal_handle = std::move(pending_goal_handle_);
+      }
+      executeGoal(goal_handle, stop_token);
+    }
+  });
+
   transitionState("IDLE");
   RCLCPP_INFO(get_logger(), "Supervisor ready; versioned tree root is '%s'.",
               tree_root_.string().c_str());
@@ -128,6 +144,7 @@ SupervisorNode::~SupervisorNode() {
   cancel_requested_.store(true);
   if (worker_.joinable()) {
     worker_.request_stop();
+    worker_condition_.notify_all();
     worker_.join();
   }
 }
@@ -163,11 +180,11 @@ rclcpp_action::CancelResponse SupervisorNode::handleCancel(
 
 void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob> goal_handle) {
   cancel_requested_.store(false);
-  if (worker_.joinable()) {
-    worker_.join();
+  {
+    std::lock_guard lock(worker_mutex_);
+    pending_goal_handle_ = goal_handle;
   }
-  worker_ = std::jthread(
-      [this, goal_handle](std::stop_token stop_token) { executeGoal(goal_handle, stop_token); });
+  worker_condition_.notify_one();
 }
 
 void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_handle,

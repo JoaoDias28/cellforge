@@ -8,6 +8,7 @@
 #include <cellforge_interfaces/msg/cell_state.hpp>
 #include <cellforge_interfaces/msg/job_event.hpp>
 #include <chrono>
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
 #include <mutex>
@@ -61,6 +62,9 @@ class SupervisorNode : public rclcpp::Node {
   std::atomic_bool required_devices_ready_{false};
   std::mutex state_mutex_;
   std::string state_{"IDLE"};
+  std::mutex worker_mutex_;
+  std::condition_variable_any worker_condition_;
+  std::shared_ptr<GoalHandleRunJob> pending_goal_handle_;
   std::jthread worker_;
 
   rclcpp_action::Server<RunJob>::SharedPtr run_job_server_;
