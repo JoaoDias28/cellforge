@@ -99,6 +99,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
   std::atomic_int skill_accepted{0};
   std::atomic_bool hang_skill{false};
   std::atomic_bool skill_cancelled{false};
+  std::vector<SkillGoalHandle::SharedPtr> held_skill_goals;
   auto skill_server = rclcpp_action::create_server<ExecuteSkill>(
       harness, "/mock/execute_skill",
       [](const rclcpp_action::GoalUUID&, std::shared_ptr<const ExecuteSkill::Goal>) {
@@ -108,9 +109,11 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
         skill_cancelled.store(true);
         return rclcpp_action::CancelResponse::ACCEPT;
       },
-      [&skill_accepted, &hang_skill](const std::shared_ptr<SkillGoalHandle> goal_handle) {
+      [&skill_accepted, &hang_skill,
+       &held_skill_goals](const std::shared_ptr<SkillGoalHandle> goal_handle) {
         ++skill_accepted;
         if (hang_skill.load()) {
+          held_skill_goals.push_back(goal_handle);
           return;
         }
         auto result = std::make_shared<ExecuteSkill::Result>();

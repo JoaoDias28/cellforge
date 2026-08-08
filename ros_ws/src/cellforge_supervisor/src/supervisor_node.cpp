@@ -29,6 +29,10 @@ class ScopeExit {
   ScopeExit(const ScopeExit&) = delete;
   ScopeExit& operator=(const ScopeExit&) = delete;
 
+  void dismiss() {
+    callback_ = []() {};
+  }
+
  private:
   std::function<void()> callback_;
 };
@@ -169,6 +173,10 @@ void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob> goal
 void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
                                  std::stop_token stop_token) {
   ScopeExit release_slot([this]() { finishGoalSlot(); });
+  const auto release_goal_slot = [this, &release_slot]() {
+    finishGoalSlot();
+    release_slot.dismiss();
+  };
   const auto goal = goal_handle->get_goal();
   const auto trace_id = newUuid();
   auto result = std::make_shared<RunJob::Result>();
@@ -182,6 +190,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
     result->result_message = "Aggregated cell and safety readiness is not healthy.";
     publishEvent("job.rejected", goal->job_id, trace_id,
                  "{\"code\":\"supervisor.job.cell_not_ready\"}", {}, "WARN");
+    release_goal_slot();
     goal_handle->abort(result);
     return;
   }
@@ -210,6 +219,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
                  "{\"code\":\"" + jsonEscape(error.code()) + "\",\"message\":\"" +
                      jsonEscape(error.what()) + "\"}",
                  {}, "ERROR");
+    release_goal_slot();
     goal_handle->abort(result);
     return;
   }
@@ -234,6 +244,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       result->result_message = "Job cancellation propagated to active behavior-tree actions.";
       publishEvent("job.cancelled", goal->job_id, trace_id, "{}", {}, "WARN");
       transitionState("IDLE", goal->job_id, trace_id);
+      release_goal_slot();
       goal_handle->canceled(result);
       return;
     }
@@ -245,6 +256,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       publishEvent("job.failed", goal->job_id, trace_id, "{\"code\":\"supervisor.job.timeout\"}",
                    {}, "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
+      release_goal_slot();
       goal_handle->abort(result);
       return;
     }
@@ -261,6 +273,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
                        jsonEscape(error.what()) + "\"}",
                    {}, "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
+      release_goal_slot();
       goal_handle->abort(result);
       return;
     }
@@ -279,6 +292,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       result->result_message = "Behavior tree completed successfully.";
       publishEvent("job.completed", goal->job_id, trace_id, "{}");
       transitionState("IDLE", goal->job_id, trace_id);
+      release_goal_slot();
       goal_handle->succeed(result);
       return;
     }
@@ -289,6 +303,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       publishEvent("job.failed", goal->job_id, trace_id,
                    "{\"code\":\"supervisor.job.tree_failed\"}", {}, "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
+      release_goal_slot();
       goal_handle->abort(result);
       return;
     }
@@ -302,6 +317,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
   result->result_code = "supervisor.job.stopping";
   result->result_message = "Supervisor stopped while the job was active.";
   transitionState("STOPPING", goal->job_id, trace_id);
+  release_goal_slot();
   goal_handle->abort(result);
 }
 

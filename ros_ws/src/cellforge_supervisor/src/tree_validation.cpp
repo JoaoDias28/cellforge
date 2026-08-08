@@ -117,8 +117,9 @@ void validateTreePorts(const BT::Tree& tree) {
         }
 
         const auto key = blackboardKey(port_name, mapping->second);
-        if (key.empty() ||
-            (node_config.blackboard->getEntry(key) == nullptr && !produced_keys.contains(key))) {
+        const auto entry = node_config.blackboard->getEntry(key);
+        const bool has_seeded_value = entry != nullptr && !entry->value.empty();
+        if (key.empty() || (!has_seeded_value && !produced_keys.contains(key))) {
           throw TreeValidationError(
               "supervisor.tree.missing_blackboard_input",
               "Node '" + node->fullPath() + "' requires missing blackboard input '" + key + "'.");

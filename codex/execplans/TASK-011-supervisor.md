@@ -110,6 +110,9 @@ migration.
   corrected a mixed CMake link-signature error before merge
 - [x] 2026-08-08 — the second Jazzy run reached compilation and exposed protected mutable
   `TreeNode::config()` overload selection; validation now uses the public const accessor
+- [x] 2026-08-08 — the third Jazzy run built the complete workspace and reached all supervisor
+  gtests, exposing empty blackboard placeholders, mock goal lifetime, sequential-job release, and
+  clang-tidy compilation-database issues; each was corrected before merge
 
 ## Decisions
 - 2026-08-08 — Use only `behaviortree_cpp` plus ROS core packages; do not add the optional
@@ -129,6 +132,13 @@ migration.
 - 2026-08-08 — Traverse factory-created nodes through `const BT::TreeNode*` during preflight so
   BehaviorTree.CPP 4.9 selects its public const `config()` accessor; validation never mutates node
   configuration.
+- 2026-08-08 — Treat a BehaviorTree blackboard input as seeded only when its entry contains a
+  value; BehaviorTree.CPP 4.9 creates empty placeholder entries while instantiating XML mappings.
+- 2026-08-08 — Release the single-job slot before publishing any terminal `RunJob` result so an
+  immediate sequential goal cannot observe stale active state. The prior worker remains joinable
+  and is joined by `handleAccepted` before the next worker starts.
+- 2026-08-08 — Retain intentionally hanging mock action goal handles until cancellation and export
+  CMake compile commands so the tests model an active ROS action and `ament_clang_tidy` can run.
 
 ## Results
 Implementation is complete. The package includes the supervisor executable, loadable node plugin,
@@ -141,4 +151,6 @@ authoritative Ubuntu Jazzy rerun record. Its first run passed Python validation 
 package before CMake rejected mixed keyword/plain link signatures; the branch now uses the plain
 signature consistently with `ament_target_dependencies`. Its second run reached C++ compilation
 and confirmed Jazzy provides BehaviorTree.CPP 4.9.0, where mutable `TreeNode::config()` is
-protected; preflight now uses the public const accessor.
+protected; preflight now uses the public const accessor. Its third run built every ROS package,
+passed clang-format, and reached all supervisor gtests; the branch now includes the runtime and test
+harness corrections those tests exposed.

@@ -10,6 +10,7 @@
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "cellforge_supervisor/supervisor_nodes.hpp"
 #include "cellforge_supervisor/tree_validation.hpp"
@@ -77,6 +78,7 @@ rclcpp_action::Server<ExecuteSkill>::SharedPtr makeServer(const rclcpp::Node::Sh
                                                           MockOutcome outcome,
                                                           std::atomic_int& accepted,
                                                           std::atomic_bool& cancelled) {
+  auto held_goals = std::make_shared<std::vector<ServerGoalHandle::SharedPtr>>();
   return rclcpp_action::create_server<ExecuteSkill>(
       node, action_name,
       [](const rclcpp_action::GoalUUID&, std::shared_ptr<const ExecuteSkill::Goal>) {
@@ -86,9 +88,10 @@ rclcpp_action::Server<ExecuteSkill>::SharedPtr makeServer(const rclcpp::Node::Sh
         cancelled.store(true);
         return rclcpp_action::CancelResponse::ACCEPT;
       },
-      [&accepted, outcome](const std::shared_ptr<ServerGoalHandle> goal_handle) {
+      [&accepted, outcome, held_goals](const std::shared_ptr<ServerGoalHandle> goal_handle) {
         const int attempt = ++accepted;
         if (outcome == MockOutcome::HANG) {
+          held_goals->push_back(goal_handle);
           return;
         }
         auto result = std::make_shared<ExecuteSkill::Result>();
