@@ -118,6 +118,24 @@ git log -1 --oneline
 
 A completed task should have a clean working tree. If files remain modified or untracked, explain exactly why.
 
+### Required GitHub publication and merge
+
+After the task commit and local completion verification:
+
+1. Push the task branch to `origin` and set its upstream.
+2. Open a ready-for-review pull request against the default branch. Do not leave a completed task as a draft.
+3. Wait for every required GitHub check to finish. Inspect failing job logs, fix only failures within the assigned task or its direct prerequisites, rerun the applicable local checks, and push additional reviewable commits as needed.
+4. Do not bypass branch protection, required reviews, or failing checks. Merge only after every required check passes and GitHub reports the pull request as mergeable.
+5. Merge the pull request, update the local default branch with a fast-forward-only pull or merge from `origin`, and verify that the task commit is present in its history.
+6. Confirm the final branch, pull-request, CI, merge, and local-repository state with:
+
+   ```bash
+   git status --short
+   git log -1 --oneline
+   ```
+
+A numbered implementation task is not fully complete until its pull request is merged and the updated default branch has been pushed or fetched locally. If authentication, permissions, GitHub availability, required reviews, or another external restriction prevents publication or merge, stop and report the exact blocker instead of claiming completion. Do not start a dependent numbered task until its prerequisite pull request is merged.
+
 The final task report must include:
 
 - assigned task number and filename;
@@ -129,6 +147,9 @@ The final task report must include:
 - passing, failing, skipped, and unavailable checks;
 - assumptions and architecture decisions;
 - blockers or prerequisites for the next task;
+- pull-request URL and number;
+- required GitHub checks and their final results;
+- merge commit hash and confirmation that the remote and local default branch include the task;
 - confirmation that later tasks were not started.
 
 ### Required next-task prompt
@@ -198,5 +219,7 @@ A task is complete only when:
 - generated files are reproducible from source;
 - the task has a Git commit;
 - `git log -1 --oneline` confirms that commit;
+- the task branch has been pushed and its ready pull request has passed every required GitHub check;
+- the pull request has been merged and the local default branch includes the task commit;
 - the working tree is clean or every remaining file is explicitly explained;
 - the final response contains the ready-to-copy next-task prompt.
