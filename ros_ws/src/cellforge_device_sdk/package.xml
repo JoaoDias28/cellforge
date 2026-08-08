@@ -7,6 +7,8 @@
   <maintainer email="engineering@example.invalid">CellForge Engineering</maintainer>
   <license>Proprietary</license>
 
+  <buildtool_depend>ament_python</buildtool_depend>
+
   <exec_depend>cellforge_interfaces</exec_depend>
 
   <test_depend>ament_copyright</test_depend>

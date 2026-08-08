@@ -24,4 +24,4 @@ ros-build:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --symlink-install --event-handlers console_direct+'
 
 ros-test:
-	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; source "install/setup.bash"; $(COLCON) test --return-code-on-test-failure --event-handlers console_direct+; $(COLCON) test-result --verbose'
+	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; cd "$(ROS_WORKSPACE)"; source "install/setup.bash"; set -u; $(COLCON) test --return-code-on-test-failure --event-handlers console_direct+; $(COLCON) test-result --verbose'

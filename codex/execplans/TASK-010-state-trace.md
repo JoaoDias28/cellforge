@@ -153,6 +153,8 @@ JobEvent producer(s) -> ROS /events/job topic -> DurableEventRecorderNode -> Tra
 9. Commit initial implementation
 10. Address review findings (safety freshness, optional staleness, concurrency, recorder, correlation, query ordering)
 11. Commit review fixes
+12. Audit Tasks 001-010 and the failing PR CI run; repair hidden ROS test and runtime-edge defects
+13. Verify the complete repository and ROS Jazzy suite in GitHub Actions
 
 ## Validation
 - `make lint` — ruff format/check, mypy (add `cellforge_state_trace` to mypy paths)
@@ -162,17 +164,24 @@ JobEvent producer(s) -> ROS /events/job topic -> DurableEventRecorderNode -> Tra
 - Manual: state aggregator computes correct readiness, events survive restart, stale detection works
 
 ## Risks and rollback
-- New package is additive; no existing code modified
+- The state/trace package is additive, while this audit also corrects the Task 009 ROS test edge,
+  package dependency metadata, CI commands, and stale setup documentation.
 - SQLite dependency is stdlib; no new external dependencies
-- Rollback: delete the package directory and revert Makefile change
+- Rollback: revert the final Task 010 audit commit; no schema or deployed-data migration is involved.
 
 ## Progress
+- [x] 2026-08-08 — audited Tasks 001-010 against acceptance criteria and reproduced the ROS Jazzy CI failure
+- [x] 2026-08-08 — fixed environment sourcing, real Jazzy smoke-test execution, node construction, fail-closed readiness, package dependencies, and cross-platform interface parity
+- [ ] 2026-08-08 — full repository and GitHub Actions verification
 - [x] 2026-08-07 — package scaffolding and trace store implementation
 - [x] 2026-08-07 — state aggregator node
 - [x] 2026-08-07 — tests, lint, initial commit
 - [x] 2026-08-07 — review fixes (safety freshness, optional staleness, concurrency, recorder, correlation, query ordering)
 
 ## Decisions
+- 2026-08-08 (audit) — Source the underlay and built workspace before enabling Bash nounset because generated colcon setup scripts legitimately probe unset variables.
+- 2026-08-08 (audit) — An empty required-device configuration cannot authorize readiness; it fails closed as missing required state.
+- 2026-08-08 (audit) — Jazzy smoke tests must execute after `rclpy.init()` and exercise actual action/service and state/trace node paths; a pre-import skip is not valid evidence.
 - 2026-08-07 — Combine state aggregator and trace recorder in one package (`cellforge_state_trace`) since they share the ROS package dependency and are both core runtime services
 - 2026-08-07 — Use SQLite WAL mode for concurrent read/write safety
 - 2026-08-07 — Sequence numbers are per-event monotonic, persisted in SQLite, resumed on restart via `SELECT max(sequence)`

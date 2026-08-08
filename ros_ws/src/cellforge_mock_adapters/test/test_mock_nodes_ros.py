@@ -14,16 +14,22 @@ from cellforge_interfaces.action import ExecuteSkill
 from cellforge_interfaces.srv import GetDeviceState
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
-
-pytestmark = pytest.mark.skipif(
-    not rclpy.ok() if hasattr(rclpy, "ok") else True,
-    reason="requires a running ROS 2 Jazzy domain",
-)
+from rclpy.parameter import Parameter
 
 
 def _shutdown() -> None:
     if rclpy.ok():
         rclpy.shutdown()
+
+
+def _wait_for_future(future: object, *, timeout_sec: float) -> object:
+    deadline = time.monotonic() + timeout_sec
+    while not future.done() and time.monotonic() < deadline:  # type: ignore[attr-defined]
+        time.sleep(0.01)
+    assert future.done(), "ROS future did not complete before timeout"  # type: ignore[attr-defined]
+    result = future.result()  # type: ignore[attr-defined]
+    assert result is not None
+    return result
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -52,8 +58,8 @@ def test_mock_gripper_nominal_open_and_get_state() -> None:
 
     node = MockDeviceNode(
         parameter_overrides=[
-            ("scenario_json", scenario),
-            ("scenario_file", ""),
+            Parameter("scenario_json", value=scenario),
+            Parameter("scenario_file", value=""),
         ],
         node_name="mock_gripper_test",
     )
@@ -75,12 +81,10 @@ def test_mock_gripper_nominal_open_and_get_state() -> None:
         goal.timeout.nanosec = 0
 
         future = client.send_goal_async(goal)
-        rclpy.spin_until_future_complete(node, future, timeout_sec=2.0)
-        goal_handle = future.result()
+        goal_handle = _wait_for_future(future, timeout_sec=2.0)
         assert goal_handle.accepted, "goal was rejected"
         result_future = goal_handle.get_result_async()
-        rclpy.spin_until_future_complete(node, result_future, timeout_sec=2.0)
-        result = result_future.result().result
+        result = _wait_for_future(result_future, timeout_sec=2.0).result
         assert result.success
         assert result.result_code == "gripper.action.open.completed"
 
@@ -90,8 +94,7 @@ def test_mock_gripper_nominal_open_and_get_state() -> None:
         req = GetDeviceState.Request()
         req.component_instance_id = ""
         state_future = state_client.call_async(req)
-        rclpy.spin_until_future_complete(node, state_future, timeout_sec=2.0)
-        state_response = state_future.result()
+        state_response = _wait_for_future(state_future, timeout_sec=2.0)
         assert state_response.success
         assert state_response.state.ready
     finally:

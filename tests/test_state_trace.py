@@ -22,6 +22,7 @@ from cellforge_state_trace.state_logic import (  # noqa: E402
     DeviceStateEntry,
     SafetyStatusEntry,
     compute_top_level_cell_state,
+    evaluate_required_devices,
 )
 from cellforge_state_trace.trace_store import (  # noqa: E402
     SqliteTraceEventStore,
@@ -422,6 +423,49 @@ class TestStaleDeviceDetection:
             heartbeat_at=datetime.now(UTC) - timedelta(seconds=10),
         )
         assert entry.stale
+
+
+class TestRequiredDeviceEvaluation:
+    """Required-device configuration and freshness fail closed."""
+
+    def test_empty_required_device_set_is_not_ready(self) -> None:
+        all_ready, any_stale_or_missing = evaluate_required_devices({}, set())
+
+        assert not all_ready
+        assert any_stale_or_missing
+
+    def test_missing_required_device_is_not_ready(self) -> None:
+        all_ready, any_stale_or_missing = evaluate_required_devices({}, {"robot-001"})
+
+        assert not all_ready
+        assert any_stale_or_missing
+
+    def test_fresh_ready_required_device_is_ready(self) -> None:
+        devices = {
+            "robot-001": DeviceStateEntry(
+                component_instance_id="robot-001", state="READY", ready=True
+            )
+        }
+
+        all_ready, any_stale_or_missing = evaluate_required_devices(devices, {"robot-001"})
+
+        assert all_ready
+        assert not any_stale_or_missing
+
+    def test_stale_required_device_is_not_ready(self) -> None:
+        devices = {
+            "robot-001": DeviceStateEntry(
+                component_instance_id="robot-001",
+                state="READY",
+                ready=True,
+                heartbeat_at=datetime.now(UTC) - timedelta(seconds=10),
+            )
+        }
+
+        all_ready, any_stale_or_missing = evaluate_required_devices(devices, {"robot-001"})
+
+        assert not all_ready
+        assert any_stale_or_missing
 
 
 class TestTopLevelCellStateComputation:

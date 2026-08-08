@@ -13,6 +13,7 @@ behavior-tree logic.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import rclpy
 from cellforge_interfaces.msg import (
@@ -32,8 +33,13 @@ from cellforge_state_trace.trace_store import (
 class DurableEventRecorderNode(Node):  # type: ignore[misc]
     """Subscribe to ``JobEvent`` and persist every message durably."""
 
-    def __init__(self) -> None:
-        super().__init__("durable_event_recorder")
+    def __init__(
+        self,
+        *,
+        node_name: str = "durable_event_recorder",
+        parameter_overrides: list[Any] | None = None,
+    ) -> None:
+        super().__init__(node_name, parameter_overrides=parameter_overrides)
         self.declare_parameter("db_path", "")
         self.declare_parameter("event_topic", "/events/job")
 
@@ -103,7 +109,7 @@ def main() -> None:
     try:
         rclpy.spin(node)
     finally:
-        node.close_store()
+        node.destroy_node()
         rclpy.shutdown()
 
 

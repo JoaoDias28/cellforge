@@ -8,6 +8,7 @@ from cellforge_state_trace.state_logic import (
     DeviceStateEntry,
     SafetyStatusEntry,
     compute_top_level_cell_state,
+    evaluate_required_devices,
 )
 from cellforge_state_trace.trace_store import (
     SqliteTraceEventStore,
@@ -30,6 +31,7 @@ __all__ = [
     "TraceEvent",
     "TraceEventStore",
     "compute_top_level_cell_state",
+    "evaluate_required_devices",
     "convert_job_event_to_trace_event",
     "query_events_by_type",
     "query_events_in_range",

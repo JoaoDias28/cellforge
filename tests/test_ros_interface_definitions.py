@@ -40,7 +40,7 @@ def test_packaged_interfaces_match_canonical_source_definitions() -> None:
 
         assert source.is_file()
         assert packaged.is_file()
-        assert packaged.read_bytes() == source.read_bytes()
+        assert packaged.read_text(encoding="utf-8") == source.read_text(encoding="utf-8")
 
 
 def test_actions_expose_timeout_feedback_and_stable_result_fields() -> None:

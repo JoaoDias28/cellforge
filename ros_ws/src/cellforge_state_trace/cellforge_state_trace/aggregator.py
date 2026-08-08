@@ -29,14 +29,20 @@ from cellforge_state_trace.state_logic import (
     DeviceStateEntry,
     SafetyStatusEntry,
     compute_top_level_cell_state,
+    evaluate_required_devices,
 )
 
 
 class StateAggregatorNode(Node):  # type: ignore[misc]
     """Aggregate per-device and safety state into a canonical ``CellState`` publication."""
 
-    def __init__(self) -> None:
-        super().__init__("state_aggregator")
+    def __init__(
+        self,
+        *,
+        node_name: str = "state_aggregator",
+        parameter_overrides: list[Any] | None = None,
+    ) -> None:
+        super().__init__(node_name, parameter_overrides=parameter_overrides)
         self.declare_parameter("cell_id", "")
         self.declare_parameter("bundle_id", "")
         self.declare_parameter("device_topics", [""])
@@ -87,12 +93,9 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         self.create_timer(1.0 / max(rate, 0.1), self._publish_cell_state)
 
         self.get_logger().info(
-            "State aggregator started — subscribed to %d device topics, "
-            "safety on '%s' (timeout %.1fs), requiring %d devices.",
-            len(device_topics),
-            safety_topic,
-            safety_timeout,
-            len(self._required_ids),
+            f"State aggregator started — subscribed to {len(device_topics)} device topics, "
+            f"safety on '{safety_topic}' (timeout {safety_timeout:.1f}s), requiring "
+            f"{len(self._required_ids)} devices."
         )
 
     def _on_device_state(self, message: RosDeviceState) -> None:
@@ -130,20 +133,12 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
 
         safety_healthy = self._safety_entry.effective_healthy
 
-        required_entries = [
-            entry for eid, entry in self._devices.items() if eid in self._required_ids
-        ]
-        if required_entries:
-            all_required_ready = all(entry.ready and not entry.stale for entry in required_entries)
-        else:
-            all_required_ready = True
+        all_required_ready, any_required_stale = evaluate_required_devices(
+            self._devices, self._required_ids
+        )
 
         any_faulted = any(entry.faulted for entry in self._devices.values())
         any_busy = any(entry.busy and not entry.stale for entry in self._devices.values())
-        any_required_stale = any(
-            entry.stale for eid, entry in self._devices.items() if eid in self._required_ids
-        )
-
         cell_state = compute_top_level_cell_state(
             all_required_ready=all_required_ready,
             safety_healthy=safety_healthy,

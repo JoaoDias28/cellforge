@@ -26,6 +26,8 @@ jobs:
         run: make lint
       - name: Run unit tests
         run: make test
+      - name: Validate schemas and examples
+        run: make validate-examples
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

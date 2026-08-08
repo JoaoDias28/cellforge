@@ -87,12 +87,18 @@ class _AsyncioBridge:
 class MockDeviceNode(Node):  # type: ignore[misc]
     """One mock device node exposing canonical actions, state, and state query service."""
 
-    def __init__(self) -> None:
-        super().__init__("mock_device")
+    def __init__(
+        self,
+        *,
+        node_name: str = "mock_device",
+        parameter_overrides: list[Any] | None = None,
+    ) -> None:
+        super().__init__(node_name, parameter_overrides=parameter_overrides)
         self.declare_parameter("scenario_file", "")
         self.declare_parameter("scenario_json", "")
         self._bridge = _AsyncioBridge()
         self._commands: dict[bytes, str] = {}
+        self._action_servers: list[Any] = []
         self._action_group = ReentrantCallbackGroup()
 
         scenario = self._load_scenario()
@@ -144,14 +150,16 @@ class MockDeviceNode(Node):  # type: ignore[misc]
     def _create_action_server(self, capability: str) -> None:
         action_type = _ACTION_TYPES.get(capability, ExecuteSkill)
         endpoint = capability.split(".")[-1]
-        ActionServer(
-            self,
-            action_type,
-            f"~/{endpoint}",
-            execute_callback=lambda handle: self._execute(capability, handle),
-            goal_callback=lambda goal: self._accept_goal(capability, goal),
-            cancel_callback=self._cancel_goal,
-            callback_group=self._action_group,
+        self._action_servers.append(
+            ActionServer(
+                self,
+                action_type,
+                f"~/{endpoint}",
+                execute_callback=lambda handle: self._execute(capability, handle),
+                goal_callback=lambda goal: self._accept_goal(capability, goal),
+                cancel_callback=self._cancel_goal,
+                callback_group=self._action_group,
+            )
         )
 
     def _accept_goal(self, capability: str, goal: Any) -> GoalResponse:

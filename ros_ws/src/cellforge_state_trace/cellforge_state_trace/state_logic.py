@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -104,6 +105,23 @@ class SafetyStatusEntry:
     def update(self, healthy: bool, *, timestamp: datetime | None = None) -> None:
         self.healthy = healthy
         self.last_received_at = timestamp if timestamp is not None else datetime.now(UTC)
+
+
+def evaluate_required_devices(
+    devices: Mapping[str, DeviceStateEntry], required_ids: Collection[str]
+) -> tuple[bool, bool]:
+    """Return readiness and stale/missing status for the configured required devices.
+
+    An empty required-device set is an invalid operational configuration and therefore fails
+    closed: it is not ready and is treated as missing required state.
+    """
+    if not required_ids:
+        return False, True
+
+    entries = [devices.get(instance_id) for instance_id in required_ids]
+    all_ready = all(entry is not None and entry.ready and not entry.stale for entry in entries)
+    any_stale_or_missing = any(entry is None or entry.stale for entry in entries)
+    return all_ready, any_stale_or_missing
 
 
 def compute_top_level_cell_state(

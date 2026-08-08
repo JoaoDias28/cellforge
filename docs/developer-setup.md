@@ -47,8 +47,9 @@ The Make targets source `/opt/ros/jazzy/setup.bash` themselves. Override `ROS_SE
 an intentional nonstandard installation. Build products stay under `ros_ws/build`, `ros_ws/install`,
 and `ros_ws/log` and are ignored by Git.
 
-The `cellforge_interfaces` package is only a buildable placeholder. Canonical files in
-`ros_interfaces/` remain source design artifacts until Task 007 adds ROS type generation.
+The `cellforge_interfaces` package generates the canonical Task 007 messages, services, and
+actions copied from `ros_interfaces/`. The parity test prevents the packaged definitions from
+drifting from those canonical source files.
 
 ## Formatting and static analysis
 

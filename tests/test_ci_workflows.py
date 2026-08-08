@@ -29,3 +29,10 @@ def test_ci_targets_supported_platforms_without_isaac_sim() -> None:
     assert workflow["jobs"]["ros-jazzy"]["runs-on"] == "ubuntu-24.04"
     assert "jazzy" in serialized
     assert "isaac" not in serialized
+
+
+def test_ci_runs_schema_and_example_validation() -> None:
+    workflow = load_workflow()
+    python_steps = workflow["jobs"]["python"]["steps"]
+
+    assert any(step.get("run") == "make validate-examples" for step in python_steps)
