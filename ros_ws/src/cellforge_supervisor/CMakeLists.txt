@@ -36,7 +36,7 @@ target_compile_definitions(cellforge_supervisor_bt_nodes PRIVATE BT_PLUGIN_EXPOR
 target_link_libraries(cellforge_supervisor_bt_nodes PRIVATE cellforge_supervisor_core)
 
 add_executable(cellforge_supervisor_node src/main.cpp)
-target_link_libraries(cellforge_supervisor_node PRIVATE cellforge_supervisor_core)
+target_link_libraries(cellforge_supervisor_node cellforge_supervisor_core)
 ament_target_dependencies(cellforge_supervisor_node
   cellforge_interfaces
   rclcpp

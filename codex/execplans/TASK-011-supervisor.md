@@ -106,6 +106,8 @@ migration.
 - [x] 2026-08-08 — supervisor, validation, and event/state integration implemented
 - [x] 2026-08-08 — locally available acceptance/regression checks complete
 - [x] 2026-08-08 — complete Task 011 change reviewed and staged for the required commit
+- [x] 2026-08-08 — PR #2 Python validation passed; the first Jazzy run exposed and the branch
+  corrected a mixed CMake link-signature error before merge
 
 ## Decisions
 - 2026-08-08 — Use only `behaviortree_cpp` plus ROS core packages; do not add the optional
@@ -119,6 +121,9 @@ migration.
   `action_server_is_ready()` and never call a blocking discovery/future wait.
 - 2026-08-08 — Preserve safety and required-device fields separately when republishing supervisor
   state; the combined readiness boolean must not misrepresent either input.
+- 2026-08-08 — Use the plain `target_link_libraries` signature for the supervisor executable
+  because Jazzy's `ament_target_dependencies` uses that signature for the same target; mixing it
+  with the keyword `PRIVATE` signature fails during CMake configuration.
 
 ## Results
 Implementation is complete. The package includes the supervisor executable, loadable node plugin,
@@ -126,6 +131,7 @@ preflight/path validator, versioned mock tree, and three Jazzy gtest targets cov
 async success/retry/timeout/cancellation, transition events, and the complete `RunJob` action path.
 Local Ruff, strict mypy, 184 Python tests, example validation, XML parsing, and clang-format pass.
 GNU Make, ROS 2 Jazzy, and colcon are unavailable on this Windows host, so the exact five Make
-targets and the three compiled Jazzy gtest targets could not execute locally. The repository's
-Ubuntu Jazzy CI will resolve `behaviortree_cpp` and run those tests after publication. The required
-task-scoped commit and post-commit clean-tree verification are the next lifecycle actions.
+targets and the three compiled Jazzy gtest targets could not execute locally. PR #2 is the
+authoritative Ubuntu Jazzy rerun record. Its first run passed Python validation and reached the new
+package before CMake rejected mixed keyword/plain link signatures; the branch now uses the plain
+signature consistently with `ament_target_dependencies`.
