@@ -94,7 +94,7 @@ locally, the limitation is reported without treating static/Python tests as ROS 
 
 ## Risks and rollback
 The main risk is API drift between the locally unbuildable C++ code and Jazzy's packaged
-BehaviorTree.CPP 4.6.2. Code targets that exact public API and CI resolves the declared rosdep.
+BehaviorTree.CPP 4.9.0. Code targets that exact public API and CI resolves the declared rosdep.
 Cancellation is a request, not proof that physical work stopped; the supervisor reports its own job
 as cancelled while the adapter contract remains responsible for outcome certainty. Rollback is a
 single Task 011 commit reverting the additive package/docs/tests; there is no schema or data
@@ -108,6 +108,8 @@ migration.
 - [x] 2026-08-08 — complete Task 011 change reviewed and staged for the required commit
 - [x] 2026-08-08 — PR #2 Python validation passed; the first Jazzy run exposed and the branch
   corrected a mixed CMake link-signature error before merge
+- [x] 2026-08-08 — the second Jazzy run reached compilation and exposed protected mutable
+  `TreeNode::config()` overload selection; validation now uses the public const accessor
 
 ## Decisions
 - 2026-08-08 — Use only `behaviortree_cpp` plus ROS core packages; do not add the optional
@@ -124,6 +126,9 @@ migration.
 - 2026-08-08 — Use the plain `target_link_libraries` signature for the supervisor executable
   because Jazzy's `ament_target_dependencies` uses that signature for the same target; mixing it
   with the keyword `PRIVATE` signature fails during CMake configuration.
+- 2026-08-08 — Traverse factory-created nodes through `const BT::TreeNode*` during preflight so
+  BehaviorTree.CPP 4.9 selects its public const `config()` accessor; validation never mutates node
+  configuration.
 
 ## Results
 Implementation is complete. The package includes the supervisor executable, loadable node plugin,
@@ -134,4 +139,6 @@ GNU Make, ROS 2 Jazzy, and colcon are unavailable on this Windows host, so the e
 targets and the three compiled Jazzy gtest targets could not execute locally. PR #2 is the
 authoritative Ubuntu Jazzy rerun record. Its first run passed Python validation and reached the new
 package before CMake rejected mixed keyword/plain link signatures; the branch now uses the plain
-signature consistently with `ament_target_dependencies`.
+signature consistently with `ament_target_dependencies`. Its second run reached C++ compilation
+and confirmed Jazzy provides BehaviorTree.CPP 4.9.0, where mutable `TreeNode::config()` is
+protected; preflight now uses the public const accessor.

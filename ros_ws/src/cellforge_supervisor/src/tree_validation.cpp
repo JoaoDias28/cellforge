@@ -81,7 +81,9 @@ void validateTreePorts(const BT::Tree& tree) {
   std::unordered_set<std::string> produced_keys;
   for (const auto& subtree : tree.subtrees) {
     for (const auto& node : subtree->nodes) {
-      for (const auto& [port_name, mapping] : node->config().output_ports) {
+      const BT::TreeNode* const tree_node = node.get();
+      const auto& node_config = tree_node->config();
+      for (const auto& [port_name, mapping] : node_config.output_ports) {
         if (BT::TreeNode::isBlackboardPointer(mapping)) {
           produced_keys.insert(blackboardKey(port_name, mapping));
         }
@@ -91,7 +93,9 @@ void validateTreePorts(const BT::Tree& tree) {
 
   for (const auto& subtree : tree.subtrees) {
     for (const auto& node : subtree->nodes) {
-      const auto* manifest = node->config().manifest;
+      const BT::TreeNode* const tree_node = node.get();
+      const auto& node_config = tree_node->config();
+      const auto* manifest = node_config.manifest;
       if (manifest == nullptr) {
         continue;
       }
@@ -99,8 +103,8 @@ void validateTreePorts(const BT::Tree& tree) {
         if (port_info.direction() == BT::PortDirection::OUTPUT) {
           continue;
         }
-        const auto mapping = node->config().input_ports.find(port_name);
-        if (mapping == node->config().input_ports.end()) {
+        const auto mapping = node_config.input_ports.find(port_name);
+        if (mapping == node_config.input_ports.end()) {
           if (port_info.defaultValue().empty()) {
             throw TreeValidationError("supervisor.tree.missing_port",
                                       "Node '" + node->fullPath() +
@@ -114,7 +118,7 @@ void validateTreePorts(const BT::Tree& tree) {
 
         const auto key = blackboardKey(port_name, mapping->second);
         if (key.empty() ||
-            (node->config().blackboard->getEntry(key) == nullptr && !produced_keys.contains(key))) {
+            (node_config.blackboard->getEntry(key) == nullptr && !produced_keys.contains(key))) {
           throw TreeValidationError(
               "supervisor.tree.missing_blackboard_input",
               "Node '" + node->fullPath() + "' requires missing blackboard input '" + key + "'.");
