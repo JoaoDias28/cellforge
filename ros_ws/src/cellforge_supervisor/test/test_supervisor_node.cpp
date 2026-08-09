@@ -93,6 +93,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
   rclcpp::NodeOptions options;
   options.append_parameter_override("tree_root", tree_root.string());
   options.append_parameter_override("cell_id", "test-cell");
+  options.append_parameter_override("action_name", "/cell/run_job");
   auto supervisor = std::make_shared<SupervisorNode>(options);
   auto harness = std::make_shared<rclcpp::Node>("supervisor_harness");
 
