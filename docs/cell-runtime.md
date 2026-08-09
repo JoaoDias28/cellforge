@@ -18,12 +18,12 @@
 1. job gateway receives a job with idempotency key;
 2. gateway verifies mode and exact recipe/tree references;
 3. gateway freezes input payload and creates trace ID;
-4. supervisor accepts `RunJob` action;
+4. gateway durably records the frozen job, then the supervisor accepts the internal `RunJob` action;
 5. supervisor creates behavior-tree blackboard from frozen job and recipe;
 6. tree executes capability actions/services;
 7. cancellation propagates to active skills;
 8. structured events are written before external acknowledgement where practical;
-9. final result is committed locally;
+9. gateway commits the final result locally before completing the public action;
 10. job gateway returns result and later synchronizes upstream.
 
 ## 3. Behavior-tree node policy
@@ -41,7 +41,8 @@ No behavior-tree node should perform blocking vendor SDK calls directly. Those b
 
 ### 3.1 Supervisor execution contract
 
-`cellforge_supervisor` serves `/cell/run_job` and treats `RunJob.task_id` as an exact versioned
+`cellforge_job_gateway` serves `/cell/run_job`, while `cellforge_supervisor` serves the internal
+`/cell/supervisor/run_job` endpoint and treats `RunJob.task_id` as an exact versioned
 identifier beneath the active bundle's configured `tree_root`. Separators and traversal are
 rejected. The supervisor constructs the complete tree and rejects unknown node types, missing
 required ports, and unresolved external blackboard inputs before it enters `RUNNING` or sends a
@@ -62,6 +63,19 @@ The supervisor publishes its standard-control state on `/cell/supervisor_state` 
 state, and behavior-node transitions on `/events/job` for Task 010's durable recorder.
 Readiness refusal is not a safety-rated protective function, and the supervisor offers no interlock
 override.
+
+### 3.2 Job gateway and frozen records
+
+The gateway resolves the active immutable bundle manifest, recipe version, and task version before
+supervisor submission. It verifies content digests, exact cell and mode compatibility, recipe
+capabilities, and lifecycle policy. Simulation allows non-retired development recipes;
+commissioning requires `TESTED` or `APPROVED`; production requires `APPROVED`.
+
+Each accepted request is stored in a local SQLite database using its idempotency key and a canonical
+request hash. Matching completed retries replay the durable result; conflicting payloads are
+rejected. After restart, a nonterminal record is marked `OUTCOME_UNKNOWN` and is never automatically
+replayed. These standard-control rules cannot authorize physical processing when independent rated
+hardware refuses it.
 
 ## 4. Runtime packages
 

@@ -105,6 +105,8 @@ SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
   tree_root_ = declare_parameter<std::string>("tree_root", "");
   cell_id_ = declare_parameter<std::string>("cell_id", "");
   bundle_id_ = declare_parameter<std::string>("bundle_id", "");
+  const auto action_name =
+      declare_parameter<std::string>("action_name", "/cell/supervisor/run_job");
   default_job_timeout_ = std::chrono::milliseconds(
       declare_parameter<std::int64_t>("default_job_timeout_ms", kDefaultJobTimeout.count()));
 
@@ -119,7 +121,7 @@ SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
       [this](const cellforge_interfaces::msg::CellState& message) { onCellState(message); });
 
   run_job_server_ = rclcpp_action::create_server<RunJob>(
-      this, "/cell/run_job",
+      this, action_name,
       [this](const rclcpp_action::GoalUUID& uuid, const std::shared_ptr<const RunJob::Goal>& goal) {
         return handleGoal(uuid, goal);
       },
