@@ -1,0 +1,12 @@
+schema_version: 0.1.0
+scenario: {id: pen-laser-not-ready, name: Laser not ready, seed: 1006, timeout_seconds: 60}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: NOT-READY}
+initial_state: {product_present: true, safety_healthy: true, laser_ready: false}
+faults: []
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [laser.process.interlock_not_ready, job.failed]
+  forbidden_events: [process.command.completed, job.completed]

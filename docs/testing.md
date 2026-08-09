@@ -91,9 +91,17 @@ Pen engraving MVP:
 9. communication loss after process start, outcome unknown;
 10. unhealthy safety status prevents job acceptance.
 
+Task 013 stores all ten source scenarios under `examples/pen_engraving/scenarios/`. Its L0 runner
+must pass them deterministically, allow exact replay by the stored seed, issue no adapter command
+when safety status is unhealthy, and issue exactly one process-cycle command when communication is
+lost after process start. The latter ends in `OUTCOME_UNKNOWN`; it is never automatically retried.
+
 ## 4. Golden traces
 
 For selected scenarios, store normalized expected event sequences. Exclude nondeterministic timestamps while preserving order, state, command IDs, result codes, and required evidence.
+
+The pen L0 golden traces live under `examples/pen_engraving/golden_traces/`. JSON and JUnit reports
+are generated outputs and are not source artifacts; golden traces are reviewed source evidence.
 
 ## 5. Performance budgets
 

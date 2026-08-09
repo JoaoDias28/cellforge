@@ -1,0 +1,12 @@
+schema_version: 0.1.0
+scenario: {id: pen-pose-outside-limit, name: Pose outside correction limit, seed: 1004, timeout_seconds: 60}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: POSE}
+initial_state: {product_present: true, pose_within_limit: false, safety_healthy: true, laser_ready: true}
+faults: []
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [vision.pose.correction_limit, job.failed]
+  forbidden_events: [process.command.requested, job.completed]

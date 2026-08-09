@@ -106,6 +106,14 @@ recipes:
 calibrations: []
 scenarios:
   - scenarios/nominal.yaml
+  - scenarios/no_pen.yaml
+  - scenarios/pose_outside_limit.yaml
+  - scenarios/fixture_not_seated.yaml
+  - scenarios/laser_not_ready.yaml
   - scenarios/laser_timeout.yaml
+  - scenarios/inspection_text_mismatch.yaml
+  - scenarios/operator_cancel.yaml
+  - scenarios/process_outcome_unknown.yaml
+  - scenarios/safety_unhealthy.yaml
 deployment_profiles:
   - deployment-sim.yaml
