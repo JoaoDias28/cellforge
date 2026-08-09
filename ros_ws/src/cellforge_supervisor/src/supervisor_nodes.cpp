@@ -1,5 +1,6 @@
 #include "cellforge_supervisor/supervisor_nodes.hpp"
 
+#include <algorithm>
 #include <array>
 #include <builtin_interfaces/msg/duration.hpp>
 #include <cstdint>
@@ -9,13 +10,30 @@
 #include <utility>
 
 namespace cellforge_supervisor {
+namespace {
+
+constexpr std::int64_t kDefaultSkillTimeoutMilliseconds = 30000;
+constexpr std::int64_t kMillisecondsPerSecond = 1000;
+constexpr std::int64_t kNanosecondsPerMillisecond = 1000000;
+constexpr std::size_t kUuidByteCount = 16;
+constexpr std::size_t kUuidVersionIndex = 6;
+constexpr std::size_t kUuidVariantIndex = 8;
+constexpr std::uint8_t kUuidVersionMask = 0x0F;
+constexpr std::uint8_t kUuidVersionFour = 0x40;
+constexpr std::uint8_t kUuidVariantMask = 0x3F;
+constexpr std::uint8_t kUuidVariantRfc4122 = 0x80;
+constexpr std::array<std::size_t, 4> kUuidHyphenPositions{3, 5, 7, 9};
+
+}  // namespace
 
 CellReadyCondition::CellReadyCondition(const std::string& name, const BT::NodeConfig& config)
     : BT::ConditionNode(name, config) {}
 
-BT::PortsList CellReadyCondition::providedPorts() { return {BT::InputPort<bool>("cell_ready")}; }
+auto CellReadyCondition::providedPorts() -> BT::PortsList {
+  return {BT::InputPort<bool>("cell_ready")};
+}
 
-BT::NodeStatus CellReadyCondition::tick() {
+auto CellReadyCondition::tick() -> BT::NodeStatus {
   const auto ready = getInput<bool>("cell_ready");
   if (!ready) {
     throw BT::RuntimeError("CellReady missing required input [cell_ready]: ", ready.error());
@@ -26,14 +44,14 @@ BT::NodeStatus CellReadyCondition::tick() {
 ExecuteSkillAction::ExecuteSkillAction(const std::string& name, const BT::NodeConfig& config)
     : BT::StatefulActionNode(name, config) {}
 
-BT::PortsList ExecuteSkillAction::providedPorts() {
+auto ExecuteSkillAction::providedPorts() -> BT::PortsList {
   return {
       BT::InputPort<std::string>("action_name"),
       BT::InputPort<std::string>("skill_id"),
       BT::InputPort<std::string>("input_payload_json", std::string("{}"), ""),
       BT::InputPort<std::string>("execution_mode"),
       BT::InputPort<std::string>("command_id", std::string(""), ""),
-      BT::InputPort<std::int64_t>("timeout_ms", 30000, ""),
+      BT::InputPort<std::int64_t>("timeout_ms", kDefaultSkillTimeoutMilliseconds, ""),
       BT::OutputPort<std::string>("resolved_command_id"),
       BT::OutputPort<std::string>("result_code"),
       BT::OutputPort<std::string>("result_message"),
@@ -41,7 +59,7 @@ BT::PortsList ExecuteSkillAction::providedPorts() {
   };
 }
 
-BT::NodeStatus ExecuteSkillAction::onStart() {
+auto ExecuteSkillAction::onStart() -> BT::NodeStatus {
   std::string action_name;
   std::string skill_id;
   std::string input_payload_json;
@@ -68,16 +86,17 @@ BT::NodeStatus ExecuteSkillAction::onStart() {
   }
   (void)setOutput("resolved_command_id", command_id);
 
+  rclcpp::Node::SharedPtr node;
   try {
-    node_ = config().blackboard->get<rclcpp::Node::SharedPtr>(kRosNodeBlackboardKey);
+    node = config().blackboard->get<RosNodeWeakPtr>(kRosNodeBlackboardKey).lock();
   } catch (const std::exception& error) {
     return fail("supervisor.capability.no_ros_node", error.what());
   }
-  if (!node_) {
+  if (!node) {
     return fail("supervisor.capability.no_ros_node", "ROS node blackboard entry is null.");
   }
 
-  client_ = rclcpp_action::create_client<ExecuteSkill>(node_, action_name);
+  client_ = rclcpp_action::create_client<ExecuteSkill>(node, action_name);
   state_ = std::make_shared<AsyncState>();
   goal_sent_ = false;
   deadline_ = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
@@ -86,8 +105,9 @@ BT::NodeStatus ExecuteSkillAction::onStart() {
   pending_goal_.skill_id = skill_id;
   pending_goal_.input_payload_json = input_payload_json;
   pending_goal_.execution_mode = execution_mode;
-  pending_goal_.timeout.sec = static_cast<std::int32_t>(timeout_ms / 1000);
-  pending_goal_.timeout.nanosec = static_cast<std::uint32_t>((timeout_ms % 1000) * 1000000);
+  pending_goal_.timeout.sec = static_cast<std::int32_t>(timeout_ms / kMillisecondsPerSecond);
+  pending_goal_.timeout.nanosec = static_cast<std::uint32_t>((timeout_ms % kMillisecondsPerSecond) *
+                                                             kNanosecondsPerMillisecond);
   if (client_->action_server_is_ready()) {
     sendGoal();
   }
@@ -122,7 +142,7 @@ void ExecuteSkillAction::sendGoal() {
   (void)client_->async_send_goal(pending_goal_, options);
 }
 
-BT::NodeStatus ExecuteSkillAction::onRunning() {
+auto ExecuteSkillAction::onRunning() -> BT::NodeStatus {
   const auto state = state_;
   if (!state) {
     return fail("supervisor.capability.internal", "ExecuteSkill has no active state.");
@@ -192,7 +212,8 @@ void ExecuteSkillAction::requestCancellation(const std::shared_ptr<AsyncState>& 
   }
 }
 
-BT::NodeStatus ExecuteSkillAction::fail(const std::string& code, const std::string& message) {
+auto ExecuteSkillAction::fail(const std::string& code,
+                              const std::string& message) -> BT::NodeStatus {
   (void)setOutput("result_code", code);
   (void)setOutput("result_message", message);
   (void)setOutput("output_payload_json", "{}");
@@ -204,20 +225,23 @@ void registerSupervisorNodes(BT::BehaviorTreeFactory& factory) {
   factory.registerNodeType<ExecuteSkillAction>("ExecuteSkill");
 }
 
-std::string newUuid() {
-  std::array<std::uint8_t, 16> bytes{};
+auto newUuid() -> std::string {
+  std::array<std::uint8_t, kUuidByteCount> bytes{};
   std::random_device random;
   for (auto& value : bytes) {
     value = static_cast<std::uint8_t>(random());
   }
-  bytes[6] = static_cast<std::uint8_t>((bytes[6] & 0x0F) | 0x40);
-  bytes[8] = static_cast<std::uint8_t>((bytes[8] & 0x3F) | 0x80);
+  bytes[kUuidVersionIndex] =
+      static_cast<std::uint8_t>((bytes[kUuidVersionIndex] & kUuidVersionMask) | kUuidVersionFour);
+  bytes[kUuidVariantIndex] = static_cast<std::uint8_t>(
+      (bytes[kUuidVariantIndex] & kUuidVariantMask) | kUuidVariantRfc4122);
 
   std::ostringstream output;
   output << std::hex << std::setfill('0');
   for (std::size_t index = 0; index < bytes.size(); ++index) {
     output << std::setw(2) << static_cast<unsigned int>(bytes[index]);
-    if (index == 3 || index == 5 || index == 7 || index == 9) {
+    if (std::find(kUuidHyphenPositions.begin(), kUuidHyphenPositions.end(), index) !=
+        kUuidHyphenPositions.end()) {
       output << '-';
     }
   }

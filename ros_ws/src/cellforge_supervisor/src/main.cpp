@@ -4,7 +4,7 @@
 
 #include "cellforge_supervisor/supervisor_node.hpp"
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
   rclcpp::init(argc, argv);
   auto supervisor = std::make_shared<cellforge_supervisor::SupervisorNode>();
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);

@@ -60,7 +60,7 @@ BT::Tree makeSkillTree(const rclcpp::Node::SharedPtr& client_node, const std::st
   BT::BehaviorTreeFactory factory;
   registerSupervisorNodes(factory);
   auto blackboard = BT::Blackboard::create();
-  blackboard->set<rclcpp::Node::SharedPtr>(kRosNodeBlackboardKey, client_node);
+  blackboard->set<RosNodeWeakPtr>(kRosNodeBlackboardKey, RosNodeWeakPtr{client_node});
 
   const auto action = "<ExecuteSkill action_name=\"" + action_name +
                       "\" skill_id=\"mock.skill\" execution_mode=\"simulation\" timeout_ms=\"" +

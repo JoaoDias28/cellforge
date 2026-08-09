@@ -14,16 +14,17 @@
 
 namespace cellforge_supervisor {
 
-inline constexpr char kRosNodeBlackboardKey[] = "cellforge_ros_node";
+inline constexpr auto kRosNodeBlackboardKey = "cellforge_ros_node";
+using RosNodeWeakPtr = std::weak_ptr<rclcpp::Node>;
 
 class CellReadyCondition : public BT::ConditionNode {
  public:
   CellReadyCondition(const std::string& name, const BT::NodeConfig& config);
 
-  static BT::PortsList providedPorts();
+  static auto providedPorts() -> BT::PortsList;
 
  private:
-  BT::NodeStatus tick() override;
+  auto tick() -> BT::NodeStatus override;
 };
 
 class ExecuteSkillAction : public BT::StatefulActionNode {
@@ -33,7 +34,7 @@ class ExecuteSkillAction : public BT::StatefulActionNode {
 
   ExecuteSkillAction(const std::string& name, const BT::NodeConfig& config);
 
-  static BT::PortsList providedPorts();
+  static auto providedPorts() -> BT::PortsList;
 
  private:
   struct AsyncState {
@@ -46,15 +47,14 @@ class ExecuteSkillAction : public BT::StatefulActionNode {
     bool cancel_sent{false};
   };
 
-  BT::NodeStatus onStart() override;
-  BT::NodeStatus onRunning() override;
+  auto onStart() -> BT::NodeStatus override;
+  auto onRunning() -> BT::NodeStatus override;
   void onHalted() override;
 
   void requestCancellation(const std::shared_ptr<AsyncState>& state);
   void sendGoal();
-  BT::NodeStatus fail(const std::string& code, const std::string& message);
+  auto fail(const std::string& code, const std::string& message) -> BT::NodeStatus;
 
-  rclcpp::Node::SharedPtr node_;
   rclcpp_action::Client<ExecuteSkill>::SharedPtr client_;
   std::shared_ptr<AsyncState> state_;
   ExecuteSkill::Goal pending_goal_;
@@ -64,6 +64,6 @@ class ExecuteSkillAction : public BT::StatefulActionNode {
 
 void registerSupervisorNodes(BT::BehaviorTreeFactory& factory);
 
-std::string newUuid();
+auto newUuid() -> std::string;
 
 }  // namespace cellforge_supervisor

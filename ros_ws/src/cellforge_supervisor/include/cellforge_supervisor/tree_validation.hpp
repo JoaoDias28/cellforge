@@ -10,23 +10,23 @@ namespace cellforge_supervisor {
 
 class TreeValidationError : public std::runtime_error {
  public:
-  TreeValidationError(std::string code, std::string message);
+  TreeValidationError(const char* code, const std::string& message);
 
-  [[nodiscard]] const std::string& code() const noexcept;
+  [[nodiscard]] auto code() const noexcept -> const std::string&;
 
  private:
   std::string code_;
 };
 
-std::filesystem::path resolveTreePath(const std::filesystem::path& tree_root,
-                                      const std::string& task_id);
+auto resolveTreePath(const std::filesystem::path& tree_root,
+                     const std::string& task_id) -> std::filesystem::path;
 
-BT::Tree createValidatedTreeFromText(BT::BehaviorTreeFactory& factory, const std::string& xml,
-                                     const BT::Blackboard::Ptr& blackboard);
+auto createValidatedTreeFromText(BT::BehaviorTreeFactory& factory, const std::string& xml,
+                                 const BT::Blackboard::Ptr& blackboard) -> BT::Tree;
 
-BT::Tree createValidatedTreeFromFile(BT::BehaviorTreeFactory& factory,
-                                     const std::filesystem::path& path,
-                                     const BT::Blackboard::Ptr& blackboard);
+auto createValidatedTreeFromFile(BT::BehaviorTreeFactory& factory,
+                                 const std::filesystem::path& path,
+                                 const BT::Blackboard::Ptr& blackboard) -> BT::Tree;
 
 void validateTreePorts(const BT::Tree& tree);
 

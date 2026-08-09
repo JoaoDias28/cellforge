@@ -45,7 +45,8 @@ Pre-edit baseline on 2026-08-08:
 one worker thread for the active job. Goal acceptance only validates basic identity and single-job
 exclusion. The worker resolves the exact `task_id` to `<tree_root>/<task_id>.xml`, rejects path
 traversal, seeds the blackboard with frozen job fields and the ROS node, creates the tree, and runs
-preflight before changing state to `RUNNING`.
+preflight before changing state to `RUNNING`. The blackboard holds a non-owning ROS node reference
+so destroying a completed tree cannot make its worker thread the final owner of the supervisor.
 
 `CellReady` is a fast condition over a required blackboard boolean. `ExecuteSkill` is a
 `BT::StatefulActionNode`: `onStart()` sends a ROS action goal without waiting; executor callbacks
@@ -118,6 +119,13 @@ migration.
 - [x] 2026-08-08 — the fifth Jazzy run passed validation, async-node tests, and clang-format;
   the remaining full-node self-join race was removed with a persistent worker, and clang-tidy now
   receives the generated package build directory
+- [x] 2026-08-09 — the sixth Jazzy run passed Python validation and the full ROS build, then
+  exposed the remaining worker-owned node lifetime and the repository's actual clang-tidy findings
+- [x] 2026-08-09 — a disposable Jazzy container reproduced the full-node failure under gdb;
+  non-owning blackboard node access removed the self-destruction path, and all clang-tidy findings
+  were corrected or narrowly documented where ROS logging macros inflate the metric
+- [x] 2026-08-09 — exact `make ros-build` and `make ros-test` pass in Jazzy: all five packages
+  build and all 46 tests pass with zero failures, errors, or skips
 
 ## Decisions
 - 2026-08-08 — Use only `behaviortree_cpp` plus ROS core packages; do not add the optional
@@ -149,15 +157,24 @@ migration.
   active goal, while sequential goals no longer risk joining the current execution thread.
 - 2026-08-08 — Pass `${CMAKE_BINARY_DIR}` to `ament_clang_tidy`, following the Jazzy CMake API, so
   the linter searches the package build directory containing `compile_commands.json`.
+- 2026-08-09 — Store a `std::weak_ptr<rclcpp::Node>` on the behavior-tree blackboard and lock it
+  only long enough to create each action client. A tree must not extend supervisor ownership into
+  its worker because final release there would make the supervisor join its own thread.
+- 2026-08-09 — Keep the repository-wide clang-tidy policy intact. Address concrete findings and
+  suppress only the two cognitive-complexity diagnostics caused by ROS logging macro expansion,
+  with an adjacent explanation at each suppression.
 
 ## Results
 Implementation is complete. The package includes the supervisor executable, loadable node plugin,
 preflight/path validator, versioned mock tree, and three Jazzy gtest targets covering preflight,
 async success/retry/timeout/cancellation, transition events, and the complete `RunJob` action path.
 Local Ruff, strict mypy, 184 Python tests, example validation, XML parsing, and clang-format pass.
-GNU Make, ROS 2 Jazzy, and colcon are unavailable on this Windows host, so the exact five Make
-targets and the three compiled Jazzy gtest targets could not execute locally. PR #2 is the
-authoritative Ubuntu Jazzy rerun record. Its first run passed Python validation and reached the new
+GNU Make, ROS 2 Jazzy, and colcon remain unavailable directly on this Windows host, so the three
+Python Make targets were exercised through their exact underlying commands. In a disposable Jazzy
+container, the repository's exact `make ros-build` and `make ros-test` targets pass: all five
+packages build and all 46 tests pass with zero failures, errors, or skips, including the three
+supervisor gtest targets, clang-format, and clang-tidy. PR #2 is the authoritative Ubuntu Jazzy
+rerun record. Its first run passed Python validation and reached the new
 package before CMake rejected mixed keyword/plain link signatures; the branch now uses the plain
 signature consistently with `ament_target_dependencies`. Its second run reached C++ compilation
 and confirmed Jazzy provides BehaviorTree.CPP 4.9.0, where mutable `TreeNode::config()` is
@@ -166,4 +183,6 @@ passed clang-format, and reached all supervisor gtests; the branch now includes 
 harness corrections those tests exposed. Its fourth run identified and corrected the explicit
 server-goal pointer type required by Jazzy's `rclcpp_action` API. Its fifth run passed the pure
 validation and async-node suites and isolated the final full-node worker-recycling and clang-tidy
-discovery corrections now present on the branch.
+discovery corrections. Its sixth run confirmed the complete ROS build and isolated the last
+ownership race plus the now-resolved clang-tidy findings. The next PR run verifies the same final
+source in the hosted Ubuntu Jazzy environment before merge.

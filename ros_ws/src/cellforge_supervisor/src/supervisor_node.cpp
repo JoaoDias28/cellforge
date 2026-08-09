@@ -21,13 +21,16 @@ using namespace std::chrono_literals;
 namespace cellforge_supervisor {
 namespace {
 
+constexpr auto kStateQueueDepth = 10;
+constexpr auto kEventQueueDepth = 100;
+
 class ScopeExit {
  public:
   explicit ScopeExit(std::function<void()> callback) : callback_(std::move(callback)) {}
   ~ScopeExit() { callback_(); }
 
   ScopeExit(const ScopeExit&) = delete;
-  ScopeExit& operator=(const ScopeExit&) = delete;
+  auto operator=(const ScopeExit&) -> ScopeExit& = delete;
 
   void dismiss() {
     callback_ = []() {};
@@ -37,13 +40,13 @@ class ScopeExit {
   std::function<void()> callback_;
 };
 
-bool isUuid(const std::string& value) {
+auto isUuid(const std::string& value) -> bool {
   static const std::regex uuid_pattern(
       R"(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$)");
   return std::regex_match(value, uuid_pattern);
 }
 
-std::string jsonEscape(const std::string& value) {
+auto jsonEscape(const std::string& value) -> std::string {
   std::ostringstream output;
   for (const char character : value) {
     switch (character) {
@@ -70,7 +73,7 @@ std::string jsonEscape(const std::string& value) {
   return output.str();
 }
 
-std::string nodeStatusName(BT::NodeStatus status) {
+auto nodeStatusName(BT::NodeStatus status) -> std::string {
   switch (status) {
     case BT::NodeStatus::IDLE:
       return "IDLE";
@@ -86,8 +89,8 @@ std::string nodeStatusName(BT::NodeStatus status) {
   return "UNKNOWN";
 }
 
-std::chrono::milliseconds durationToMilliseconds(
-    const builtin_interfaces::msg::Duration& duration) {
+auto durationToMilliseconds(const builtin_interfaces::msg::Duration& duration)
+    -> std::chrono::milliseconds {
   const auto seconds = std::chrono::seconds(duration.sec);
   const auto nanoseconds = std::chrono::nanoseconds(duration.nanosec);
   return std::chrono::duration_cast<std::chrono::milliseconds>(seconds + nanoseconds);
@@ -95,45 +98,39 @@ std::chrono::milliseconds durationToMilliseconds(
 
 }  // namespace
 
+// ROS logging macros expand to nested control flow even though this constructor is linear.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
     : rclcpp::Node("cell_supervisor", options) {
   tree_root_ = declare_parameter<std::string>("tree_root", "");
   cell_id_ = declare_parameter<std::string>("cell_id", "");
   bundle_id_ = declare_parameter<std::string>("bundle_id", "");
-  default_job_timeout_ =
-      std::chrono::milliseconds(declare_parameter<std::int64_t>("default_job_timeout_ms", 300000));
+  default_job_timeout_ = std::chrono::milliseconds(
+      declare_parameter<std::int64_t>("default_job_timeout_ms", kDefaultJobTimeout.count()));
 
   registerSupervisorNodes(factory_);
 
   state_publisher_ = create_publisher<cellforge_interfaces::msg::CellState>(
-      "/cell/supervisor_state", rclcpp::QoS(10).reliable());
+      "/cell/supervisor_state", rclcpp::QoS(kStateQueueDepth).reliable());
   event_publisher_ = create_publisher<cellforge_interfaces::msg::JobEvent>(
-      "/events/job", rclcpp::QoS(100).reliable());
+      "/events/job", rclcpp::QoS(kEventQueueDepth).reliable());
   cell_state_subscription_ = create_subscription<cellforge_interfaces::msg::CellState>(
-      "/cell/state", rclcpp::QoS(10).reliable(),
-      std::bind(&SupervisorNode::onCellState, this, std::placeholders::_1));
+      "/cell/state", rclcpp::QoS(kStateQueueDepth).reliable(),
+      [this](const cellforge_interfaces::msg::CellState& message) { onCellState(message); });
 
   run_job_server_ = rclcpp_action::create_server<RunJob>(
       this, "/cell/run_job",
-      std::bind(&SupervisorNode::handleGoal, this, std::placeholders::_1, std::placeholders::_2),
-      std::bind(&SupervisorNode::handleCancel, this, std::placeholders::_1),
-      std::bind(&SupervisorNode::handleAccepted, this, std::placeholders::_1));
+      [this](const rclcpp_action::GoalUUID& uuid, const std::shared_ptr<const RunJob::Goal>& goal) {
+        return handleGoal(uuid, goal);
+      },
+      [this](const std::shared_ptr<GoalHandleRunJob>& goal_handle) {
+        return handleCancel(goal_handle);
+      },
+      [this](const std::shared_ptr<GoalHandleRunJob>& goal_handle) {
+        handleAccepted(goal_handle);
+      });
 
-  worker_ = std::jthread([this](std::stop_token stop_token) {
-    while (true) {
-      std::shared_ptr<GoalHandleRunJob> goal_handle;
-      {
-        std::unique_lock lock(worker_mutex_);
-        worker_condition_.wait(lock, stop_token,
-                               [this]() { return pending_goal_handle_ != nullptr; });
-        if (stop_token.stop_requested() && pending_goal_handle_ == nullptr) {
-          return;
-        }
-        goal_handle = std::move(pending_goal_handle_);
-      }
-      executeGoal(goal_handle, stop_token);
-    }
-  });
+  worker_ = std::jthread([this](const std::stop_token& stop_token) { workerLoop(stop_token); });
 
   transitionState("IDLE");
   RCLCPP_INFO(get_logger(), "Supervisor ready; versioned tree root is '%s'.",
@@ -149,8 +146,11 @@ SupervisorNode::~SupervisorNode() {
   }
 }
 
-rclcpp_action::GoalResponse SupervisorNode::handleGoal(const rclcpp_action::GoalUUID&,
-                                                       std::shared_ptr<const RunJob::Goal> goal) {
+// ROS warning macros dominate clang-tidy's expanded complexity; source-level validation is flat.
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+auto SupervisorNode::handleGoal(const rclcpp_action::GoalUUID& /*unused*/,
+                                const std::shared_ptr<const RunJob::Goal>& goal)
+    -> rclcpp_action::GoalResponse {
   if (!goal || !isUuid(goal->job_id) || goal->cell_id.empty() || goal->task_id.empty() ||
       goal->recipe_id.empty()) {
     RCLCPP_WARN(get_logger(), "Rejected RunJob with missing or invalid immutable identity fields.");
@@ -169,8 +169,8 @@ rclcpp_action::GoalResponse SupervisorNode::handleGoal(const rclcpp_action::Goal
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-rclcpp_action::CancelResponse SupervisorNode::handleCancel(
-    const std::shared_ptr<GoalHandleRunJob>) {
+auto SupervisorNode::handleCancel(const std::shared_ptr<GoalHandleRunJob>& /*unused*/)
+    -> rclcpp_action::CancelResponse {
   if (!job_active_.load()) {
     return rclcpp_action::CancelResponse::REJECT;
   }
@@ -178,7 +178,7 @@ rclcpp_action::CancelResponse SupervisorNode::handleCancel(
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob> goal_handle) {
+void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob>& goal_handle) {
   cancel_requested_.store(false);
   {
     std::lock_guard lock(worker_mutex_);
@@ -187,8 +187,24 @@ void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob> goal
   worker_condition_.notify_one();
 }
 
+void SupervisorNode::workerLoop(const std::stop_token& stop_token) {
+  while (true) {
+    std::shared_ptr<GoalHandleRunJob> goal_handle;
+    {
+      std::unique_lock lock(worker_mutex_);
+      worker_condition_.wait(lock, stop_token,
+                             [this]() { return pending_goal_handle_ != nullptr; });
+      if (stop_token.stop_requested() && pending_goal_handle_ == nullptr) {
+        return;
+      }
+      goal_handle = std::move(pending_goal_handle_);
+    }
+    executeGoal(goal_handle, stop_token);
+  }
+}
+
 void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
-                                 std::stop_token stop_token) {
+                                 const std::stop_token& stop_token) {
   ScopeExit release_slot([this]() { finishGoalSlot(); });
   const auto release_goal_slot = [this, &release_slot]() {
     finishGoalSlot();
@@ -206,7 +222,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
     result->result_code = "supervisor.job.cell_not_ready";
     result->result_message = "Aggregated cell and safety readiness is not healthy.";
     publishEvent("job.rejected", goal->job_id, trace_id,
-                 "{\"code\":\"supervisor.job.cell_not_ready\"}", {}, "WARN");
+                 R"({"code":"supervisor.job.cell_not_ready"})", {}, "WARN");
     release_goal_slot();
     goal_handle->abort(result);
     return;
@@ -222,7 +238,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
   blackboard->set("execution_mode", goal->execution_mode);
   blackboard->set("idempotency_key", goal->idempotency_key);
   blackboard->set("cell_ready", cell_ready_.load());
-  blackboard->set<rclcpp::Node::SharedPtr>(kRosNodeBlackboardKey, shared_from_this());
+  blackboard->set<RosNodeWeakPtr>(kRosNodeBlackboardKey, RosNodeWeakPtr{shared_from_this()});
 
   std::optional<BT::Tree> tree;
   try {
@@ -233,7 +249,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
     result->result_code = error.code();
     result->result_message = error.what();
     publishEvent("job.rejected", goal->job_id, trace_id,
-                 "{\"code\":\"" + jsonEscape(error.code()) + "\",\"message\":\"" +
+                 R"({"code":")" + jsonEscape(error.code()) + R"(","message":")" +
                      jsonEscape(error.what()) + "\"}",
                  {}, "ERROR");
     release_goal_slot();
@@ -270,8 +286,8 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       result->success = false;
       result->result_code = "supervisor.job.timeout";
       result->result_message = "Job deadline elapsed; active actions were cancelled.";
-      publishEvent("job.failed", goal->job_id, trace_id, "{\"code\":\"supervisor.job.timeout\"}",
-                   {}, "ERROR");
+      publishEvent("job.failed", goal->job_id, trace_id, R"({"code":"supervisor.job.timeout"})", {},
+                   "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
       release_goal_slot();
       goal_handle->abort(result);
@@ -286,7 +302,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       result->result_code = "supervisor.tree.execution_error";
       result->result_message = error.what();
       publishEvent("job.failed", goal->job_id, trace_id,
-                   "{\"code\":\"supervisor.tree.execution_error\",\"message\":\"" +
+                   R"({"code":"supervisor.tree.execution_error","message":")" +
                        jsonEscape(error.what()) + "\"}",
                    {}, "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
@@ -317,8 +333,8 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
       result->success = false;
       result->result_code = "supervisor.job.tree_failed";
       result->result_message = "Behavior tree returned FAILURE.";
-      publishEvent("job.failed", goal->job_id, trace_id,
-                   "{\"code\":\"supervisor.job.tree_failed\"}", {}, "ERROR");
+      publishEvent("job.failed", goal->job_id, trace_id, R"({"code":"supervisor.job.tree_failed"})",
+                   {}, "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
       release_goal_slot();
       goal_handle->abort(result);
@@ -370,7 +386,7 @@ void SupervisorNode::transitionState(const std::string& state, const std::string
 
   if (!job_id.empty() && !trace_id.empty()) {
     publishEvent("cell.state.changed", job_id, trace_id,
-                 "{\"state\":\"" + jsonEscape(state) + "\"}");
+                 R"({"state":")" + jsonEscape(state) + "\"}");
   }
 }
 
@@ -390,17 +406,18 @@ void SupervisorNode::publishEvent(const std::string& event_type, const std::stri
   event_publisher_->publish(event);
 }
 
-std::vector<BT::TreeNode::StatusChangeSubscriber> SupervisorNode::attachTransitionEvents(
-    BT::Tree& tree, const std::string& job_id, const std::string& trace_id) {
+auto SupervisorNode::attachTransitionEvents(BT::Tree& tree, const std::string& job_id,
+                                            const std::string& trace_id)
+    -> std::vector<BT::TreeNode::StatusChangeSubscriber> {
   std::vector<BT::TreeNode::StatusChangeSubscriber> subscribers;
   tree.applyVisitor([this, &subscribers, job_id, trace_id](BT::TreeNode* node) {
     subscribers.push_back(node->subscribeToStatusChange(
         [this, job_id, trace_id](BT::TimePoint, const BT::TreeNode& changed_node,
                                  BT::NodeStatus previous, BT::NodeStatus current) {
-          const auto payload = "{\"node\":\"" + jsonEscape(changed_node.fullPath()) +
-                               "\",\"type\":\"" + jsonEscape(changed_node.registrationName()) +
-                               "\",\"previous\":\"" + nodeStatusName(previous) +
-                               "\",\"current\":\"" + nodeStatusName(current) + "\"}";
+          const auto payload = R"({"node":")" + jsonEscape(changed_node.fullPath()) +
+                               R"(","type":")" + jsonEscape(changed_node.registrationName()) +
+                               R"(","previous":")" + nodeStatusName(previous) + R"(","current":")" +
+                               nodeStatusName(current) + "\"}";
           if (previous == BT::NodeStatus::IDLE && current != BT::NodeStatus::IDLE) {
             publishEvent("behavior_tree.node.entered", job_id, trace_id, payload);
           }

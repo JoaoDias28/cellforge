@@ -30,12 +30,14 @@ class SupervisorNode : public rclcpp::Node {
   ~SupervisorNode() override;
 
  private:
-  rclcpp_action::GoalResponse handleGoal(const rclcpp_action::GoalUUID& uuid,
-                                         std::shared_ptr<const RunJob::Goal> goal);
-  rclcpp_action::CancelResponse handleCancel(const std::shared_ptr<GoalHandleRunJob> goal_handle);
-  void handleAccepted(const std::shared_ptr<GoalHandleRunJob> goal_handle);
+  auto handleGoal(const rclcpp_action::GoalUUID& uuid,
+                  const std::shared_ptr<const RunJob::Goal>& goal) -> rclcpp_action::GoalResponse;
+  auto handleCancel(const std::shared_ptr<GoalHandleRunJob>& goal_handle)
+      -> rclcpp_action::CancelResponse;
+  void handleAccepted(const std::shared_ptr<GoalHandleRunJob>& goal_handle);
+  void workerLoop(const std::stop_token& stop_token);
   void executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
-                   std::stop_token stop_token);
+                   const std::stop_token& stop_token);
   void finishGoalSlot();
 
   void onCellState(const cellforge_interfaces::msg::CellState& message);
@@ -44,17 +46,19 @@ class SupervisorNode : public rclcpp::Node {
   void publishEvent(const std::string& event_type, const std::string& job_id,
                     const std::string& trace_id, const std::string& payload_json,
                     const std::string& command_id = {}, const std::string& severity = "INFO");
-  std::vector<BT::TreeNode::StatusChangeSubscriber> attachTransitionEvents(
-      BT::Tree& tree, const std::string& job_id, const std::string& trace_id);
-  void publishFeedback(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
-                       const std::string& state, const std::string& active_node,
-                       const std::string& message);
+  auto attachTransitionEvents(BT::Tree& tree, const std::string& job_id,
+                              const std::string& trace_id)
+      -> std::vector<BT::TreeNode::StatusChangeSubscriber>;
+  static void publishFeedback(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
+                              const std::string& state, const std::string& active_node,
+                              const std::string& message);
 
   BT::BehaviorTreeFactory factory_;
   std::filesystem::path tree_root_;
   std::string cell_id_;
   std::string bundle_id_;
-  std::chrono::milliseconds default_job_timeout_{300000};
+  static constexpr std::chrono::milliseconds kDefaultJobTimeout{300000};
+  std::chrono::milliseconds default_job_timeout_{kDefaultJobTimeout};
   std::atomic_bool job_active_{false};
   std::atomic_bool cancel_requested_{false};
   std::atomic_bool cell_ready_{false};
