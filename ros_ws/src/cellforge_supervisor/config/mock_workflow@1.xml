@@ -1,0 +1,17 @@
+<root BTCPP_format="4" main_tree_to_execute="MockWorkflow">
+  <BehaviorTree ID="MockWorkflow">
+    <Sequence name="mock_workflow">
+      <CellReady cell_ready="{cell_ready}"/>
+      <ExecuteSkill
+        action_name="/mock/execute_skill"
+        skill_id="mock.nominal"
+        input_payload_json="{input_payload_json}"
+        execution_mode="{execution_mode}"
+        timeout_ms="1000"
+        resolved_command_id="{command_id}"
+        result_code="{result_code}"
+        result_message="{result_message}"
+        output_payload_json="{output_payload_json}"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

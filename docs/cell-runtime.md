@@ -39,6 +39,30 @@ Nodes fall into categories:
 
 No behavior-tree node should perform blocking vendor SDK calls directly. Those belong in an adapter node.
 
+### 3.1 Supervisor execution contract
+
+`cellforge_supervisor` serves `/cell/run_job` and treats `RunJob.task_id` as an exact versioned
+identifier beneath the active bundle's configured `tree_root`. Separators and traversal are
+rejected. The supervisor constructs the complete tree and rejects unknown node types, missing
+required ports, and unresolved external blackboard inputs before it enters `RUNNING` or sends a
+capability goal.
+
+Initial registered nodes are:
+
+- `CellReady` — a fast standard-control condition over the aggregated readiness snapshot;
+- `ExecuteSkill` — a `StatefulActionNode` wrapper over the canonical ROS `ExecuteSkill` action.
+
+Action-server discovery, goal dispatch, results, and cancellation are asynchronous. Tree ticks only
+inspect local callback state, and the caller's steady deadline bounds both discovery and execution.
+BehaviorTree.CPP retry/timeout decorators compose those actions in XML. Halting a running tree sends
+cancellation to every active wrapper; cancellation is a request and does not invent certainty about
+the physical outcome.
+
+The supervisor publishes its standard-control state on `/cell/supervisor_state` and emits job,
+state, and behavior-node transitions on `/events/job` for Task 010's durable recorder.
+Readiness refusal is not a safety-rated protective function, and the supervisor offers no interlock
+override.
+
 ## 4. Runtime packages
 
 ```text
