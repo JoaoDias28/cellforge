@@ -101,8 +101,8 @@ there is no schema or persistent-data migration.
 - [x] 2026-08-10 — all ten required scenarios, reports, and golden traces complete
 - [x] 2026-08-10 — local acceptance/regression checks complete, including disposable Jazzy ROS
   build/test evidence
-- [ ] 2026-08-10 — hosted GitHub acceptance checks complete
-- [ ] 2026-08-10 — task commit, ready PR, green CI, merge, and local main sync complete
+- [x] 2026-08-10 — hosted GitHub acceptance checks complete
+- [x] 2026-08-10 — task commit, ready PR, green CI, merge, and local main sync complete
 
 ## Decisions
 - 2026-08-10 — Keep the runner inside the mock-adapter package so it executes the Task 009 adapter
@@ -136,5 +136,7 @@ Final local evidence:
   clang-format and clang-tidy.
 
 L0 limitations remain explicit: this evidence does not exercise Isaac Sim, geometry, physics,
-rendered perception, mark quality, real hardware, or independent functional safety. GitHub
-publication and hosted CI evidence remain pending.
+rendered perception, mark quality, real hardware, or independent functional safety. Commit
+`9195926` was published in ready PR #4. Hosted Python validation and ROS 2 Jazzy build/test both
+passed, GitHub reported the PR clean and mergeable, and merge commit `62b61b9` was synchronized to
+local and remote `main` with a clean working tree.
