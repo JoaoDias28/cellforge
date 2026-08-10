@@ -82,7 +82,7 @@ Task 017 commits removes the feature without migrating existing project data.
 - [x] 2026-08-10 - Implement pure connection browsing, validation, and mechanical snap services.
 - [x] 2026-08-10 - Integrate application/UI commands, safety presentation, and undo/redo.
 - [x] 2026-08-10 - Complete probes, documentation, and local regression validation.
-- [ ] 2026-08-10 - Commit, publish a ready PR, wait for CI, merge, and synchronize local `main`.
+- [x] 2026-08-10 - Commit, publish a ready PR, wait for CI, merge, and synchronize local `main`.
 
 ## Decisions
 - 2026-08-10 - Reuse Task 005 resolver validation as the authority for port compatibility; Studio
@@ -113,5 +113,11 @@ and extension manifest verification. Earlier in the same final cycle, all 36 Stu
 GNU Make is unavailable, so the exact Makefile command bodies were run with `uv`. Isaac Sim 6 is
 unavailable because neither `isaac-sim.bat` nor `isaacsim` is installed or on `PATH`; the documented
 `scripts/verify_kit_connections.py` OpenUSD integration probe was therefore not executed. No ROS
-packages changed, so local ROS build/test checks are not applicable. Publication, CI, merge, and
-default-branch synchronization remain pending.
+packages changed, so local ROS build/test checks are not applicable.
+
+Implementation commit `c342177` was published in ready PR #12. GitHub Actions run 31398531259
+completed successfully: `Python 3.12 validation` passed lint, typing, tests, and example validation;
+`ROS 2 Jazzy build and test` passed repository setup, dependency resolution, workspace build, and
+workspace tests. GitHub reported the PR clean and mergeable. Merge commit `c23bbdd` was synchronized
+to local and remote `main`, both resolving to `c23bbdd13388ef0836d652995879aec4531cbcee`, with the
+Task 017 implementation commit confirmed as an ancestor. Task 018 was not started.
