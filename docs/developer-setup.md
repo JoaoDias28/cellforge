@@ -83,3 +83,13 @@ contract.
 
 No browser, cloud service, or engineering workstation is required by any production ROS node as a
 result of this bootstrap.
+
+## Isaac Sim 6 extension development
+
+Cell Studio's Task 014 shell is discovered from `src/kit` as extension `cellforge.studio`. Run its
+deterministic tests without Isaac Sim using `make kit-extension-check`. See `docs/cell-studio.md` for
+the interactive launch command and the exact Isaac Sim 6 `--no-window` lifecycle probe.
+
+The extension has no additional PyPI production dependency. `omni.ext` and `omni.ui` are supplied
+and maintained by the supported Isaac Sim 6 / Omniverse Kit installation. Removing the extension
+directory removes this engineering-only integration without affecting the runtime or domain model.

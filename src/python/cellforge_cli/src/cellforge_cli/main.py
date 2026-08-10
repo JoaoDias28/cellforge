@@ -23,6 +23,7 @@ from cellforge_cli.projects import (
     copy_example,
     initialize_project,
     inspect_project,
+    resolve_project_schema_directory,
     validate_project,
 )
 from cellforge_cli.resources import CliResources, ResourceUnavailableError
@@ -375,38 +376,16 @@ def _verified_project_schemas(
     canonical_schemas: Path,
 ) -> Path | CommandResult:
     """Use portable project schemas only when they exactly match the canonical set."""
-    project_schemas = project.resolve() / "schemas"
-    if not (project_schemas / "cell.schema.json").is_file():
-        return canonical_schemas
-
-    expected_names = {path.name for path in canonical_schemas.glob("*.json")}
-    actual_names = {path.name for path in project_schemas.glob("*.json")}
-    if actual_names != expected_names:
-        return _failure(
+    try:
+        return resolve_project_schema_directory(project, canonical_schemas)
+    except ProjectOperationError as error:
+        return CommandResult(
             command=command,
-            exit_code=ExitCode.VALIDATION_FAILED,
-            code="cli.project-schema-set-mismatch",
-            path=project_schemas,
-            message="Project-local schemas do not match the canonical schema file set.",
+            exit_code=error.exit_code,
+            message=error.finding.message,
+            data={},
+            findings=(error.finding,),
         )
-
-    for name in sorted(expected_names):
-        canonical_path = canonical_schemas / name
-        project_schema = project_schemas / name
-        try:
-            matches_canonical = project_schema.read_bytes() == canonical_path.read_bytes()
-        except OSError:
-            matches_canonical = False
-        if not matches_canonical:
-            return _failure(
-                command=command,
-                exit_code=ExitCode.VALIDATION_FAILED,
-                code="cli.project-schema-mismatch",
-                path=project_schema,
-                message="Project-local schema differs from the canonical bundled schema.",
-            )
-
-    return project_schemas
 
 
 def _resources(command: str) -> CliResources | CommandResult:

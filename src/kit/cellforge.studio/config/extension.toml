@@ -1,0 +1,15 @@
+[package]
+version = "0.1.0"
+category = "CellForge"
+title = "Cell Studio Shell"
+description = "Read-only CellForge project, validation, and log panels for Isaac Sim 6."
+authors = ["CellForge contributors"]
+repository = "https://github.com/JoaoDias28/cellforge"
+keywords = ["cellforge", "robotics", "engineering", "isaac-sim"]
+readme = "docs/Overview.md"
+
+[dependencies]
+"omni.ui" = {}
+
+[[python.module]]
+name = "cellforge.studio.extension"

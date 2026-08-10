@@ -23,7 +23,8 @@ members = ["src/python/*"]
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers", "-ra"]
-testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_bundle/tests", "src/python/cellforge_cli/tests", "tests"]
+testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_bundle/tests", "src/python/cellforge_cli/tests", "src/kit/cellforge.studio/tests", "tests"]
+pythonpath = ["src/kit/cellforge.studio"]
 
 [tool.ruff]
 line-length = 100
@@ -32,10 +33,14 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["cellforge"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
 warn_unreachable = true
+mypy_path = "src/kit/cellforge.studio"
 
 [[tool.mypy.overrides]]
 module = [
