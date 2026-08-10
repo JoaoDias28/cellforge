@@ -1,0 +1,12 @@
+schema_version: 0.1.0
+scenario: {id: pen-no-pen, name: No pen present, seed: 1003, timeout_seconds: 60}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: NO-PEN}
+initial_state: {product_present: false, safety_healthy: true, laser_ready: true}
+faults: []
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [vision.object.not_found, job.failed]
+  forbidden_events: [process.command.requested, job.completed]

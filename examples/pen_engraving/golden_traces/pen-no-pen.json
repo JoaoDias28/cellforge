@@ -1,0 +1,145 @@
+[
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.accepted",
+    "evidence": {
+      "seed": 1003,
+      "trace_id": "e9e740a1-dcc7-569d-ac3e-2f6b6c129ae9"
+    },
+    "node": "",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 1
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "ValidateFrozenJob",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 2
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "ValidateFrozenJob",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 3
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 4
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 5
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "CheckRequiredDevicesReady",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 6
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.started",
+    "evidence": {},
+    "node": "CheckRequiredDevicesReady",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 7
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "CheckRequiredDevicesReady",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 8
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 9
+  },
+  {
+    "command_id": "5bb70498-c474-5ddd-bca3-05a89ba33cab",
+    "component_instance_id": "camera-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "vision.action.locate_object"
+    },
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 10
+  },
+  {
+    "command_id": "5bb70498-c474-5ddd-bca3-05a89ba33cab",
+    "component_instance_id": "camera-001",
+    "event_type": "vision.object.not_found",
+    "evidence": {},
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "vision.object.not_found",
+    "sequence": 11
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "FAILURE"
+    },
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "FAILURE",
+    "sequence": 12
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.failed",
+    "evidence": {},
+    "node": "",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 13
+  }
+]

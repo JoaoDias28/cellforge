@@ -1,19 +1,32 @@
 <root BTCPP_format="4" main_tree_to_execute="PenEngraving">
   <BehaviorTree ID="PenEngraving">
     <Sequence name="run_pen_engraving">
-      <ValidateFrozenJob/>
-      <CheckSafetyHealthy/>
-      <CheckRequiredDevicesReady/>
-      <LocateProduct profile="{vision_profile}" output_pose="{product_pose}"/>
+      <ValidateFrozenJob
+        job_id="{job_id}"
+        cell_id="{cell_id}"
+        recipe_id="{recipe_id}"
+        recipe_version="{recipe_version}"
+        input_payload_json="{input_payload_json}"
+        execution_mode="{execution_mode}"/>
+      <CheckSafetyHealthy healthy="{cell_ready}"/>
+      <CheckRequiredDevicesReady ready="{cell_ready}"/>
+      <LocateProduct object_type="pen" profile="pen_reference" output_pose="{product_pose}"/>
       <RetryUntilSuccessful num_attempts="2">
         <PickProduct pose="{product_pose}"/>
       </RetryUntilSuccessful>
-      <LoadFixture/>
-      <VerifyFixture/>
-      <MoveRobotToProcessSafePose/>
-      <SelectProcessProgram program="{laser_program}"/>
-      <ExecuteProcess variable_data="{engraving_data}"/>
-      <InspectProduct expected="{engraving_data}" measurements="{inspection}"/>
+      <LoadFixture fixture="pen_rotary_fixture_reference"/>
+      <VerifyFixture fixture="pen_rotary_fixture_reference"/>
+      <MoveRobotToProcessSafePose pose="laser_process_safe"/>
+      <SelectProcessProgram program="ALU_REFERENCE_01" variable_data="{input_payload_json}"/>
+      <ExecuteProcess
+        program="ALU_REFERENCE_01"
+        variable_data="{input_payload_json}"
+        recipe_id="{recipe_id}"
+        recipe_version="{recipe_version}"/>
+      <InspectProduct
+        profile="contrast_and_text_match"
+        expected="{input_payload_json}"
+        measurements="{inspection}"/>
       <UnloadProduct/>
       <RouteByInspection inspection="{inspection}"/>
       <RecordProductionResult/>

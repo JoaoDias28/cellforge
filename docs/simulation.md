@@ -49,6 +49,12 @@ The headless runner shall:
 - evaluate assertions;
 - save JUnit-compatible and domain reports.
 
+The Task 013 L0 pen runner executes the canonical behavior-tree XML directly against contract
+mocks, derives trace and command UUIDs from the recorded seed, and verifies normalized golden
+traces. It intentionally runs without Isaac Sim, ROS discovery, a GPU, or hardware. This is fast
+sequencing and interface evidence only; Task 018 owns Isaac scenario control and Task 020 owns the
+physical pen simulation.
+
 ## 4. Initial fault library
 
 - camera unavailable;

@@ -1,0 +1,79 @@
+[
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.accepted",
+    "evidence": {
+      "seed": 1011,
+      "trace_id": "f49d7a91-5da3-5267-b0cc-ebdd4d6b209f"
+    },
+    "node": "",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 1
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "ValidateFrozenJob",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 2
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "ValidateFrozenJob",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 3
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 4
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "safety.unhealthy",
+    "evidence": {},
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 5
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "REJECTED"
+    },
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "REJECTED",
+    "sequence": 6
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.rejected",
+    "evidence": {},
+    "node": "",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 7
+  }
+]

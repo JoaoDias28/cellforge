@@ -1,0 +1,12 @@
+schema_version: 0.1.0
+scenario: {id: pen-inspection-text-mismatch, name: Inspection text mismatch, seed: 1008, timeout_seconds: 60}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: MISMATCH}
+initial_state: {product_present: true, safety_healthy: true, laser_ready: true, inspection_matches: false}
+faults: []
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [inspection.rejected, job.failed]
+  forbidden_events: [job.completed]

@@ -1,0 +1,12 @@
+schema_version: 0.1.0
+scenario: {id: pen-fixture-not-seated, name: Fixture not seated, seed: 1005, timeout_seconds: 60}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: SEATING}
+initial_state: {product_present: true, fixture_seated: false, safety_healthy: true, laser_ready: true}
+faults: []
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [fixture.sensor.seating_failed, job.failed]
+  forbidden_events: [process.command.requested, job.completed]

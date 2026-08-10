@@ -1,0 +1,495 @@
+[
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.accepted",
+    "evidence": {
+      "seed": 1008,
+      "trace_id": "8c378b72-5d96-59cf-b3ea-3b654777917f"
+    },
+    "node": "",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 1
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "ValidateFrozenJob",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 2
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "ValidateFrozenJob",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 3
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 4
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "CheckSafetyHealthy",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 5
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "CheckRequiredDevicesReady",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 6
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.started",
+    "evidence": {},
+    "node": "CheckRequiredDevicesReady",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 7
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "CheckRequiredDevicesReady",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 8
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 9
+  },
+  {
+    "command_id": "d554a9aa-3c5a-52f9-bd58-ecfc1cf6095a",
+    "component_instance_id": "camera-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "vision.action.locate_object"
+    },
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 10
+  },
+  {
+    "command_id": "d554a9aa-3c5a-52f9-bd58-ecfc1cf6095a",
+    "component_instance_id": "camera-001",
+    "event_type": "vision.action.locate_object.completed",
+    "evidence": {},
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "vision.action.locate_object.completed",
+    "sequence": 11
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "LocateProduct",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 12
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "PickProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 13
+  },
+  {
+    "command_id": "ae694cbc-bc92-5a4f-a90e-aaf54fa6ebd5",
+    "component_instance_id": "gripper-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "gripper.action.close"
+    },
+    "node": "PickProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 14
+  },
+  {
+    "command_id": "ae694cbc-bc92-5a4f-a90e-aaf54fa6ebd5",
+    "component_instance_id": "gripper-001",
+    "event_type": "gripper.action.close.completed",
+    "evidence": {},
+    "node": "PickProduct",
+    "outcome_certain": true,
+    "result_code": "gripper.action.close.completed",
+    "sequence": 15
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "PickProduct",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 16
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "LoadFixture",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 17
+  },
+  {
+    "command_id": "0e174cc1-3b1a-5869-a351-c659aca272b2",
+    "component_instance_id": "robot-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "robot_motion.action.execute_trajectory"
+    },
+    "node": "LoadFixture",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 18
+  },
+  {
+    "command_id": "0e174cc1-3b1a-5869-a351-c659aca272b2",
+    "component_instance_id": "robot-001",
+    "event_type": "robot_motion.action.execute_trajectory.completed",
+    "evidence": {},
+    "node": "LoadFixture",
+    "outcome_certain": true,
+    "result_code": "robot_motion.action.execute_trajectory.completed",
+    "sequence": 19
+  },
+  {
+    "command_id": "adcc67d3-dd6b-579a-88bd-686e2eba7011",
+    "component_instance_id": "fixture-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "fixture.action.clamp"
+    },
+    "node": "LoadFixture",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 20
+  },
+  {
+    "command_id": "adcc67d3-dd6b-579a-88bd-686e2eba7011",
+    "component_instance_id": "fixture-001",
+    "event_type": "fixture.action.clamp.completed",
+    "evidence": {},
+    "node": "LoadFixture",
+    "outcome_certain": true,
+    "result_code": "fixture.action.clamp.completed",
+    "sequence": 21
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "LoadFixture",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 22
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "VerifyFixture",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 23
+  },
+  {
+    "command_id": "a6190e19-cea9-5090-a172-0a50671efed6",
+    "component_instance_id": "fixture-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "fixture.action.verify_seated"
+    },
+    "node": "VerifyFixture",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 24
+  },
+  {
+    "command_id": "a6190e19-cea9-5090-a172-0a50671efed6",
+    "component_instance_id": "fixture-001",
+    "event_type": "fixture.action.verify_seated.completed",
+    "evidence": {},
+    "node": "VerifyFixture",
+    "outcome_certain": true,
+    "result_code": "fixture.action.verify_seated.completed",
+    "sequence": 25
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "VerifyFixture",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 26
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "MoveRobotToProcessSafePose",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 27
+  },
+  {
+    "command_id": "23962cd7-17a9-5a3e-bbfd-30cb38c18996",
+    "component_instance_id": "robot-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "robot_motion.action.execute_trajectory"
+    },
+    "node": "MoveRobotToProcessSafePose",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 28
+  },
+  {
+    "command_id": "23962cd7-17a9-5a3e-bbfd-30cb38c18996",
+    "component_instance_id": "robot-001",
+    "event_type": "robot_motion.action.execute_trajectory.completed",
+    "evidence": {},
+    "node": "MoveRobotToProcessSafePose",
+    "outcome_certain": true,
+    "result_code": "robot_motion.action.execute_trajectory.completed",
+    "sequence": 29
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "MoveRobotToProcessSafePose",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 30
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "SelectProcessProgram",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 31
+  },
+  {
+    "command_id": "5034a7c0-5f14-5f59-a8c1-885d794c79b8",
+    "component_instance_id": "laser-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "process.action.select_program"
+    },
+    "node": "SelectProcessProgram",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 32
+  },
+  {
+    "command_id": "5034a7c0-5f14-5f59-a8c1-885d794c79b8",
+    "component_instance_id": "laser-001",
+    "event_type": "process.action.select_program.completed",
+    "evidence": {},
+    "node": "SelectProcessProgram",
+    "outcome_certain": true,
+    "result_code": "process.action.select_program.completed",
+    "sequence": 33
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "SelectProcessProgram",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 34
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "ExecuteProcess",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 35
+  },
+  {
+    "command_id": "d2d3b046-7ff1-5718-acdd-a0bbf3c7398d",
+    "component_instance_id": "laser-001",
+    "event_type": "process.command.requested",
+    "evidence": {
+      "capability": "process.action.execute_cycle"
+    },
+    "node": "ExecuteProcess",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 36
+  },
+  {
+    "command_id": "d2d3b046-7ff1-5718-acdd-a0bbf3c7398d",
+    "component_instance_id": "laser-001",
+    "event_type": "process.action.execute_cycle.completed",
+    "evidence": {},
+    "node": "ExecuteProcess",
+    "outcome_certain": true,
+    "result_code": "process.action.execute_cycle.completed",
+    "sequence": 37
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "process.command.completed",
+    "evidence": {},
+    "node": "ExecuteProcess",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 38
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "SUCCESS"
+    },
+    "node": "ExecuteProcess",
+    "outcome_certain": true,
+    "result_code": "SUCCESS",
+    "sequence": 39
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.entered",
+    "evidence": {},
+    "node": "InspectProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 40
+  },
+  {
+    "command_id": "a0e4fb3d-51b7-5261-a107-27feee6bb955",
+    "component_instance_id": "camera-001",
+    "event_type": "device.command.requested",
+    "evidence": {
+      "capability": "vision.action.inspect_object"
+    },
+    "node": "InspectProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 41
+  },
+  {
+    "command_id": "a0e4fb3d-51b7-5261-a107-27feee6bb955",
+    "component_instance_id": "camera-001",
+    "event_type": "vision.action.inspect_object.completed",
+    "evidence": {},
+    "node": "InspectProduct",
+    "outcome_certain": true,
+    "result_code": "vision.action.inspect_object.completed",
+    "sequence": 42
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "inspection.rejected",
+    "evidence": {},
+    "node": "InspectProduct",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 43
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "behavior_tree.node.completed",
+    "evidence": {
+      "status": "FAILURE"
+    },
+    "node": "InspectProduct",
+    "outcome_certain": true,
+    "result_code": "FAILURE",
+    "sequence": 44
+  },
+  {
+    "command_id": "",
+    "component_instance_id": "",
+    "event_type": "job.failed",
+    "evidence": {},
+    "node": "",
+    "outcome_certain": true,
+    "result_code": "",
+    "sequence": 45
+  }
+]

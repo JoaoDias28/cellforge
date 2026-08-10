@@ -44,6 +44,29 @@ capability-specific ROS 2 actions, and exposes a `GetDeviceState` service.
 
 A node refuses to start on an invalid scenario (fail-fast).
 
+## Headless pen scenario runner
+
+Task 013 adds a deterministic L0 executor for the canonical pen behavior-tree XML. It implements
+the initial pen conditions/actions against these pure mock adapters and requires neither ROS
+runtime discovery nor Isaac Sim:
+
+```bash
+python -m cellforge_mock_adapters.headless \
+  --scenario-root examples/pen_engraving/scenarios \
+  --tree examples/pen_engraving/behavior_tree.xml \
+  --reports-dir build/pen-headless \
+  --golden-root examples/pen_engraving/golden_traces
+```
+
+The command runs the ten scenarios in `docs/testing.md`, verifies timestamp-free golden traces,
+and writes `pen-headless-report.json` plus `pen-headless-junit.xml`. `--seed 1010` replays only the
+scenario with that seed. UUIDv5 trace and command identities are seed-derived, so replay preserves
+the complete normalized event sequence. `--write-golden` is an explicit maintenance operation for
+reviewed behavior changes, not a normal test option.
+
+This runner is test infrastructure. BehaviorTree.CPP remains the production supervisor, and L0
+evidence does not prove physics, mark quality, hardware behavior, or functional safety.
+
 ## Dependencies
 
 | Dependency | License | Reason | Removal path |
@@ -52,6 +75,7 @@ A node refuses to start on an invalid scenario (fail-fast).
 | `cellforge_interfaces` | Proprietary | Shared action/message definitions | internal workspace |
 | `cellforge_device_sdk` | Proprietary | Adapter lifecycle and contract harness | internal workspace |
 | `setuptools` | MIT | Package build | standard ament tool |
+| `PyYAML` | MIT | Parse canonical scenario data with safe loading; actively maintained | materialize scenario JSON before removing it |
 
 ## Limitations (honest)
 

@@ -12,7 +12,7 @@ setup(
         (f"share/{package_name}/launch", ["launch/mock_cell.launch.py"]),
         (f"share/{package_name}/config", ["config/mock_cell_scenarios.json"]),
     ],
-    install_requires=["setuptools"],
+    install_requires=["setuptools", "PyYAML>=6,<7"],
     zip_safe=False,
     maintainer="CellForge Engineering",
     maintainer_email="engineering@example.invalid",
@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "mock_device_node = cellforge_mock_adapters.ros_node:main",
+            "pen_headless_runner = cellforge_mock_adapters.headless:main",
         ],
     },
 )

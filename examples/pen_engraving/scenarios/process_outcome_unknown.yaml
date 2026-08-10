@@ -1,0 +1,13 @@
+schema_version: 0.1.0
+scenario: {id: pen-process-outcome-unknown, name: Communication loss after process start, seed: 1010, timeout_seconds: 60}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: UNKNOWN}
+initial_state: {product_present: true, safety_healthy: true, laser_ready: true}
+faults:
+  - {at: after:ExecuteProcessStarted, target: laser-001, fault: communication_loss, parameters: {}}
+assertions:
+  final_status: OUTCOME_UNKNOWN
+  required_events: [laser.process.outcome_unknown, job.outcome_unknown]
+  forbidden_events: [process.command.completed, process.command.retried, job.completed]
