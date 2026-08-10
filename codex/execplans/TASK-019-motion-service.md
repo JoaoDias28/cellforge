@@ -107,10 +107,13 @@ No schema migration or breaking change is introduced; interfaces are additive.
 - 2026-08-10 — Hosted Jazzy run 31415071929 resolved every dependency, then exposed mixed CMake
   link signatures before compilation. Use the plain signature consistently with
   `ament_target_dependencies`; keep the fix limited to Task 019 CMake.
+- 2026-08-10 — Hosted Jazzy run 31415869764 passed CMake and exposed the Jazzy
+  `MoveGroupInterface::Plan` field names (`trajectory`, `planning_time`). Correct only those four
+  member accesses and preserve the same result mapping.
 
 ## Results
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose
 adapter, staged MTC builder, ROS node/events, fake-controller launch, deterministic evidence, docs,
 and tests are implemented. Local Python/configuration validation passes. PR #15 is ready and Python
-CI is green. The first hosted ROS run failed during CMake configuration on mixed keyword/plain link
-signatures; the scoped follow-up fix awaits the next hosted run. Isaac Sim remains unavailable.
+CI is green. Hosted ROS runs drove scoped CMake signature and Jazzy Plan-field corrections; the
+latest correction awaits the next hosted run. Isaac Sim remains unavailable.

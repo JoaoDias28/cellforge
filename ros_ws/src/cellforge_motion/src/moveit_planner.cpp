@@ -46,8 +46,8 @@ PlannerResult MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_
     return {mapMoveItCode(plan_code, false), moveItMessage(plan_code)};
   }
   PlannerResult result{PlannerOutcome::SUCCESS, "Collision-aware motion plan completed."};
-  result.trajectory = plan.trajectory_;
-  result.planning_time_seconds = plan.planning_time_;
+  result.trajectory = plan.trajectory;
+  result.planning_time_seconds = plan.planning_time;
   result.completed_stages = {"plan"};
   if (request.plan_only) {
     return result;
@@ -59,8 +59,8 @@ PlannerResult MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_
   if (!execution_code) {
     return {mapMoveItCode(execution_code, true),
             moveItMessage(execution_code),
-            plan.trajectory_,
-            plan.planning_time_,
+            plan.trajectory,
+            plan.planning_time,
             {"plan"},
             "execute",
             false};
