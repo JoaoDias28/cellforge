@@ -104,10 +104,13 @@ No schema migration or breaking change is introduced; interfaces are additive.
   safety-rated stopping behavior.
 - 2026-08-10 — Model `pick`/`unload` as object acquisition and `load` as object placement inside the
   MTC builder; gripper and fixture commands remain explicit behavior-tree capabilities.
+- 2026-08-10 — Hosted Jazzy run 31415071929 resolved every dependency, then exposed mixed CMake
+  link signatures before compilation. Use the plain signature consistently with
+  `ament_target_dependencies`; keep the fix limited to Task 019 CMake.
 
 ## Results
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose
 adapter, staged MTC builder, ROS node/events, fake-controller launch, deterministic evidence, docs,
-and tests are implemented. Local Python/configuration validation passes. ROS 2 Jazzy/colcon and
-Isaac Sim are unavailable locally, so ROS/MoveIt/MTC compilation and tests await hosted CI. GitHub
-publication also awaits restoration of the invalid saved GitHub CLI token.
+and tests are implemented. Local Python/configuration validation passes. PR #15 is ready and Python
+CI is green. The first hosted ROS run failed during CMake configuration on mixed keyword/plain link
+signatures; the scoped follow-up fix awaits the next hosted run. Isaac Sim remains unavailable.

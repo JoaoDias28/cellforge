@@ -33,7 +33,7 @@ target_include_directories(cellforge_motion_moveit PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(cellforge_motion_moveit PUBLIC cellforge_motion_core)
+target_link_libraries(cellforge_motion_moveit cellforge_motion_core)
 ament_target_dependencies(cellforge_motion_moveit
   moveit_msgs
   moveit_ros_planning_interface
@@ -46,7 +46,7 @@ target_include_directories(cellforge_motion_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(cellforge_motion_node PUBLIC cellforge_motion_core)
+target_link_libraries(cellforge_motion_node cellforge_motion_core)
 ament_target_dependencies(cellforge_motion_node
   cellforge_interfaces
   rclcpp
