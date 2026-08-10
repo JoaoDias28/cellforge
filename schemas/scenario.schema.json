@@ -41,6 +41,21 @@
     "job": {
       "type": "object"
     },
+    "simulation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requested_fidelity": {
+          "enum": [
+            "L0",
+            "L1",
+            "L2",
+            "L3"
+          ],
+          "default": "L0"
+        }
+      }
+    },
     "initial_state": {
       "type": "object"
     },

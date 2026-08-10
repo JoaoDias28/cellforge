@@ -115,5 +115,8 @@ scenarios:
   - scenarios/operator_cancel.yaml
   - scenarios/process_outcome_unknown.yaml
   - scenarios/safety_unhealthy.yaml
+  - physical/scenarios/nominal.yaml
+  - physical/scenarios/dropped_pen.yaml
+  - physical/scenarios/failed_seating.yaml
 deployment_profiles:
   - deployment-sim.yaml

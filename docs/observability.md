@@ -65,3 +65,11 @@ outcome certainty. Scene synchronization evidence preserves the exact cell ID an
 `cell.yaml`/USD SHA-256 values. Motion events use the canonical `JobEvent` stream. This evidence
 does not claim that controller cancellation is a safety-rated stop or that a simulated trajectory
 qualifies physical hardware.
+
+## 8. Physical pen simulation evidence
+
+Task 020 seed reports preserve the explicit bounds, each seed and sampled pose, ordered cycle and
+motion-request events, stable fault code, aggregate counts, backend identity, achieved fidelity,
+and whether PhysX actually executed. Failed runs remain replayable by seed. CPU-model reports state
+that PhysX did not execute. Neither CPU nor Isaac reports qualify laser mark quality, real hardware,
+production parameters, or independent functional safety.

@@ -86,6 +86,13 @@ identity, reference kinematics/configuration, named safe poses, and fake-control
 The ROS Jazzy gate additionally compiles MoveIt/MTC and runs the fake-planner C++ suite. Plan-only
 success is not hardware execution evidence, and Task 020 physical simulation is outside this gate.
 
+Task 020 adds `make pen-physical-sim-check`. It verifies required scene geometry/physics metadata,
+bounded seeded spawning, grasp state, fixture seating, planner-neutral pick/load/process-safe/unload
+requests, collision results, stable dropped/seating faults, and an exactly reproducible 100-seed
+CPU report. The separate Isaac Sim 6 command in `docs/simulation.md` is required for actual PhysX
+evidence and must be reported unavailable when a supported runtime/GPU runner is absent. CPU checks
+must never be relabeled as L2 execution, hardware, laser-process, or functional-safety evidence.
+
 ## 3. Required reference scenarios
 
 Pen engraving MVP:

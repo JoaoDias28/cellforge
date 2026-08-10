@@ -166,3 +166,45 @@ determinism, trace/evidence, scene, and controller failure paths. Plan-only is v
 hardware. These checks provide motion contract/planning evidence only: they do not provide Isaac
 physics, physical pen manipulation (Task 020), hardware accuracy, process quality, or independent
 safety validation.
+
+## 10. Task 020 physical pen manipulation
+
+The reference USDA scene contains conservative internal analytic geometry for the six-axis robot,
+parallel gripper, pen, input carrier, fixture, laser enclosure, and inspection camera. Collision
+geometry and rigid-body metadata are authored explicitly. These shapes are approved simulation
+placeholders, not vendor CAD, reach, payload, or dimensional-qualification evidence. Immutable
+component instance IDs still pair the canonical `cell.yaml` operational graph with the canonical
+USD spatial scene. Runtime pens live below `/World/SpawnedProducts` and do not mutate the
+operational graph.
+
+`cellforge_simulation.physical` provides deterministic bounds, seed replay, cycle state, stable
+dropped-pen/failed-seating/collision faults, and planner-neutral Task 019 requests. The sequence is
+pick, load, move to `process_safe`, process handshake/timing, then unload. The behavior tree owns
+that sequence; MTC owns the internal pick/load/unload stage graph; the simulator owns product
+physics and signals. Simulation and production adapters remain separate implementations of the
+same capability contracts.
+
+Run the CPU acceptance and reproducible 100-seed probe with:
+
+```bash
+make pen-physical-sim-check
+uv run --frozen python scripts/run_pen_physical_report.py --seeds 100 --output /tmp/pen-report.json
+```
+
+The CPU report deliberately records `actual_physx_executed: false`; it proves bounded seeded
+sampling, state/fault behavior, collision-result handling, and exact replay but is not L2 execution
+evidence. From a supported Isaac Sim 6 installation, run the actual OpenUSD/PhysX probe on Windows:
+
+```powershell
+isaac-sim.bat --no-window `
+  --ext-folder C:\absolute\path\to\cellforge\src\kit `
+  --enable cellforge.studio `
+  --exec C:\absolute\path\to\cellforge\scripts\verify_kit_pen_physical.py
+```
+
+Use `./isaac-sim.sh` and forward-slash paths on Linux. The probe opens the canonical scene, spawns a
+rigid pen, creates/removes a fixed grasp joint, steps PhysX, and verifies seating and dropped-height
+signals. Laser simulation covers readiness, command ordering, handshake, and timing only. It does
+not model beam/material interaction, heat, plume, optics, engraving contrast, text fidelity, or
+mark quality. Physical process qualification and independent functional-safety validation remain
+required.
