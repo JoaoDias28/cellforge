@@ -1,0 +1,58 @@
+"""Non-Kit structural checks for extension discovery and thin UI boundaries."""
+
+import ast
+import tomllib
+from pathlib import Path
+
+EXTENSION_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_extension_manifest_declares_supported_module_and_ui_dependency() -> None:
+    manifest = tomllib.loads(
+        (EXTENSION_ROOT / "config" / "extension.toml").read_text(encoding="utf-8")
+    )
+
+    assert manifest["package"]["version"] == "0.1.0"
+    assert manifest["dependencies"] == {"omni.ui": {}}
+    assert manifest["python"]["module"] == [{"name": "cellforge.studio.extension"}]
+
+
+def test_application_layer_has_no_kit_ros_or_write_dependencies() -> None:
+    source = (EXTENSION_ROOT / "cellforge" / "studio" / "application.py").read_text(
+        encoding="utf-8"
+    )
+    tree = ast.parse(source)
+    imported_roots = {
+        alias.name.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Import)
+        for alias in node.names
+    }
+    imported_roots.update(
+        node.module.split(".")[0]
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom) and node.module
+    )
+
+    assert imported_roots.isdisjoint({"omni", "carb", "rclpy", "pxr"})
+    assert ".write_text(" not in source
+    assert ".write_bytes(" not in source
+    assert "open(" not in source
+
+
+def test_ui_callback_delegates_to_application_service() -> None:
+    source = (EXTENSION_ROOT / "cellforge" / "studio" / "extension.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    callback = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "_on_open_project"
+    )
+    called_attributes = {
+        node.func.attr
+        for node in ast.walk(callback)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    }
+
+    assert "open_project" in called_attributes
+    assert called_attributes.isdisjoint({"validate_project", "inspect_project", "load_document"})

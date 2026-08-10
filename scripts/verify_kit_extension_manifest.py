@@ -1,0 +1,31 @@
+"""Verify Task 014 extension discovery metadata without requiring Isaac Sim."""
+
+import sys
+import tomllib
+from pathlib import Path
+
+
+def main() -> int:
+    root = Path(__file__).resolve().parents[1]
+    extension = root / "src" / "kit" / "cellforge.studio"
+    manifest_path = extension / "config" / "extension.toml"
+    manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+    modules = manifest.get("python", {}).get("module", [])
+    if modules != [{"name": "cellforge.studio.extension"}]:
+        print("Invalid Cell Studio Python module declaration.", file=sys.stderr)
+        return 1
+    for relative in (
+        "cellforge/studio/__init__.py",
+        "cellforge/studio/application.py",
+        "cellforge/studio/backend.py",
+        "cellforge/studio/extension.py",
+    ):
+        if not (extension / relative).is_file():
+            print(f"Missing extension source: {relative}", file=sys.stderr)
+            return 1
+    print("Verified cellforge.studio extension metadata and source layout.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

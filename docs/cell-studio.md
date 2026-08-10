@@ -167,3 +167,41 @@ The MVP does not need a general CAD editor. It needs:
 - run simulation.
 
 Complex geometry modification remains in external CAD/DCC tools.
+
+## 7. Isaac Sim 6 extension shell
+
+Task 014 provides the `cellforge.studio` extension under `src/kit/cellforge.studio`. From an Isaac
+Sim 6 installation, launch the interactive shell from the repository root with an absolute
+extension folder path:
+
+```bash
+./isaac-sim.sh --ext-folder /absolute/path/to/cellforge/src/kit --enable cellforge.studio
+```
+
+For the Isaac Sim 6 pip distribution, the equivalent experience command is:
+
+```bash
+isaacsim isaacsim.exp.full --ext-folder /absolute/path/to/cellforge/src/kit --enable cellforge.studio
+```
+
+Run the lifecycle acceptance probe headlessly on Linux with:
+
+```bash
+./isaac-sim.sh --no-window \
+  --ext-folder /absolute/path/to/cellforge/src/kit \
+  --enable cellforge.studio \
+  --exec /absolute/path/to/cellforge/scripts/verify_kit_extension.py
+```
+
+On Windows, use `isaac-sim.bat` with the same arguments. The probe verifies activation, all three
+windows, and immediate deactivation before exiting. The pure host-independent checks are:
+
+```bash
+make kit-extension-check
+```
+
+The shell starts with no selected project and does not read or modify project files. Project paths
+are inspected only after the user chooses **Open / Refresh (read-only)**. The Kit callback delegates
+to the pure application service, which in turn reuses Task 004 project validation and inspection.
+Missing CellForge backend packages or schemas produce an actionable panel state instead of blocking
+extension startup. No project/scene editing is implemented until Task 015.

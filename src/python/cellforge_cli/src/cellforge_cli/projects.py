@@ -98,6 +98,42 @@ def validate_project(project: str | Path, registry: SchemaRegistry) -> ExampleVa
     return validate_example_tree(project_path, registry)
 
 
+def resolve_project_schema_directory(project: str | Path, canonical_schemas: str | Path) -> Path:
+    """Select byte-identical project schemas when present, otherwise the canonical directory."""
+
+    project_schemas = Path(project).resolve() / "schemas"
+    canonical_directory = Path(canonical_schemas).resolve()
+    if not (project_schemas / "cell.schema.json").is_file():
+        return canonical_directory
+
+    expected_names = {path.name for path in canonical_directory.glob("*.json")}
+    actual_names = {path.name for path in project_schemas.glob("*.json")}
+    if actual_names != expected_names:
+        raise ProjectOperationError(
+            exit_code=ExitCode.VALIDATION_FAILED,
+            code="cli.project-schema-set-mismatch",
+            path=project_schemas,
+            message="Project-local schemas do not match the canonical schema file set.",
+        )
+
+    for name in sorted(expected_names):
+        canonical_path = canonical_directory / name
+        project_schema = project_schemas / name
+        try:
+            matches_canonical = project_schema.read_bytes() == canonical_path.read_bytes()
+        except OSError:
+            matches_canonical = False
+        if not matches_canonical:
+            raise ProjectOperationError(
+                exit_code=ExitCode.VALIDATION_FAILED,
+                code="cli.project-schema-mismatch",
+                path=project_schema,
+                message="Project-local schema differs from the canonical bundled schema.",
+            )
+
+    return project_schemas
+
+
 def inspect_project(project: str | Path, registry: SchemaRegistry) -> ProjectSummary:
     """Load a previously validated project's canonical operational graph."""
 
