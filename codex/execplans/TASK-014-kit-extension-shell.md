@@ -73,7 +73,7 @@ Rollback is the single Task 014 commit; there are no schema, project, hardware, 
 - [x] 2026-08-10 — implemented and tested the pure application/backend boundary, including
   byte-for-byte read-only project inspection and Task 004 project-local schema selection.
 - [x] 2026-08-10 — implemented and structurally verified the Kit extension lifecycle and panels.
-- [ ] 2026-08-10 — complete regression, Git, GitHub, merge, and final verification lifecycle.
+- [x] 2026-08-10 — completed regression, Git, GitHub, merge, and final verification lifecycle.
 
 ## Decisions
 - 2026-08-10 — Keep the pure service inside the extension source tree so Isaac Sim discovers a
@@ -100,4 +100,9 @@ three required Make targets were attempted and their exact locked `uv` equivalen
 Isaac Sim 6 is unavailable: PATH and the Python environment contain no Isaac Sim executable or
 package, and the local source build at `C:\isaacsim` identifies itself as Isaac Sim 5.1.0. The
 documented Isaac Sim 6 headless lifecycle command was therefore not run against an unsupported
-version. Git/GitHub completion remains pending.
+version.
+
+Implementation commit `2ac6621` was published in ready PR #6. Hosted Python 3.12 validation and
+ROS 2 Jazzy build/test both passed, GitHub reported the PR clean and mergeable, and merge commit
+`b44b778` was synchronized to local and remote `main` with a clean working tree. Task 015 was not
+started.
