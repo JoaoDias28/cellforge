@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<robot name="reference_robot">
+  <group name="manipulator"><chain base_link="base_link" tip_link="tool0"/></group>
+  <group_state name="home" group="manipulator"><joint name="joint_1" value="0"/><joint name="joint_2" value="-0.7"/><joint name="joint_3" value="1.2"/><joint name="joint_4" value="0"/><joint name="joint_5" value="-0.5"/><joint name="joint_6" value="0"/></group_state>
+  <group_state name="process_safe" group="manipulator"><joint name="joint_1" value="0"/><joint name="joint_2" value="-0.9"/><joint name="joint_3" value="1.35"/><joint name="joint_4" value="0"/><joint name="joint_5" value="-0.45"/><joint name="joint_6" value="0"/></group_state>
+  <group_state name="load_safe" group="manipulator"><joint name="joint_1" value="-0.8"/><joint name="joint_2" value="-0.65"/><joint name="joint_3" value="1.1"/><joint name="joint_4" value="0"/><joint name="joint_5" value="-0.45"/><joint name="joint_6" value="0"/></group_state>
+  <group_state name="unload_safe" group="manipulator"><joint name="joint_1" value="0.8"/><joint name="joint_2" value="-0.65"/><joint name="joint_3" value="1.1"/><joint name="joint_4" value="0"/><joint name="joint_5" value="-0.45"/><joint name="joint_6" value="0"/></group_state>
+  <disable_collisions link1="base_link" link2="link_1" reason="Adjacent"/><disable_collisions link1="link_1" link2="link_2" reason="Adjacent"/><disable_collisions link1="link_2" link2="link_3" reason="Adjacent"/><disable_collisions link1="link_3" link2="link_4" reason="Adjacent"/><disable_collisions link1="link_4" link2="link_5" reason="Adjacent"/><disable_collisions link1="link_5" link2="link_6" reason="Adjacent"/><disable_collisions link1="link_6" link2="tool0" reason="Adjacent"/>
+</robot>

@@ -6,10 +6,12 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = REPOSITORY_ROOT / "ros_interfaces"
 PACKAGE_ROOT = REPOSITORY_ROOT / "ros_ws" / "src" / "cellforge_interfaces"
 INTERFACE_PATHS = (
+    "action/ExecuteManipulation.action",
     "action/ExecuteProcess.action",
     "action/ExecuteSkill.action",
     "action/InspectObject.action",
     "action/LocateObject.action",
+    "action/MoveToPose.action",
     "action/RunJob.action",
     "msg/CellState.msg",
     "msg/DeviceState.msg",
@@ -23,6 +25,7 @@ INTERFACE_PATHS = (
     "srv/InjectSimulationFault.srv",
     "srv/RegisterSimulationAdapter.srv",
     "srv/SetDiscreteOutput.srv",
+    "srv/SyncPlanningScene.srv",
     "srv/ValidateRecipe.srv",
 )
 VENDOR_SPECIFIC_TERMS = (
@@ -70,3 +73,21 @@ def test_interfaces_exclude_vendor_specific_fields() -> None:
     )
 
     assert all(term not in interface_text for term in VENDOR_SPECIFIC_TERMS)
+
+
+def test_motion_contracts_are_planner_neutral_and_traceable() -> None:
+    for filename in ("MoveToPose.action", "ExecuteManipulation.action"):
+        definition = (SOURCE_ROOT / "action" / filename).read_text(encoding="utf-8")
+        goal, result, _ = definition.split("---")
+        assert "string command_id" in goal
+        assert "string trace_id" in goal
+        assert "bool plan_only" in goal
+        assert "string scene_revision" in result
+        assert "string evidence_json" in result
+        assert "planner_id" not in definition
+        assert "planning_pipeline" not in definition
+
+    scene = (SOURCE_ROOT / "srv" / "SyncPlanningScene.srv").read_text(encoding="utf-8")
+    assert "string cell_yaml_sha256" in scene
+    assert "string usd_sha256" in scene
+    assert "string[] component_instance_ids" in scene

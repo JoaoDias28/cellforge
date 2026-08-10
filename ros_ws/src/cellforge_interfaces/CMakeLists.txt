@@ -4,8 +4,10 @@ project(cellforge_interfaces)
 find_package(ament_cmake REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(moveit_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/DeviceState.msg"
@@ -19,14 +21,17 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/FinalizeSimulation.srv"
   "srv/InjectSimulationFault.srv"
   "srv/RegisterSimulationAdapter.srv"
+  "srv/SyncPlanningScene.srv"
   "srv/SetDiscreteOutput.srv"
   "srv/ValidateRecipe.srv"
   "action/ExecuteProcess.action"
+  "action/ExecuteManipulation.action"
   "action/ExecuteSkill.action"
   "action/InspectObject.action"
   "action/LocateObject.action"
+  "action/MoveToPose.action"
   "action/RunJob.action"
-  DEPENDENCIES builtin_interfaces geometry_msgs std_msgs
+  DEPENDENCIES builtin_interfaces geometry_msgs moveit_msgs std_msgs trajectory_msgs
 )
 
 if(BUILD_TESTING)

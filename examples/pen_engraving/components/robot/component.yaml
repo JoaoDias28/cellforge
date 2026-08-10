@@ -6,7 +6,7 @@ component:
   name: Reference six-axis robot
   manufacturer: Generic
   model: REF-6A
-  description: Simulation-first placeholder to be replaced by the selected supported robot.
+  description: Deterministic internal six-axis reference model for MoveIt/MTC simulation tests.
   license: internal-reference
 assets:
   visual_usd: assets/robot_visual.usd

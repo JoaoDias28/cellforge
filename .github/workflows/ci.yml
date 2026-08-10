@@ -30,6 +30,8 @@ jobs:
         run: make validate-examples
       - name: Run Task 018 deterministic simulation checks
         run: make studio-simulation-check
+      - name: Run Task 019 motion service contract checks
+        run: make motion-service-check
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

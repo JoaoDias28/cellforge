@@ -56,3 +56,12 @@ randomization samples, scenario/cell.yaml/USD SHA-256 identities, registered ada
 and actual fidelity, requested-versus-achieved fidelity, limitations, assertion outcomes, and the
 captured trace. Evidence write failure fails finalization; a run is never reported successful when
 its required evidence could not be stored.
+
+## 7. Motion evidence
+
+Task 019 motion results preserve command ID, trace ID, synchronized scene revision, plan-only or
+plan-and-execute mode, stable result code, planning duration, MTC completed/failed stages, and
+outcome certainty. Scene synchronization evidence preserves the exact cell ID and canonical
+`cell.yaml`/USD SHA-256 values. Motion events use the canonical `JobEvent` stream. This evidence
+does not claim that controller cancellation is a safety-rated stop or that a simulated trajectory
+qualifies physical hardware.

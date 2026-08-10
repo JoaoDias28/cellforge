@@ -167,3 +167,15 @@ A bundle resolver checks:
 - required test evidence level.
 
 Compatibility failures block bundle generation rather than becoming runtime warnings.
+
+## 9. Task 019 motion boundary
+
+`cellforge_motion` exposes planner-neutral `MoveToPose` and `ExecuteManipulation` actions. Plan-only
+and plan-and-execute use the same request; OMPL/KDL/controller selections remain deployment config,
+not behavior-tree inputs. MTC builds the internal pick/load/unload stage graph while the behavior
+tree continues to own the production sequence.
+
+The planning scene is a derived runtime projection synchronized through the exact `cell.yaml` and
+USD SHA-256 identities plus immutable component instance IDs. It does not become a third source of
+truth. Cancellation requests MoveIt/controller stop and reports only the outcome certainty known by
+the adapter; it is standard control, not functional-safety enforcement.

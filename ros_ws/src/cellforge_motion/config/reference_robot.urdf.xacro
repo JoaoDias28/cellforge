@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="reference_robot">
+  <xacro:include filename="$(find cellforge_motion)/config/reference_robot_links.xacro"/>
+  <xacro:reference_robot/>
+</robot>

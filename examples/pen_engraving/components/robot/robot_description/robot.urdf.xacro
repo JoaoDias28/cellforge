@@ -1,5 +1,81 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="reference_robot">
-  <!-- Placeholder only. Replace with the selected manufacturer's authoritative model. -->
-  <link name="base_link"/>
+  <!-- Deterministic internal reference model; not a manufacturer accuracy claim. -->
+  <xacro:macro name="link_with_collision" params="name length radius">
+    <link name="${name}">
+      <visual>
+        <origin xyz="0 0 ${length / 2}"/>
+        <geometry><cylinder length="${length}" radius="${radius}"/></geometry>
+        <material name="cellforge_blue"><color rgba="0.12 0.35 0.65 1"/></material>
+      </visual>
+      <collision>
+        <origin xyz="0 0 ${length / 2}"/>
+        <geometry><cylinder length="${length}" radius="${radius}"/></geometry>
+      </collision>
+      <inertial>
+        <origin xyz="0 0 ${length / 2}"/>
+        <mass value="1.0"/>
+        <inertia ixx="0.01" ixy="0" ixz="0" iyy="0.01" iyz="0" izz="0.01"/>
+      </inertial>
+    </link>
+  </xacro:macro>
+
+  <link name="world"/>
+  <link name="base_link">
+    <visual><geometry><cylinder length="0.12" radius="0.18"/></geometry></visual>
+    <collision><geometry><cylinder length="0.12" radius="0.18"/></geometry></collision>
+  </link>
+  <joint name="world_joint" type="fixed">
+    <parent link="world"/><child link="base_link"/>
+  </joint>
+
+  <xacro:link_with_collision name="link_1" length="0.32" radius="0.09"/>
+  <xacro:link_with_collision name="link_2" length="0.42" radius="0.075"/>
+  <xacro:link_with_collision name="link_3" length="0.36" radius="0.065"/>
+  <xacro:link_with_collision name="link_4" length="0.18" radius="0.055"/>
+  <xacro:link_with_collision name="link_5" length="0.16" radius="0.05"/>
+  <xacro:link_with_collision name="link_6" length="0.12" radius="0.045"/>
+  <link name="tool0"/>
+
+  <joint name="joint_1" type="revolute">
+    <parent link="base_link"/><child link="link_1"/>
+    <origin xyz="0 0 0.06"/><axis xyz="0 0 1"/><limit lower="-3.14159" upper="3.14159" effort="150" velocity="1.5"/>
+  </joint>
+  <joint name="joint_2" type="revolute">
+    <parent link="link_1"/><child link="link_2"/>
+    <origin xyz="0 0 0.32"/><axis xyz="0 1 0"/><limit lower="-2.4" upper="2.4" effort="150" velocity="1.5"/>
+  </joint>
+  <joint name="joint_3" type="revolute">
+    <parent link="link_2"/><child link="link_3"/>
+    <origin xyz="0 0 0.42"/><axis xyz="0 1 0"/><limit lower="-2.8" upper="2.8" effort="120" velocity="1.8"/>
+  </joint>
+  <joint name="joint_4" type="revolute">
+    <parent link="link_3"/><child link="link_4"/>
+    <origin xyz="0 0 0.36"/><axis xyz="1 0 0"/><limit lower="-3.14159" upper="3.14159" effort="80" velocity="2.2"/>
+  </joint>
+  <joint name="joint_5" type="revolute">
+    <parent link="link_4"/><child link="link_5"/>
+    <origin xyz="0 0 0.18"/><axis xyz="0 1 0"/><limit lower="-2.4" upper="2.4" effort="60" velocity="2.2"/>
+  </joint>
+  <joint name="joint_6" type="revolute">
+    <parent link="link_5"/><child link="link_6"/>
+    <origin xyz="0 0 0.16"/><axis xyz="1 0 0"/><limit lower="-3.14159" upper="3.14159" effort="40" velocity="2.8"/>
+  </joint>
+  <joint name="tool0_joint" type="fixed">
+    <parent link="link_6"/><child link="tool0"/><origin xyz="0 0 0.12"/>
+  </joint>
+
+  <ros2_control name="ReferenceRobotSystem" type="system">
+    <hardware><plugin>mock_components/GenericSystem</plugin></hardware>
+    <xacro:macro name="controlled_joint" params="name">
+      <joint name="${name}">
+        <command_interface name="position"/>
+        <state_interface name="position"><param name="initial_value">0.0</param></state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+    </xacro:macro>
+    <xacro:controlled_joint name="joint_1"/><xacro:controlled_joint name="joint_2"/>
+    <xacro:controlled_joint name="joint_3"/><xacro:controlled_joint name="joint_4"/>
+    <xacro:controlled_joint name="joint_5"/><xacro:controlled_joint name="joint_6"/>
+  </ros2_control>
 </robot>

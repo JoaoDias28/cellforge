@@ -149,3 +149,20 @@ On Linux use `./isaac-sim.sh` and forward-slash absolute paths. The probe exerci
 pause, single physics step, start, deterministic USD scenario metadata, and evidence storage. Task
 020—not Task 018—owns physical pen manipulation. Neither backend implements or validates a
 functional-safety function.
+
+## 9. Task 019 motion planning
+
+The supported reference six-axis model, SRDF safe states, KDL kinematics, OMPL pipeline, joint
+limits, and ros2_control fake controller live in `cellforge_motion`. The deterministic headless
+contract probe is:
+
+```bash
+make motion-service-check
+```
+
+On a ROS 2 Jazzy host, `make ros-build && make ros-test` builds the actual MoveIt/MTC adapter and
+runs fake-backend tests for nominal, invalid, unreachable, collision, timeout, cancellation,
+determinism, trace/evidence, scene, and controller failure paths. Plan-only is valid without
+hardware. These checks provide motion contract/planning evidence only: they do not provide Isaac
+physics, physical pen manipulation (Task 020), hardware accuracy, process quality, or independent
+safety validation.
