@@ -17,6 +17,11 @@ INTERFACE_PATHS = (
     "msg/PoseEstimate.msg",
     "msg/SafetyState.msg",
     "srv/GetDeviceState.srv",
+    "srv/ConfigureSimulation.srv",
+    "srv/ControlSimulation.srv",
+    "srv/FinalizeSimulation.srv",
+    "srv/InjectSimulationFault.srv",
+    "srv/RegisterSimulationAdapter.srv",
     "srv/SetDiscreteOutput.srv",
     "srv/ValidateRecipe.srv",
 )

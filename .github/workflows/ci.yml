@@ -28,6 +28,8 @@ jobs:
         run: make test
       - name: Validate schemas and examples
         run: make validate-examples
+      - name: Run Task 018 deterministic simulation checks
+        run: make studio-simulation-check
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

@@ -23,3 +23,7 @@ and modeled-safety edges. Candidate edges are validated by the domain resolver. 
 previews use declared port transforms and apply `cell.yaml` plus USD changes as one undoable edit.
 Modeled-safety dependencies have distinct styling and remain non-executable engineering metadata;
 they do not implement or authorize any safety-rated function.
+
+Task 018 adds a ROS-backed simulation panel for deterministic reset/start/pause/step, scenario
+setup, test fault injection, trace assertions, and evidence. It reports fidelity limits and does not
+provide functional-safety enforcement.

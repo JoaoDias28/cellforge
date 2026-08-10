@@ -50,7 +50,11 @@ module = [
     "ament_index_python", "ament_index_python.*",
     "builtin_interfaces", "builtin_interfaces.*",
     "cellforge_interfaces", "cellforge_interfaces.*",
+    "cellforge_simulation", "cellforge_simulation.*",
     "geometry_msgs", "geometry_msgs.*",
     "std_msgs", "std_msgs.*",
+    "omni", "omni.*",
+    "isaacsim", "isaacsim.*",
+    "pxr", "pxr.*",
 ]
 ignore_missing_imports = true

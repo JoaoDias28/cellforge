@@ -1,14 +1,15 @@
 [package]
-version = "0.4.0"
+version = "0.5.0"
 category = "CellForge"
 title = "Cell Studio Shell"
-description = "CellForge project, component, connection, validation, and log panels for Isaac Sim 6."
+description = "CellForge project, authoring, validation, simulation, and evidence panels for Isaac Sim 6."
 authors = ["CellForge contributors"]
 repository = "https://github.com/JoaoDias28/cellforge"
 keywords = ["cellforge", "robotics", "engineering", "isaac-sim"]
 readme = "docs/Overview.md"
 
 [dependencies]
+"omni.kit.app" = {}
 "omni.ui" = {}
 
 [[python.module]]

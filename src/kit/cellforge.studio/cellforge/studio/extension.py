@@ -5,12 +5,15 @@ import omni.ui as ui
 
 from cellforge.studio.application import BrowserComponent, ComponentFilters, StudioApplication
 from cellforge.studio.backend import create_default_application
+from cellforge.studio.simulation_backend import create_simulation_application
+from cellforge.studio.simulation_host import create_kit_simulation_host
 
 PROJECT_WINDOW = "CellForge Project"
 VALIDATION_WINDOW = "CellForge Validation"
 LOG_WINDOW = "CellForge Log"
 COMPONENT_WINDOW = "CellForge Components"
 CONNECTION_WINDOW = "CellForge Connections"
+SIMULATION_WINDOW = "CellForge Simulation"
 
 
 class CellForgeStudioExtension(omni.ext.IExt):
@@ -21,6 +24,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
 
         self._ext_id = ext_id
         self._application: StudioApplication | None = create_default_application()
+        self._simulation_host, simulation_host_error = create_kit_simulation_host()
+        self._simulation_application = create_simulation_application(simulation_host_error)
         self._project_path_model = ui.SimpleStringModel("")
         self._kind_filter_model = ui.SimpleStringModel("")
         self._capability_filter_model = ui.SimpleStringModel("")
@@ -33,15 +38,26 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._from_port_model = ui.SimpleStringModel("")
         self._to_component_model = ui.SimpleStringModel("")
         self._to_port_model = ui.SimpleStringModel("")
+        self._scenario_path_model = ui.SimpleStringModel("")
+        self._simulation_project_path_model = ui.SimpleStringModel("")
+        self._step_count_model = ui.SimpleIntModel(1)
+        self._fault_at_model = ui.SimpleStringModel("now")
+        self._fault_target_model = ui.SimpleStringModel("")
+        self._fault_code_model = ui.SimpleStringModel("")
+        self._fault_parameters_model = ui.SimpleStringModel("{}")
+        self._final_status_model = ui.SimpleStringModel("SUCCESS")
+        self._evidence_path_model = ui.SimpleStringModel("")
         self._project_window = ui.Window(PROJECT_WINDOW, width=360, height=420)
         self._component_window = ui.Window(COMPONENT_WINDOW, width=460, height=520)
         self._connection_window = ui.Window(CONNECTION_WINDOW, width=520, height=620)
+        self._simulation_window = ui.Window(SIMULATION_WINDOW, width=460, height=620)
         self._validation_window = ui.Window(VALIDATION_WINDOW, width=460, height=420)
         self._log_window = ui.Window(LOG_WINDOW, width=820, height=220)
         self._render_all()
         ui.dock_window_in_window(VALIDATION_WINDOW, PROJECT_WINDOW, ui.DockPosition.RIGHT, 0.55)
         ui.dock_window_in_window(COMPONENT_WINDOW, PROJECT_WINDOW, ui.DockPosition.LEFT, 0.55)
         ui.dock_window_in_window(CONNECTION_WINDOW, VALIDATION_WINDOW, ui.DockPosition.BOTTOM, 0.55)
+        ui.dock_window_in_window(SIMULATION_WINDOW, CONNECTION_WINDOW, ui.DockPosition.RIGHT, 0.5)
         ui.dock_window_in_window(LOG_WINDOW, PROJECT_WINDOW, ui.DockPosition.BOTTOM, 0.35)
 
     def on_shutdown(self) -> None:
@@ -51,6 +67,7 @@ class CellForgeStudioExtension(omni.ext.IExt):
             "_project_window",
             "_component_window",
             "_connection_window",
+            "_simulation_window",
             "_validation_window",
             "_log_window",
         ):
@@ -60,6 +77,12 @@ class CellForgeStudioExtension(omni.ext.IExt):
                 window.frame.clear()
                 setattr(self, window_name, None)
         self._application = None
+        if self._simulation_application is not None:
+            self._simulation_application.close()
+        self._simulation_application = None
+        if self._simulation_host is not None:
+            self._simulation_host.close()
+        self._simulation_host = None
         self._project_path_model = None
 
     def _on_open_project(self) -> None:
@@ -162,10 +185,42 @@ class CellForgeStudioExtension(omni.ext.IExt):
             )
             self._render_all()
 
+    def _on_configure_simulation(self) -> None:
+        if self._simulation_application is not None:
+            self._simulation_application.configure(
+                self._simulation_project_path_model.as_string,
+                self._scenario_path_model.as_string,
+            )
+            self._render_all()
+
+    def _on_simulation_control(self, command: str) -> None:
+        if self._simulation_application is not None:
+            self._simulation_application.control(command, self._step_count_model.as_int)
+            self._render_all()
+
+    def _on_inject_simulation_fault(self) -> None:
+        if self._simulation_application is not None:
+            self._simulation_application.inject_fault(
+                self._fault_at_model.as_string,
+                self._fault_target_model.as_string,
+                self._fault_code_model.as_string,
+                self._fault_parameters_model.as_string,
+            )
+            self._render_all()
+
+    def _on_finalize_simulation(self) -> None:
+        if self._simulation_application is not None:
+            self._simulation_application.finalize(
+                self._final_status_model.as_string,
+                self._evidence_path_model.as_string,
+            )
+            self._render_all()
+
     def _render_all(self) -> None:
         self._render_project_panel()
         self._render_component_panel()
         self._render_connection_panel()
+        self._render_simulation_panel()
         self._render_validation_panel()
         self._render_log_panel()
 
@@ -354,6 +409,50 @@ class CellForgeStudioExtension(omni.ext.IExt):
                         ui.Label(finding.message, word_wrap=True)
                         ui.Label(finding.path, word_wrap=True, style={"font_size": 12})
                         ui.Separator(height=4)
+
+    def _render_simulation_panel(self) -> None:
+        snapshot = self._simulation_application.snapshot
+        self._simulation_window.frame.clear()
+        with self._simulation_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Simulation control", style={"font_size": 18})
+                    ui.Label(f"State: {snapshot.state}")
+                    ui.Label(f"{snapshot.code}: {snapshot.detail}", word_wrap=True)
+                    ui.Label(snapshot.safety_disclaimer, word_wrap=True)
+                    ui.Separator(height=8)
+                    ui.Label("Canonical project directory")
+                    ui.StringField(model=self._simulation_project_path_model)
+                    ui.Label("Scenario path")
+                    ui.StringField(model=self._scenario_path_model)
+                    ui.Button("Configure", clicked_fn=self._on_configure_simulation)
+                    with ui.HStack(spacing=4, height=28):
+                        ui.Button("Reset", clicked_fn=lambda: self._on_simulation_control("RESET"))
+                        ui.Button("Start", clicked_fn=lambda: self._on_simulation_control("START"))
+                        ui.Button("Pause", clicked_fn=lambda: self._on_simulation_control("PAUSE"))
+                    ui.Label("Step count")
+                    ui.IntField(model=self._step_count_model)
+                    ui.Button("Step", clicked_fn=lambda: self._on_simulation_control("STEP"))
+                    ui.Separator(height=8)
+                    for label, model in (
+                        ("Fault schedule point", self._fault_at_model),
+                        ("Fault target instance ID", self._fault_target_model),
+                        ("Fault code", self._fault_code_model),
+                        ("Fault parameters JSON", self._fault_parameters_model),
+                    ):
+                        ui.Label(label)
+                        ui.StringField(model=model)
+                    ui.Button("Inject fault", clicked_fn=self._on_inject_simulation_fault)
+                    ui.Separator(height=8)
+                    ui.Label("Final status")
+                    ui.StringField(model=self._final_status_model)
+                    ui.Label("Evidence JSON path")
+                    ui.StringField(model=self._evidence_path_model)
+                    ui.Button(
+                        "Finalize and store evidence", clicked_fn=self._on_finalize_simulation
+                    )
+                    if snapshot.evidence_path:
+                        ui.Label(f"Evidence: {snapshot.evidence_path}", word_wrap=True)
 
     def _render_log_panel(self) -> None:
         snapshot = self._application.snapshot

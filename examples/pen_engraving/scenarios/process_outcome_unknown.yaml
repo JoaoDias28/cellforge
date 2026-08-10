@@ -6,7 +6,7 @@ job:
   input_payload: {engraving_text: UNKNOWN}
 initial_state: {product_present: true, safety_healthy: true, laser_ready: true}
 faults:
-  - {at: after:ExecuteProcessStarted, target: laser-001, fault: communication_loss, parameters: {}}
+  - {at: after:ExecuteProcessStarted, target: laser-001, fault: laser.process.outcome_unknown, parameters: {}}
 assertions:
   final_status: OUTCOME_UNKNOWN
   required_events: [laser.process.outcome_unknown, job.outcome_unknown]

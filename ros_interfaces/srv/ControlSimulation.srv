@@ -1,0 +1,7 @@
+string command
+uint32 step_count
+---
+bool success
+string result_code
+string result_message
+string state

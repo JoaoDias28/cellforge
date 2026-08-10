@@ -344,3 +344,27 @@ isaac-sim.bat --no-window `
 The Isaac Sim environment must contain the locked CellForge Python workspace. This probe composes
 the authored hierarchy, metadata, and transform through OpenUSD; deterministic non-Kit tests cover
 invalid inputs and filesystem-independent failure paths.
+
+## 11. Simulation and scenario control
+
+Task 018 adds the **CellForge Simulation** panel. Its callbacks delegate configure, reset, start,
+pause, step, fault, and finalize commands to a pure `SimulationApplication`, which uses the typed
+ROS 2 simulation services. Widgets do not manipulate the timeline, stage, adapters, scenario
+assertions, or evidence directly.
+
+The extension hosts those services in Kit and spins the bridge once per application update on the
+main thread; external ROS callbacks never manipulate Isaac APIs from a worker process or UI widget.
+
+Configuration selects the canonical project directory and one scenario declared by its
+`cell.yaml`. Simulated adapters register their actual fidelity and canonical capability endpoints.
+The panel shows unavailable and failure states explicitly. Finalization stores normalized trace and
+assertion evidence containing the exact seed and canonical YAML/USD hashes.
+
+The deterministic non-Kit acceptance check is:
+
+```bash
+make studio-simulation-check
+```
+
+The Isaac Sim 6 headless command is documented in `docs/simulation.md`. L0 control evidence does not
+claim physics, perception, process quality, hardware validation, or functional-safety enforcement.

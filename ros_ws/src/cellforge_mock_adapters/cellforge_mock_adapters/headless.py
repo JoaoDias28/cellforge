@@ -33,6 +33,7 @@ CELL_ID = "0d3c6b63-a57f-4207-8638-e4cf76efec90"
 ALLOWED_TOP_LEVEL_KEYS = {
     "schema_version",
     "scenario",
+    "simulation",
     "job",
     "initial_state",
     "randomization",

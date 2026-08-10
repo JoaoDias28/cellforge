@@ -1,0 +1,9 @@
+string project_path
+string scenario_path
+---
+bool success
+string result_code
+string result_message
+uint64 seed
+string requested_fidelity
+string achieved_fidelity

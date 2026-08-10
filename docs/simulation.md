@@ -102,3 +102,50 @@ Measure separately:
 - event/trace overhead;
 - job throughput;
 - repeated-run variance.
+
+## 8. Task 018 simulation control bridge
+
+`cellforge_simulation` owns simulation lifecycle and scenario evidence behind a pure application
+service. ROS 2 and Isaac Sim are thin adapters. Typed ROS services configure a scenario from a
+project, register simulated adapters, reset/start/pause/step, inject test faults, capture canonical
+`JobEvent` traces, evaluate assertions, and atomically store evidence.
+
+Inside Isaac Sim, the Cell Studio extension hosts the ROS bridge and spins it from Kit's per-frame
+main-thread update callback. ROS clients therefore remain transport-only while timeline, World
+reset/step, and USD operations stay inside the Isaac runtime.
+
+Configuration always loads component instance IDs from canonical `cell.yaml` and its referenced
+canonical USD scene. Evidence freezes SHA-256 identities for both files and the scenario. Adapter
+registration declares the immutable instance ID, canonical capabilities, ROS endpoint, and actual
+fidelity. The requested fidelity is rejected when any required adapter is weaker; manifest claims
+or a loaded USD file do not upgrade actual evidence.
+
+The default ROS launch uses the L0 contract backend:
+
+```bash
+ros2 launch cellforge_simulation simulation_bridge.launch.py
+```
+
+Run the deterministic GPU-independent Task 018 acceptance path with:
+
+```bash
+make studio-simulation-check
+```
+
+It verifies reset ordering, exact same-seed setup, adapter registration, trace assertions, and
+evidence at L0. It does not claim Isaac physics or rendered perception.
+
+From an Isaac Sim 6 installation, after installing the locked CellForge and ROS 2 workspaces into
+the Isaac Python environment, run the Kit backend probe on Windows with:
+
+```powershell
+isaac-sim.bat --no-window `
+  --ext-folder C:\absolute\path\to\cellforge\src\kit `
+  --enable cellforge.studio `
+  --exec C:\absolute\path\to\cellforge\scripts\verify_kit_simulation.py
+```
+
+On Linux use `./isaac-sim.sh` and forward-slash absolute paths. The probe exercises a clean reset,
+pause, single physics step, start, deterministic USD scenario metadata, and evidence storage. Task
+020—not Task 018—owns physical pen manipulation. Neither backend implements or validates a
+functional-safety function.

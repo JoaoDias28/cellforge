@@ -16,7 +16,7 @@ initial_state:
 faults:
   - at: before:ExecuteProcess
     target: laser-001
-    fault: process_timeout
+    fault: laser.process.timeout
     parameters: {}
 assertions:
   final_status: RECOVERABLE_FAULT

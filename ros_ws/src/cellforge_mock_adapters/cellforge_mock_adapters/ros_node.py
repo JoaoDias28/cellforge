@@ -37,15 +37,18 @@ from cellforge_interfaces.msg import (
 from cellforge_interfaces.msg import (
     PoseEstimate,
 )
-from cellforge_interfaces.srv import GetDeviceState
+from cellforge_interfaces.srv import GetDeviceState, RegisterSimulationAdapter
 from geometry_msgs.msg import PoseStamped
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from std_msgs.msg import String
 
 from cellforge_mock_adapters.devices import build_device_mock
 from cellforge_mock_adapters.scenarios import (
+    DEVICE_FAULT_CATALOGS,
+    TEST_HOOK_FAULT,
     DeviceScenario,
     ScenarioConfigError,
     load_scenario_file,
@@ -106,6 +109,7 @@ class MockDeviceNode(Node):  # type: ignore[misc]
             self.create_publisher(RosDeviceState, "~/state", 10)
         )
         self._adapter = build_device_mock(scenario, state_sink=state_publisher.publish)
+        self._scenario = scenario
         self._state_edge = state_publisher
         self.create_service(
             GetDeviceState,
@@ -116,6 +120,20 @@ class MockDeviceNode(Node):  # type: ignore[misc]
         for capability in sorted(scenario.operations):
             self._create_action_server(capability)
         self.create_timer(1.0, self._publish_heartbeat)
+        self._registration_client = self.create_client(
+            RegisterSimulationAdapter,
+            "/simulation/register_adapter",
+            callback_group=self._action_group,
+        )
+        self._registration_future: Any | None = None
+        self.create_timer(1.0, self._register_with_simulation_bridge)
+        self.create_subscription(
+            String,
+            "/simulation/fault_injection",
+            self._handle_simulation_fault,
+            10,
+            callback_group=self._action_group,
+        )
 
         self._adapter.state_publisher.transition(DeviceState.CONNECTING)
         self._adapter.mark_ready()
@@ -124,6 +142,47 @@ class MockDeviceNode(Node):  # type: ignore[misc]
             f"'{scenario.component_instance_id}' is READY with "
             f"{sorted(scenario.operations)}."
         )
+
+    def _register_with_simulation_bridge(self) -> None:
+        if (
+            self._registration_future is not None
+            or not self._registration_client.service_is_ready()
+        ):
+            return
+        request = RegisterSimulationAdapter.Request()
+        request.component_instance_id = self._scenario.component_instance_id
+        request.capabilities = sorted(self._scenario.operations)
+        request.fidelity = "L0"
+        request.endpoint = self.get_fully_qualified_name()
+        request.fault_codes = sorted(
+            DEVICE_FAULT_CATALOGS[self._scenario.device_kind] | {TEST_HOOK_FAULT}
+        )
+        self._registration_future = self._registration_client.call_async(request)
+        self._registration_future.add_done_callback(self._registration_completed)
+
+    def _registration_completed(self, future: Any) -> None:
+        self._registration_future = None
+        try:
+            response = future.result()
+        except Exception as error:  # rclpy future transports implementation exceptions
+            self.get_logger().warning(f"Simulation adapter registration failed: {error}")
+            return
+        if not response.success:
+            self.get_logger().warning(
+                f"Simulation adapter registration refused: {response.result_code}: "
+                f"{response.result_message}"
+            )
+
+    def _handle_simulation_fault(self, message: String) -> None:
+        try:
+            payload = json.loads(message.data)
+            if not isinstance(payload, dict):
+                raise ValueError("fault payload must be a JSON object")
+            if payload.get("component_instance_id") != self._scenario.component_instance_id:
+                return
+            self._adapter.inject_next_fault(str(payload.get("fault_code", "")))
+        except (json.JSONDecodeError, ValueError) as error:
+            self.get_logger().warning(f"Rejected simulation fault injection: {error}")
 
     def close_bridge(self) -> None:
         """Stop the asyncio bridge thread during shutdown."""

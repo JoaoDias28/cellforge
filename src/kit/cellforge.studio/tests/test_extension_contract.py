@@ -12,14 +12,15 @@ def test_extension_manifest_declares_supported_module_and_ui_dependency() -> Non
         (EXTENSION_ROOT / "config" / "extension.toml").read_text(encoding="utf-8")
     )
 
-    assert manifest["package"]["version"] == "0.4.0"
-    assert manifest["dependencies"] == {"omni.ui": {}}
+    assert manifest["package"]["version"] == "0.5.0"
+    assert manifest["dependencies"] == {"omni.kit.app": {}, "omni.ui": {}}
     assert manifest["python"]["module"] == [{"name": "cellforge.studio.extension"}]
 
 
 def test_application_layer_has_no_kit_ros_or_write_dependencies() -> None:
-    source = (EXTENSION_ROOT / "cellforge" / "studio" / "application.py").read_text(
-        encoding="utf-8"
+    source = "\n".join(
+        (EXTENSION_ROOT / "cellforge" / "studio" / filename).read_text(encoding="utf-8")
+        for filename in ("application.py", "simulation_application.py")
     )
     tree = ast.parse(source)
     imported_roots = {
@@ -55,6 +56,10 @@ def test_ui_callbacks_delegate_to_application_services() -> None:
         "_on_refresh_connections": "refresh_connections",
         "_on_preview_mechanical_connection": "preview_mechanical_connection",
         "_on_connect_ports": "connect_ports",
+        "_on_configure_simulation": "configure",
+        "_on_simulation_control": "control",
+        "_on_inject_simulation_fault": "inject_fault",
+        "_on_finalize_simulation": "finalize",
     }
     for callback_name, command_name in expected.items():
         callback = next(
@@ -79,3 +84,15 @@ def test_safety_connections_have_distinct_non_executable_presentation() -> None:
     assert "MODELED SAFETY (NON-EXECUTABLE)" in source
     assert "MODELED-ONLY SAFETY" in source
     assert "Modeled safety dependencies are never executable wiring." in source
+
+
+def test_simulation_host_spins_ros_from_kit_update_stream() -> None:
+    source = (EXTENSION_ROOT / "cellforge" / "studio" / "simulation_host.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "get_update_event_stream" in source
+    assert "create_subscription_to_pop" in source
+    assert "spin_once" in source
+    assert "IsaacSimulationBackend" in source
+    assert "SimulationControlService" in source
