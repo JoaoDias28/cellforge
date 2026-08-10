@@ -48,7 +48,7 @@ USDA syntax is broader than the deterministic fallback parser; prefer `pxr.Usd` 
 - [x] 2026-08-10 — Confirm Tasks 003 and 014 are merged ancestors of clean local and remote `main`; create task branch after a green baseline.
 - [x] 2026-08-10 — Implement and test pure project/scene commands and cross-reference validation.
 - [x] 2026-08-10 — Wire thin Kit callbacks, documentation, and headless acceptance probes.
-- [ ] 2026-08-10 — Complete regression checks, commit, ready PR, CI, merge, and local-main synchronization.
+- [x] 2026-08-10 — Complete regression checks, commit, ready PR, CI, merge, and local-main synchronization.
 
 ## Decisions
 - 2026-08-10 — Author `cellforge:instanceId` on each component prim; namespaced USD metadata keeps the spatial-to-operational link explicit without moving operational configuration into USD.
@@ -61,4 +61,6 @@ USDA syntax is broader than the deterministic fallback parser; prefer `pxr.Usd` 
 ## Results
 Implemented explicit create/open/save commands, exact-text dirty buffers, shared `cellforge:instanceId` metadata, structured YAML/USD cross-reference findings, candidate whole-project validation, two-file recovery-journal transactions, explicit interrupted-save recovery, thin Kit callbacks, and headless probes. The final local run passed Ruff formatting/checking, mypy (57-source core scope and 7-source Studio scope), 232 pytest tests, validation of 5 canonical schemas/6 component config schemas/19 example YAML files, 20 Studio tests, 10 Task 015 service tests, extension manifest verification, and the non-Kit Task 015 probe.
 
-GNU Make is unavailable on the Windows host, so the exact Makefile command bodies were executed directly with `uv`. Isaac Sim 6 is unavailable: neither `isaac-sim.bat` nor `isaacsim` is installed or on `PATH`; the local Omniverse package directory contains Hub and Kit only. The documented `scripts/verify_kit_project_scene.py` integration probe therefore remains unexecuted here. No ROS packages changed, so ROS build/test checks are not applicable. Commit, GitHub publication, CI, merge, and synchronization results remain pending.
+GNU Make is unavailable on the Windows host, so the exact Makefile command bodies were executed directly with `uv`. Isaac Sim 6 is unavailable: neither `isaac-sim.bat` nor `isaacsim` is installed or on `PATH`; the local Omniverse package directory contains Hub and Kit only. The documented `scripts/verify_kit_project_scene.py` integration probe therefore remains unexecuted here. No ROS packages changed, so local ROS build/test checks were not applicable.
+
+Implementation commit `3bd9752` was published in ready PR #8. GitHub Actions CI run 44 completed successfully: `Python 3.12 validation` passed lint, type checks, all tests, and example validation; `ROS 2 Jazzy build and test` passed repository setup, dependency resolution, workspace build, and workspace tests. GitHub reported the PR conflict-free and mergeable. Merge commit `da0b75b` was synchronized to local and remote `main`, both resolving to `da0b75b0212c374e043d1fde6b63cd5bedb3b84d`, with a clean working tree. Task 016 was not started.
