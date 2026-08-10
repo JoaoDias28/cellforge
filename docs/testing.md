@@ -76,6 +76,11 @@ Pull requests must run:
 
 Isaac Sim tests may run on a dedicated GPU runner. PRs that affect scene/simulation behavior require that check before release even when normal contributors cannot run it locally.
 
+Task 018 adds `make studio-simulation-check` for deterministic CPU-only lifecycle, seed replay,
+fidelity, fault, trace/assertion, and evidence coverage. The separate Isaac Sim 6 headless command
+in `docs/simulation.md` remains required integration evidence and must be reported unavailable—not
+passing—when no supported Isaac runtime exists.
+
 ## 3. Required reference scenarios
 
 Pen engraving MVP:

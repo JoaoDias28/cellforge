@@ -1,7 +1,7 @@
 # cellforge_interfaces
 
 `cellforge_interfaces` is the vendor-neutral ROS 2 Jazzy contract package shared by CellForge
-runtime nodes. It generates five messages, three short services, and five actions from the
+runtime nodes. It generates five messages, eight short services, and five actions from the
 definitions in this package.
 
 ## Source definitions
@@ -25,6 +25,10 @@ vendor/protocol-specific term appears in an interface definition.
   recovery and must not infer that a hazardous process either completed or failed.
 - JSON fields carry versioned, capability-level payloads when a compact extensibility boundary is
   needed. They must not carry vendor control protocols or allow arbitrary safety overrides.
+- The five simulation services configure and control engineering simulation, register adapters,
+  inject test faults, and finalize evidence. They cannot command physical outputs or implement a
+  functional-safety response; simulated devices retain the same canonical capability contracts as
+  their hardware counterparts.
 
 ## Build and test
 

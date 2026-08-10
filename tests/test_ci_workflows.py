@@ -36,3 +36,4 @@ def test_ci_runs_schema_and_example_validation() -> None:
     python_steps = workflow["jobs"]["python"]["steps"]
 
     assert any(step.get("run") == "make validate-examples" for step in python_steps)
+    assert any(step.get("run") == "make studio-simulation-check" for step in python_steps)

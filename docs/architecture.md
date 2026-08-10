@@ -34,6 +34,7 @@ Owns simulation results, commissioning evidence, calibration evidence, productio
 | `registry-api` | Python/FastAPI | internal server | component, project, recipe, deployment metadata |
 | `artifact-store` | filesystem/S3-compatible | internal server | USD, bundles, images, reports |
 | `studio-extension` | Python/Kit | engineering workstation | UI and scene authoring |
+| `simulation-bridge` | Python/ROS 2 + Kit | engineering workstation/CI | deterministic scenario control, adapter registration, trace assertions, evidence |
 | `job-gateway` | Python or C++ ROS node | cell | receive/freeze jobs, production mode checks |
 | `cell-supervisor` | C++ ROS node | cell | BehaviorTree.CPP execution and state machine |
 | `motion-service` | C++ ROS node | cell | MoveIt/MTC planning and execution |

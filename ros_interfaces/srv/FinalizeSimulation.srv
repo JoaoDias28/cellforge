@@ -1,0 +1,8 @@
+string final_status
+string evidence_path
+---
+bool success
+string result_code
+string result_message
+bool scenario_passed
+string failures_json

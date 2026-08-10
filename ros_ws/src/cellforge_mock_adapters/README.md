@@ -77,6 +77,10 @@ evidence does not prove physics, mark quality, hardware behavior, or functional 
 | `setuptools` | MIT | Package build | standard ament tool |
 | `PyYAML` | MIT | Parse canonical scenario data with safe loading; actively maintained | materialize scenario JSON before removing it |
 
+When the Task 018 bridge is available, each mock node self-registers its immutable component
+instance ID, canonical capability endpoints, L0 fidelity, and fault catalog. Targeted bridge faults
+are validated against that catalog and applied exactly once to the next canonical operation.
+
 ## Limitations (honest)
 
 - L0 fidelity only: configurable timing and contract behaviour; no geometry, kinematics, physics,

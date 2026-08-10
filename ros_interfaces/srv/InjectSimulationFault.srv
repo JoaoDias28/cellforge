@@ -1,0 +1,8 @@
+string at
+string component_instance_id
+string fault_code
+string parameters_json
+---
+bool success
+string result_code
+string result_message

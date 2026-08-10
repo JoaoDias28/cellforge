@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>cellforge_simulation</name>
+  <version>0.1.0</version>
+  <description>Deterministic Isaac simulation and ROS 2 scenario control bridge.</description>
+  <maintainer email="engineering@example.invalid">CellForge Engineering</maintainer>
+  <license>Proprietary</license>
+  <exec_depend>cellforge_interfaces</exec_depend>
+  <exec_depend>cellforge_mock_adapters</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

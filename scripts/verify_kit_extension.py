@@ -8,6 +8,7 @@ WINDOWS = (
     "CellForge Project",
     "CellForge Components",
     "CellForge Connections",
+    "CellForge Simulation",
     "CellForge Validation",
     "CellForge Log",
 )

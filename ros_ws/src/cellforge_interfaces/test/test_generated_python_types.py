@@ -13,21 +13,35 @@ from cellforge_interfaces.msg import (
     PoseEstimate,
     SafetyState,
 )
-from cellforge_interfaces.srv import GetDeviceState, SetDiscreteOutput, ValidateRecipe
+from cellforge_interfaces.srv import (
+    ConfigureSimulation,
+    ControlSimulation,
+    FinalizeSimulation,
+    GetDeviceState,
+    InjectSimulationFault,
+    RegisterSimulationAdapter,
+    SetDiscreteOutput,
+    ValidateRecipe,
+)
 
 
 def test_generated_python_types_are_importable() -> None:
     generated_types = (
         CellState,
+        ConfigureSimulation,
+        ControlSimulation,
         DeviceState,
         ExecuteProcess,
         ExecuteSkill,
+        FinalizeSimulation,
         GetDeviceState,
         InspectObject,
+        InjectSimulationFault,
         JobEvent,
         LocateObject,
         PoseEstimate,
         RunJob,
+        RegisterSimulationAdapter,
         SafetyState,
         SetDiscreteOutput,
         ValidateRecipe,

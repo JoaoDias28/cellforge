@@ -309,6 +309,26 @@ def test_configured_device_faults_produce_catalog_codes_and_fault_state() -> Non
     asyncio.run(run())
 
 
+def test_bridge_selected_fault_is_applied_once_to_next_mock_operation() -> None:
+    async def run() -> None:
+        scenario = make_scenario(
+            "gripper",
+            {"gripper.action.close": {"duration_seconds": 0.001}},
+        )
+        adapter = build_device_mock(scenario)
+        adapter.mark_ready()
+        adapter.inject_next_fault("gripper.motion.close_failed")
+        failed = await adapter.execute(make_command("gripper.action.close", {}))
+        assert failed.result_code == "gripper.motion.close_failed"
+        adapter.mark_ready()
+        succeeded = await adapter.execute(make_command("gripper.action.close", {}))
+        assert succeeded.success
+        with pytest.raises(ValueError, match="not supported"):
+            adapter.inject_next_fault("unsupported.fault")
+
+    asyncio.run(run())
+
+
 def test_operation_timeout_is_uncertain_and_blocks_new_work() -> None:
     """A command deadline produces an uncertain timeout and a non-ready UNKNOWN state."""
 

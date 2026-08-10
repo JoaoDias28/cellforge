@@ -48,3 +48,11 @@ Prometheus/Grafana may be added, but the event model must not depend on them.
 ## 5. Privacy and retention
 
 Product text, images, and operator identifiers may be sensitive. Retention and access policies are configurable by evidence type. Debug bags must not be recorded indefinitely by default.
+
+## 6. Simulation evidence
+
+Task 018 scenario evidence is canonical JSON with normalized sequence ordering, exact seed and
+randomization samples, scenario/cell.yaml/USD SHA-256 identities, registered adapter capabilities
+and actual fidelity, requested-versus-achieved fidelity, limitations, assertion outcomes, and the
+captured trace. Evidence write failure fails finalization; a run is never reported successful when
+its required evidence could not be stored.

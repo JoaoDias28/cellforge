@@ -1,0 +1,9 @@
+string component_instance_id
+string[] capabilities
+string fidelity
+string endpoint
+string[] fault_codes
+---
+bool success
+string result_code
+string result_message

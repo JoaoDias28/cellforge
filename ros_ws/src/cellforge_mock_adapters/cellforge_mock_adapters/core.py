@@ -11,8 +11,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from abc import abstractmethod
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 from cellforge_device_sdk.adapter import (
@@ -32,6 +34,8 @@ from cellforge_device_sdk.models import (
 from cellforge_device_sdk.state import CanonicalStatePublisher
 
 from cellforge_mock_adapters.scenarios import (
+    DEVICE_FAULT_CATALOGS,
+    TEST_HOOK_FAULT,
     UNCERTAIN_FAULT_CODES,
     DeviceScenario,
     OperationBehavior,
@@ -51,6 +55,19 @@ class MockDeviceAdapter(BaseDeviceAdapter):
         super().__init__(scenario.component_instance_id, state_publisher=publisher)
         self.scenario = scenario
         self.operation_started = asyncio.Event()
+        self._fault_lock = threading.Lock()
+        self._next_fault: str | None = None
+
+    def inject_next_fault(self, fault_code: str) -> None:
+        """Select one catalog fault for the next capability operation."""
+
+        allowed = DEVICE_FAULT_CATALOGS[self.scenario.device_kind] | {TEST_HOOK_FAULT}
+        if fault_code not in allowed:
+            raise ValueError(
+                f"fault '{fault_code}' is not supported by '{self.scenario.device_kind}'"
+            )
+        with self._fault_lock:
+            self._next_fault = fault_code
 
     def validate_command(self, command: CapabilityCommand) -> Fault | None:
         """Reject capabilities outside the scenario and invalid payloads before any work."""
@@ -116,7 +133,11 @@ class MockDeviceAdapter(BaseDeviceAdapter):
         """Produce the deterministic device-specific success or declared failure result."""
 
     def _behavior(self, command: CapabilityCommand) -> OperationBehavior:
-        return self.scenario.operations[command.capability]
+        configured = self.scenario.operations[command.capability]
+        with self._fault_lock:
+            fault = self._next_fault
+            self._next_fault = None
+        return configured if fault is None else replace(configured, fault=fault)
 
     def _fault_result(
         self, command: CapabilityCommand, behavior: OperationBehavior
