@@ -19,6 +19,7 @@ def main() -> int:
         "cellforge/studio/application.py",
         "cellforge/studio/backend.py",
         "cellforge/studio/component_service.py",
+        "cellforge/studio/connection_service.py",
         "cellforge/studio/extension.py",
         "cellforge/studio/project_service.py",
         "cellforge/studio/scene.py",

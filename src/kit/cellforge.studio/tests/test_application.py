@@ -11,6 +11,9 @@ from cellforge.studio.application import (
     BrowserResult,
     ComponentEditResult,
     ComponentFilters,
+    ConnectionBrowserResult,
+    ConnectionEdge,
+    ConnectionEditResult,
     ProjectContents,
     StudioApplication,
     StudioStatus,
@@ -30,6 +33,8 @@ class RecordingBackend:
         self.saved: list[tuple[Path, ProjectContents]] = []
         self.browser_result = BrowserResult(components=())
         self.edit_result = ComponentEditResult(contents=None)
+        self.connection_browser_result = ConnectionBrowserResult(ports=(), edges=())
+        self.connection_edit_result = ConnectionEditResult(contents=None)
 
     def inspect(self, project_path: Path) -> BackendResult:
         self.paths.append(project_path)
@@ -69,6 +74,38 @@ class RecordingBackend:
         remove_connections: bool,
     ) -> ComponentEditResult:
         return self.edit_result
+
+    def browse_connections(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ConnectionBrowserResult:
+        return self.connection_browser_result
+
+    def preview_mechanical_connection(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> ConnectionEditResult:
+        return self.connection_edit_result
+
+    def connect_ports(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> ConnectionEditResult:
+        return self.connection_edit_result
 
 
 def _tree_bytes(root: Path) -> Mapping[str, bytes]:
@@ -230,6 +267,52 @@ def test_component_placement_remove_undo_and_redo_are_paired_in_memory(
     assert backend.saved == []
 
 
+def test_modeled_safety_connection_is_distinct_and_undoable(tmp_path: Path) -> None:
+    project = BackendProject(
+        path=tmp_path,
+        cell_id="00000000-0000-4000-8000-000000000001",
+        name="Test Cell",
+        scene="scene.usda",
+        component_count=2,
+        connection_count=0,
+        task_count=0,
+        recipe_count=0,
+        scenario_count=0,
+        deployment_profile_count=1,
+    )
+    original = ProjectContents(cell_yaml="before", scene_usda="scene")
+    changed = ProjectContents(cell_yaml="after", scene_usda="scene")
+    backend = RecordingBackend(BackendResult(project=project, validation=(), contents=original))
+    application = StudioApplication(backend)
+    application.open_project(tmp_path)
+    edge = ConnectionEdge(
+        connection_id="safety-edge",
+        kind="safety",
+        from_component="status-001",
+        from_port="permitted",
+        to_component="machine-001",
+        to_port="permitted",
+        port_type="safety.status.permitted",
+        modeled_only=True,
+        executable=False,
+    )
+    backend.connection_edit_result = ConnectionEditResult(
+        contents=changed, connection_id=edge.connection_id, edge=edge
+    )
+
+    created = application.connect_ports(
+        "safety-edge", "safety", "status-001", "permitted", "machine-001", "permitted"
+    )
+    undone = application.undo()
+
+    assert created.connection_edges == (edge,)
+    assert created.project is not None and created.project.connection_count == 1
+    assert "modeled-only safety" in created.logs[-1].message
+    assert undone.project is not None and undone.project.connection_count == 0
+    assert undone.connection_edges == ()
+    assert backend.saved == []
+
+
 def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
     class FailingBackend:
         def inspect(self, project_path: Path) -> BackendResult:
@@ -266,6 +349,38 @@ def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
             instance_id: str,
             remove_connections: bool,
         ) -> ComponentEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def browse_connections(
+            self, project_path: Path, contents: ProjectContents
+        ) -> ConnectionBrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def preview_mechanical_connection(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            connection_id: str,
+            from_component: str,
+            from_port: str,
+            to_component: str,
+            to_port: str,
+        ) -> ConnectionEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def connect_ports(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            connection_id: str,
+            kind: str,
+            from_component: str,
+            from_port: str,
+            to_component: str,
+            to_port: str,
+        ) -> ConnectionEditResult:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
     snapshot = StudioApplication(FailingBackend()).open_project(PEN_PROJECT)

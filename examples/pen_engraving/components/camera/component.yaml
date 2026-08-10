@@ -28,6 +28,10 @@ ports:
       direction: input
       type: vision.inspect_object.v1
       required: true
+    - id: process_state
+      direction: input
+      type: process.cycle_state.v1
+      required: false
   industrial_io: []
   safety: []
 config_schema: config.schema.json

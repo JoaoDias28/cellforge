@@ -28,6 +28,10 @@ ports:
       direction: input
       type: process.execute_cycle.v1
       required: true
+    - id: cycle_state
+      direction: output
+      type: process.cycle_state.v1
+      required: false
   industrial_io:
     - id: ready
       direction: output

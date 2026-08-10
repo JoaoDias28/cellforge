@@ -32,10 +32,13 @@ from cellforge.studio.application import (
     BrowserResult,
     ComponentEditResult,
     ComponentFilters,
+    ConnectionBrowserResult,
+    ConnectionEditResult,
     ProjectContents,
     ValidationItem,
 )
 from cellforge.studio.component_service import ComponentPlacementService
+from cellforge.studio.connection_service import ConnectionAuthoringService
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
 
 RECOVERY_FILE = ".cellforge-save-recovery.json"
@@ -67,10 +70,14 @@ class ProjectCommandService:
         *,
         replace_file: Callable[[str | Path, str | Path], None] = os.replace,
         component_service: ComponentPlacementService | None = None,
+        connection_service: ConnectionAuthoringService | None = None,
     ) -> None:
         self._canonical_schemas = canonical_schema_directory.resolve()
         self._replace_file = replace_file
         self._components = component_service or ComponentPlacementService(self._canonical_schemas)
+        self._connections = connection_service or ConnectionAuthoringService(
+            self._canonical_schemas
+        )
 
     def create(self, project_path: Path) -> BackendResult:
         """Explicitly create a starter project and return its validated buffers."""
@@ -248,6 +255,61 @@ class ProjectCommandService:
             contents,
             instance_id=instance_id,
             remove_connections=remove_connections,
+        )
+
+    def browse_connections(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ConnectionBrowserResult:
+        """Return typed ports and graph edges from the current in-memory sources."""
+
+        return self._connections.browse(project_path, contents)
+
+    def preview_mechanical_connection(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> ConnectionEditResult:
+        """Return a validated mechanical snap preview without changing sources."""
+
+        return self._connections.preview_mechanical(
+            project_path,
+            contents,
+            connection_id=connection_id,
+            from_component=from_component,
+            from_port=from_port,
+            to_component=to_component,
+            to_port=to_port,
+        )
+
+    def connect_ports(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> ConnectionEditResult:
+        """Return a validated logical or paired mechanical connection edit."""
+
+        return self._connections.connect(
+            project_path,
+            contents,
+            connection_id=connection_id,
+            kind=kind,
+            from_component=from_component,
+            from_port=from_port,
+            to_component=to_component,
+            to_port=to_port,
         )
 
     def _registry_for(self, project_path: Path) -> SchemaRegistry:

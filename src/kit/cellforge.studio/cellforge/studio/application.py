@@ -127,6 +127,71 @@ class ComponentEditResult:
     removed_connections: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class ConnectionPort:
+    """One declared instance port displayed in the typed connection browser."""
+
+    component_instance: str
+    component_alias: str
+    kind: str
+    port: str
+    direction: str
+    port_type: str
+    frame: str | None
+    required: bool
+    modeled_only: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionEdge:
+    """One persisted edge with explicit execution and safety semantics."""
+
+    connection_id: str
+    kind: str
+    from_component: str
+    from_port: str
+    to_component: str
+    to_port: str
+    port_type: str
+    modeled_only: bool
+    executable: bool
+
+
+@dataclass(frozen=True, slots=True)
+class MechanicalSnapPreview:
+    """Validated spatial edit proposed for a compatible mechanical connection."""
+
+    connection_id: str
+    source_prim: str
+    current_target_prim: str
+    snapped_target_prim: str
+    source_frame: str
+    target_frame: str
+    transform: tuple[float, ...]
+    adapter_required: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionBrowserResult:
+    """Typed port graph and validation findings returned by the backend."""
+
+    ports: tuple[ConnectionPort, ...]
+    edges: tuple[ConnectionEdge, ...]
+    validation: tuple[ValidationItem, ...] = ()
+    safety_disclaimer: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionEditResult:
+    """Connection preview or atomic source transformation result."""
+
+    contents: ProjectContents | None
+    validation: tuple[ValidationItem, ...] = ()
+    connection_id: str | None = None
+    edge: ConnectionEdge | None = None
+    preview: MechanicalSnapPreview | None = None
+
+
 class ProjectBackend(Protocol):
     """Project commands implemented outside UI callbacks."""
 
@@ -166,6 +231,38 @@ class ProjectBackend(Protocol):
     ) -> ComponentEditResult:
         """Remove linked records, requiring explicit connection resolution."""
 
+    def browse_connections(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ConnectionBrowserResult:
+        """Return the typed port graph for the current in-memory sources."""
+
+    def preview_mechanical_connection(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> ConnectionEditResult:
+        """Validate a mechanical edge and return its spatial snap preview."""
+
+    def connect_ports(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> ConnectionEditResult:
+        """Create a validated logical or paired mechanical connection edit."""
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectView:
@@ -204,8 +301,22 @@ class StudioSnapshot:
     logs: tuple[LogEntry, ...] = ()
     dirty: bool = False
     browser: tuple[BrowserComponent, ...] = ()
+    connection_ports: tuple[ConnectionPort, ...] = ()
+    connection_edges: tuple[ConnectionEdge, ...] = ()
+    safety_disclaimer: str = ""
+    mechanical_preview: MechanicalSnapPreview | None = None
     can_undo: bool = False
     can_redo: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class _EditState:
+    contents: ProjectContents
+    project: ProjectView
+    connection_ports: tuple[ConnectionPort, ...]
+    connection_edges: tuple[ConnectionEdge, ...]
+    safety_disclaimer: str
+    mechanical_preview: MechanicalSnapPreview | None
 
 
 class StudioApplication:
@@ -246,8 +357,8 @@ class StudioApplication:
             )
         self._saved_contents: ProjectContents | None = None
         self._working_contents: ProjectContents | None = None
-        self._undo_stack: list[tuple[ProjectContents, ProjectView]] = []
-        self._redo_stack: list[tuple[ProjectContents, ProjectView]] = []
+        self._undo_stack: list[_EditState] = []
+        self._redo_stack: list[_EditState] = []
 
     @property
     def snapshot(self) -> StudioSnapshot:
@@ -276,6 +387,10 @@ class StudioApplication:
                 validation=(),
                 dirty=False,
                 browser=(),
+                connection_ports=(),
+                connection_edges=(),
+                safety_disclaimer="",
+                mechanical_preview=None,
                 can_undo=False,
                 can_redo=False,
                 logs=self._append_log(LogLevel.WARNING, "Project path was empty."),
@@ -301,7 +416,10 @@ class StudioApplication:
             return self._snapshot
 
         snapshot = self._apply_result(result, resolved_path, operation="Opened")
-        return self.refresh_components() if snapshot.project is not None else snapshot
+        if snapshot.project is None:
+            return snapshot
+        self.refresh_components()
+        return self.refresh_connections()
 
     def create_project(self, project_path: str | Path) -> StudioSnapshot:
         """Explicitly create a project through the backend command service."""
@@ -317,7 +435,10 @@ class StudioApplication:
         except Exception as error:
             return self._operation_failure("Project creation", error)
         snapshot = self._apply_result(result, resolved_path, operation="Created")
-        return self.refresh_components() if snapshot.project is not None else snapshot
+        if snapshot.project is None:
+            return snapshot
+        self.refresh_components()
+        return self.refresh_connections()
 
     def refresh_components(self, filters: ComponentFilters = ComponentFilters()) -> StudioSnapshot:
         """Query the project registry through the pure backend browser service."""
@@ -377,6 +498,7 @@ class StudioApplication:
             return self._edit_rejected("Component placement", result.validation)
         self._record_edit(contents, project)
         self._working_contents = result.contents
+        connection_graph = self._connection_graph(Path(project.path), self._working_contents)
         self._snapshot = replace(
             self._snapshot,
             status=StudioStatus.PROJECT_READY,
@@ -387,10 +509,145 @@ class StudioApplication:
             project=replace(project, component_count=project.component_count + 1),
             validation=(),
             dirty=self._working_contents != self._saved_contents,
+            connection_ports=connection_graph.ports,
+            connection_edges=connection_graph.edges,
+            safety_disclaimer=connection_graph.safety_disclaimer,
+            mechanical_preview=None,
             can_undo=True,
             can_redo=False,
             logs=self._append_log(
                 LogLevel.INFO, f"Placed component instance {result.instance_id} in memory."
+            ),
+        )
+        return self._snapshot
+
+    def refresh_connections(self) -> StudioSnapshot:
+        """Refresh the typed graph from current in-memory sources through the backend."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot browse connections without a valid open project.")
+        try:
+            result = self._backend.browse_connections(Path(project.path), contents)
+        except Exception as error:
+            return self._operation_failure(
+                "Connection browser refresh", error, preserve_project=True
+            )
+        self._snapshot = replace(
+            self._snapshot,
+            connection_ports=result.ports,
+            connection_edges=result.edges,
+            safety_disclaimer=result.safety_disclaimer,
+            validation=result.validation,
+            mechanical_preview=None,
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Refreshed connection graph with {len(result.edges)} edge(s).",
+            ),
+        )
+        return self._snapshot
+
+    def preview_mechanical_connection(
+        self,
+        connection_id: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> StudioSnapshot:
+        """Preview one validated mechanical snap without mutating project buffers."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot preview a connection without a valid project.")
+        try:
+            result = self._backend.preview_mechanical_connection(
+                Path(project.path),
+                contents,
+                connection_id=connection_id,
+                from_component=from_component,
+                from_port=from_port,
+                to_component=to_component,
+                to_port=to_port,
+            )
+        except Exception as error:
+            return self._operation_failure("Mechanical snap preview", error, preserve_project=True)
+        if result.preview is None:
+            return self._edit_rejected("Mechanical snap preview", result.validation)
+        self._snapshot = replace(
+            self._snapshot,
+            validation=(),
+            mechanical_preview=result.preview,
+            detail=(
+                f"Preview: snap {result.preview.current_target_prim} to "
+                f"{result.preview.snapped_target_prim}."
+            ),
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Previewed mechanical connection {connection_id}; no sources changed.",
+            ),
+        )
+        return self._snapshot
+
+    def connect_ports(
+        self,
+        connection_id: str,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+    ) -> StudioSnapshot:
+        """Apply one validated connection edit to the in-memory canonical sources."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot create a connection without a valid project.")
+        try:
+            result = self._backend.connect_ports(
+                Path(project.path),
+                contents,
+                connection_id=connection_id,
+                kind=kind,
+                from_component=from_component,
+                from_port=from_port,
+                to_component=to_component,
+                to_port=to_port,
+            )
+        except Exception as error:
+            return self._operation_failure("Connection creation", error, preserve_project=True)
+        if result.contents is None or result.edge is None:
+            return self._edit_rejected("Connection creation", result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        self._snapshot = replace(
+            self._snapshot,
+            status=StudioStatus.PROJECT_READY,
+            headline=project.name,
+            detail=f"Created connection {connection_id}; save to commit canonical sources.",
+            project=replace(project, connection_count=project.connection_count + 1),
+            validation=(),
+            dirty=self._working_contents != self._saved_contents,
+            connection_edges=(*self._snapshot.connection_edges, result.edge),
+            mechanical_preview=result.preview,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(
+                LogLevel.INFO,
+                (
+                    f"Created modeled-only safety dependency {connection_id}."
+                    if result.edge.modeled_only
+                    else f"Created {result.edge.kind} connection {connection_id}."
+                ),
             ),
         )
         return self._snapshot
@@ -419,6 +676,7 @@ class StudioApplication:
             return self._edit_rejected("Component removal", result.validation)
         self._record_edit(contents, project)
         self._working_contents = result.contents
+        connection_graph = self._connection_graph(Path(project.path), self._working_contents)
         self._snapshot = replace(
             self._snapshot,
             status=StudioStatus.PROJECT_READY,
@@ -431,6 +689,10 @@ class StudioApplication:
             ),
             validation=(),
             dirty=self._working_contents != self._saved_contents,
+            connection_ports=connection_graph.ports,
+            connection_edges=connection_graph.edges,
+            safety_disclaimer=connection_graph.safety_disclaimer,
+            mechanical_preview=None,
             can_undo=True,
             can_redo=False,
             logs=self._append_log(
@@ -447,14 +709,18 @@ class StudioApplication:
         contents = self._working_contents
         if project is None or contents is None or not self._undo_stack:
             return self._no_open_project("No component edit is available to undo.")
-        previous_contents, previous_project = self._undo_stack.pop()
-        self._redo_stack.append((contents, project))
-        self._working_contents = previous_contents
+        previous = self._undo_stack.pop()
+        self._redo_stack.append(self._edit_state(contents, project))
+        self._working_contents = previous.contents
         self._snapshot = replace(
             self._snapshot,
-            project=previous_project,
+            project=previous.project,
             validation=(),
-            dirty=previous_contents != self._saved_contents,
+            dirty=previous.contents != self._saved_contents,
+            connection_ports=previous.connection_ports,
+            connection_edges=previous.connection_edges,
+            safety_disclaimer=previous.safety_disclaimer,
+            mechanical_preview=previous.mechanical_preview,
             can_undo=bool(self._undo_stack),
             can_redo=True,
             detail="Undid one linked component edit in memory.",
@@ -469,14 +735,18 @@ class StudioApplication:
         contents = self._working_contents
         if project is None or contents is None or not self._redo_stack:
             return self._no_open_project("No component edit is available to redo.")
-        next_contents, next_project = self._redo_stack.pop()
-        self._undo_stack.append((contents, project))
-        self._working_contents = next_contents
+        next_state = self._redo_stack.pop()
+        self._undo_stack.append(self._edit_state(contents, project))
+        self._working_contents = next_state.contents
         self._snapshot = replace(
             self._snapshot,
-            project=next_project,
+            project=next_state.project,
             validation=(),
-            dirty=next_contents != self._saved_contents,
+            dirty=next_state.contents != self._saved_contents,
+            connection_ports=next_state.connection_ports,
+            connection_edges=next_state.connection_edges,
+            safety_disclaimer=next_state.safety_disclaimer,
+            mechanical_preview=next_state.mechanical_preview,
             can_undo=True,
             can_redo=bool(self._redo_stack),
             detail="Redid one linked component edit in memory.",
@@ -559,6 +829,10 @@ class StudioApplication:
                 validation=result.validation,
                 dirty=False,
                 browser=(),
+                connection_ports=(),
+                connection_edges=(),
+                safety_disclaimer="",
+                mechanical_preview=None,
                 can_undo=False,
                 can_redo=False,
                 logs=self._append_log(
@@ -592,6 +866,7 @@ class StudioApplication:
             ),
             validation=result.validation,
             dirty=False,
+            mechanical_preview=None,
             can_undo=False,
             can_redo=False,
             logs=self._append_log(LogLevel.INFO, f"{operation} project {project.name}."),
@@ -613,9 +888,37 @@ class StudioApplication:
         return self._snapshot
 
     def _record_edit(self, contents: ProjectContents, project: ProjectView) -> None:
-        self._undo_stack.append((contents, project))
+        self._undo_stack.append(self._edit_state(contents, project))
         self._undo_stack = self._undo_stack[-100:]
         self._redo_stack.clear()
+
+    def _edit_state(self, contents: ProjectContents, project: ProjectView) -> _EditState:
+        return _EditState(
+            contents=contents,
+            project=project,
+            connection_ports=self._snapshot.connection_ports,
+            connection_edges=self._snapshot.connection_edges,
+            safety_disclaimer=self._snapshot.safety_disclaimer,
+            mechanical_preview=self._snapshot.mechanical_preview,
+        )
+
+    def _connection_graph(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ConnectionBrowserResult:
+        if self._backend is None:
+            return ConnectionBrowserResult(
+                ports=self._snapshot.connection_ports,
+                edges=self._snapshot.connection_edges,
+                safety_disclaimer=self._snapshot.safety_disclaimer,
+            )
+        try:
+            return self._backend.browse_connections(project_path, contents)
+        except Exception:
+            return ConnectionBrowserResult(
+                ports=self._snapshot.connection_ports,
+                edges=self._snapshot.connection_edges,
+                safety_disclaimer=self._snapshot.safety_disclaimer,
+            )
 
     def _edit_rejected(
         self, operation: str, validation: tuple[ValidationItem, ...]
