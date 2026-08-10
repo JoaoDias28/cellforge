@@ -83,7 +83,7 @@ PlannerResult MoveItPlanner::executeManipulation(const ManipulationRequest& requ
     if (!task->plan(1) || task->solutions().empty()) {
       return {PlannerOutcome::PLANNING_FAILED,
               "MTC found no staged manipulation solution.",
-              {},
+              moveit_msgs::msg::RobotTrajectory(),
               std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count(),
               {"current_state"},
               "staged_plan"};
@@ -99,7 +99,7 @@ PlannerResult MoveItPlanner::executeManipulation(const ManipulationRequest& requ
     if (stop_token.stop_requested()) {
       return {PlannerOutcome::EXECUTION_FAILED,
               "Request cancelled before MTC execution.",
-              {},
+              moveit_msgs::msg::RobotTrajectory(),
               result.planning_time_seconds,
               result.completed_stages,
               "execute"};
@@ -116,9 +116,19 @@ PlannerResult MoveItPlanner::executeManipulation(const ManipulationRequest& requ
     result.completed_stages.push_back("execute");
     return result;
   } catch (const mtc::InitStageException& error) {
-    return {PlannerOutcome::INVALID_INPUT, error.what(), {}, 0.0, {}, "initialize"};
+    return {PlannerOutcome::INVALID_INPUT,
+            error.what(),
+            moveit_msgs::msg::RobotTrajectory(),
+            0.0,
+            {},
+            "initialize"};
   } catch (const std::exception& error) {
-    return {PlannerOutcome::PLANNING_FAILED, error.what(), {}, 0.0, {}, "staged_plan"};
+    return {PlannerOutcome::PLANNING_FAILED,
+            error.what(),
+            moveit_msgs::msg::RobotTrajectory(),
+            0.0,
+            {},
+            "staged_plan"};
   }
 }
 

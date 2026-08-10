@@ -114,6 +114,10 @@ No schema migration or breaking change is introduced; interfaces are additive.
   gtests and clang-format. Clang-tidy alone rejected aggregate initialization that implicitly
   default-constructed generated ROS messages. Make `PlannerResult` an ordinary value type and use
   typed promise values so GCC and Clang share the same construction semantics.
+- 2026-08-10 — Hosted Jazzy run 31417961904 again built the complete workspace; the constructor
+  correction compiled in the service, while clang-tidy found four adapter call sites still passing
+  an anonymous `{}` to the generated message's explicit constructor. Use an explicit
+  `RobotTrajectory()` at those sites without changing outcome mapping.
 
 ## Results
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose
