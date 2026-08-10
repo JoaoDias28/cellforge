@@ -110,10 +110,14 @@ No schema migration or breaking change is introduced; interfaces are additive.
 - 2026-08-10 — Hosted Jazzy run 31415869764 passed CMake and exposed the Jazzy
   `MoveGroupInterface::Plan` field names (`trajectory`, `planning_time`). Correct only those four
   member accesses and preserve the same result mapping.
+- 2026-08-10 — Hosted Jazzy run 31416588224 built the complete workspace and passed the motion
+  gtests and clang-format. Clang-tidy alone rejected aggregate initialization that implicitly
+  default-constructed generated ROS messages. Make `PlannerResult` an ordinary value type and use
+  typed promise values so GCC and Clang share the same construction semantics.
 
 ## Results
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose
 adapter, staged MTC builder, ROS node/events, fake-controller launch, deterministic evidence, docs,
 and tests are implemented. Local Python/configuration validation passes. PR #15 is ready and Python
-CI is green. Hosted ROS runs drove scoped CMake signature and Jazzy Plan-field corrections; the
-latest correction awaits the next hosted run. Isaac Sim remains unavailable.
+CI is green. Hosted ROS runs drove scoped CMake signature, Jazzy Plan-field, and Clang construction
+corrections; the latest correction awaits the next hosted run. Isaac Sim remains unavailable.

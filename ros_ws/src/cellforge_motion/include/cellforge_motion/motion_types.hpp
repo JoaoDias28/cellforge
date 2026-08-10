@@ -6,6 +6,7 @@
 #include <moveit_msgs/msg/planning_scene.hpp>
 #include <moveit_msgs/msg/robot_trajectory.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace cellforge_motion {
@@ -60,6 +61,21 @@ struct SceneSyncRequest {
 };
 
 struct PlannerResult {
+  PlannerResult() = default;
+
+  PlannerResult(
+      PlannerOutcome outcome_value, std::string message_value,
+      moveit_msgs::msg::RobotTrajectory trajectory_value = moveit_msgs::msg::RobotTrajectory(),
+      double planning_time_value = 0.0, std::vector<std::string> completed_stages_value = {},
+      std::string failed_stage_value = {}, bool outcome_certain_value = true)
+      : outcome(outcome_value),
+        message(std::move(message_value)),
+        trajectory(std::move(trajectory_value)),
+        planning_time_seconds(planning_time_value),
+        completed_stages(std::move(completed_stages_value)),
+        failed_stage(std::move(failed_stage_value)),
+        outcome_certain(outcome_certain_value) {}
+
   PlannerOutcome outcome{PlannerOutcome::PLANNING_FAILED};
   std::string message;
   moveit_msgs::msg::RobotTrajectory trajectory;
