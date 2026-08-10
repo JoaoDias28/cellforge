@@ -151,14 +151,19 @@ MotionResult MotionService::run(const std::string& command_id, const std::string
     } catch (const std::exception& error) {
       promise.set_value(PlannerResult{PlannerOutcome::OUTCOME_UNKNOWN,
                                       std::string("Planner exception: ") + error.what(),
-                                      {},
+                                      moveit_msgs::msg::RobotTrajectory(),
                                       0.0,
                                       {},
                                       {},
                                       false});
     } catch (...) {
-      promise.set_value(PlannerResult{
-          PlannerOutcome::OUTCOME_UNKNOWN, "Unknown planner exception.", {}, 0.0, {}, {}, false});
+      promise.set_value(PlannerResult{PlannerOutcome::OUTCOME_UNKNOWN,
+                                      "Unknown planner exception.",
+                                      moveit_msgs::msg::RobotTrajectory(),
+                                      0.0,
+                                      {},
+                                      {},
+                                      false});
     }
   });
 
