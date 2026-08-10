@@ -7,6 +7,10 @@ from pathlib import Path
 from cellforge.studio.application import (
     BackendProject,
     BackendResult,
+    BrowserComponent,
+    BrowserResult,
+    ComponentEditResult,
+    ComponentFilters,
     ProjectContents,
     StudioApplication,
     StudioStatus,
@@ -24,6 +28,8 @@ class RecordingBackend:
         self.paths: list[Path] = []
         self.created: list[Path] = []
         self.saved: list[tuple[Path, ProjectContents]] = []
+        self.browser_result = BrowserResult(components=())
+        self.edit_result = ComponentEditResult(contents=None)
 
     def inspect(self, project_path: Path) -> BackendResult:
         self.paths.append(project_path)
@@ -36,6 +42,33 @@ class RecordingBackend:
     def save(self, project_path: Path, contents: ProjectContents) -> BackendResult:
         self.saved.append((project_path, contents))
         return self.result
+
+    def browse_components(
+        self, project_path: Path, filters: ComponentFilters = ComponentFilters()
+    ) -> BrowserResult:
+        return self.browser_result
+
+    def place_component(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        component: str,
+        version: str,
+        alias: str,
+        variants: Mapping[str, str],
+    ) -> ComponentEditResult:
+        return self.edit_result
+
+    def remove_component(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        remove_connections: bool,
+    ) -> ComponentEditResult:
+        return self.edit_result
 
 
 def _tree_bytes(root: Path) -> Mapping[str, bytes]:
@@ -140,6 +173,63 @@ def test_in_memory_edits_are_dirty_and_only_explicit_save_calls_backend(tmp_path
     assert snapshot.dirty is False
 
 
+def test_component_placement_remove_undo_and_redo_are_paired_in_memory(
+    tmp_path: Path,
+) -> None:
+    project = BackendProject(
+        path=tmp_path,
+        cell_id="00000000-0000-4000-8000-000000000001",
+        name="Test Cell",
+        scene="scene.usda",
+        component_count=1,
+        connection_count=0,
+        task_count=0,
+        recipe_count=0,
+        scenario_count=0,
+        deployment_profile_count=1,
+    )
+    original = ProjectContents(cell_yaml="one", scene_usda="one scene")
+    placed = ProjectContents(cell_yaml="two", scene_usda="two scene")
+    backend = RecordingBackend(BackendResult(project=project, validation=(), contents=original))
+    backend.browser_result = BrowserResult(
+        components=(
+            BrowserComponent(
+                component="generic.fixture.reference",
+                version="0.1.0",
+                kind="fixture",
+                name="Fixture",
+                manufacturer=None,
+                model=None,
+                description=None,
+                license=None,
+                package_path="fixture",
+                capabilities=(),
+                support_level="simulated",
+                simulation_level="L1",
+                compatible_modes=("simulation",),
+                warnings=("not production-qualified",),
+                variants=(),
+            ),
+        )
+    )
+    application = StudioApplication(backend)
+    opened = application.open_project(tmp_path)
+    assert len(opened.browser) == 1
+    backend.edit_result = ComponentEditResult(contents=placed, instance_id="component-123")
+
+    after_place = application.place_component("generic.fixture.reference", "0.1.0", "fixture", {})
+    after_undo = application.undo()
+    after_redo = application.redo()
+
+    assert after_place.project is not None and after_place.project.component_count == 2
+    assert after_place.dirty is True
+    assert after_undo.project is not None and after_undo.project.component_count == 1
+    assert after_undo.can_redo is True
+    assert after_redo.project is not None and after_redo.project.component_count == 2
+    assert after_redo.can_undo is True
+    assert backend.saved == []
+
+
 def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
     class FailingBackend:
         def inspect(self, project_path: Path) -> BackendResult:
@@ -149,6 +239,33 @@ def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
         def save(self, project_path: Path, contents: ProjectContents) -> BackendResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def browse_components(
+            self, project_path: Path, filters: ComponentFilters = ComponentFilters()
+        ) -> BrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def place_component(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            component: str,
+            version: str,
+            alias: str,
+            variants: Mapping[str, str],
+        ) -> ComponentEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def remove_component(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            instance_id: str,
+            remove_connections: bool,
+        ) -> ComponentEditResult:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
     snapshot = StudioApplication(FailingBackend()).open_project(PEN_PROJECT)

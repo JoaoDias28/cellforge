@@ -3,6 +3,11 @@
 from cellforge.studio.application import (
     BackendProject,
     BackendResult,
+    BrowserComponent,
+    BrowserResult,
+    ComponentEditResult,
+    ComponentFilters,
+    ComponentVariant,
     LogEntry,
     LogLevel,
     ProjectBackend,
@@ -17,6 +22,11 @@ from cellforge.studio.application import (
 __all__ = [
     "BackendProject",
     "BackendResult",
+    "BrowserComponent",
+    "BrowserResult",
+    "ComponentEditResult",
+    "ComponentFilters",
+    "ComponentVariant",
     "LogEntry",
     "LogLevel",
     "ProjectBackend",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
@@ -69,6 +70,63 @@ class ProjectContents:
     scene_usda: str
 
 
+@dataclass(frozen=True, slots=True)
+class ComponentFilters:
+    """Conjunctive registry browser filters; empty fields match every component."""
+
+    kind: str | None = None
+    capability: str | None = None
+    support_level: str | None = None
+    simulation_level: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentVariant:
+    """One declared USD/component variant set and its allowed selections."""
+
+    name: str
+    selections: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BrowserComponent:
+    """Presentation-neutral component detail and compatibility record."""
+
+    component: str
+    version: str
+    kind: str
+    name: str
+    manufacturer: str | None
+    model: str | None
+    description: str | None
+    license: str | None
+    package_path: str
+    capabilities: tuple[str, ...]
+    support_level: str
+    simulation_level: str
+    compatible_modes: tuple[str, ...]
+    warnings: tuple[str, ...]
+    variants: tuple[ComponentVariant, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class BrowserResult:
+    """Deterministic browser query result plus registry findings."""
+
+    components: tuple[BrowserComponent, ...]
+    validation: tuple[ValidationItem, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentEditResult:
+    """Atomic paired-buffer transformation result."""
+
+    contents: ProjectContents | None
+    validation: tuple[ValidationItem, ...] = ()
+    instance_id: str | None = None
+    removed_connections: tuple[str, ...] = ()
+
+
 class ProjectBackend(Protocol):
     """Project commands implemented outside UI callbacks."""
 
@@ -80,6 +138,33 @@ class ProjectBackend(Protocol):
 
     def save(self, project_path: Path, contents: ProjectContents) -> BackendResult:
         """Validate and transactionally save both canonical project artifacts."""
+
+    def browse_components(
+        self, project_path: Path, filters: ComponentFilters = ComponentFilters()
+    ) -> BrowserResult:
+        """Return filtered registry details without changing the project."""
+
+    def place_component(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        component: str,
+        version: str,
+        alias: str,
+        variants: Mapping[str, str],
+    ) -> ComponentEditResult:
+        """Create linked operational and spatial records in memory."""
+
+    def remove_component(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        remove_connections: bool,
+    ) -> ComponentEditResult:
+        """Remove linked records, requiring explicit connection resolution."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,6 +203,9 @@ class StudioSnapshot:
     validation: tuple[ValidationItem, ...] = ()
     logs: tuple[LogEntry, ...] = ()
     dirty: bool = False
+    browser: tuple[BrowserComponent, ...] = ()
+    can_undo: bool = False
+    can_redo: bool = False
 
 
 class StudioApplication:
@@ -158,6 +246,8 @@ class StudioApplication:
             )
         self._saved_contents: ProjectContents | None = None
         self._working_contents: ProjectContents | None = None
+        self._undo_stack: list[tuple[ProjectContents, ProjectView]] = []
+        self._redo_stack: list[tuple[ProjectContents, ProjectView]] = []
 
     @property
     def snapshot(self) -> StudioSnapshot:
@@ -175,6 +265,8 @@ class StudioApplication:
         if not raw_path:
             self._saved_contents = None
             self._working_contents = None
+            self._undo_stack.clear()
+            self._redo_stack.clear()
             self._snapshot = replace(
                 self._snapshot,
                 status=StudioStatus.NO_PROJECT,
@@ -183,6 +275,9 @@ class StudioApplication:
                 project=None,
                 validation=(),
                 dirty=False,
+                browser=(),
+                can_undo=False,
+                can_redo=False,
                 logs=self._append_log(LogLevel.WARNING, "Project path was empty."),
             )
             return self._snapshot
@@ -205,7 +300,8 @@ class StudioApplication:
             )
             return self._snapshot
 
-        return self._apply_result(result, resolved_path, operation="Opened")
+        snapshot = self._apply_result(result, resolved_path, operation="Opened")
+        return self.refresh_components() if snapshot.project is not None else snapshot
 
     def create_project(self, project_path: str | Path) -> StudioSnapshot:
         """Explicitly create a project through the backend command service."""
@@ -220,7 +316,173 @@ class StudioApplication:
             result = self._backend.create(resolved_path)
         except Exception as error:
             return self._operation_failure("Project creation", error)
-        return self._apply_result(result, resolved_path, operation="Created")
+        snapshot = self._apply_result(result, resolved_path, operation="Created")
+        return self.refresh_components() if snapshot.project is not None else snapshot
+
+    def refresh_components(self, filters: ComponentFilters = ComponentFilters()) -> StudioSnapshot:
+        """Query the project registry through the pure backend browser service."""
+
+        if self._backend is None:
+            return self._snapshot
+        project = self._snapshot.project
+        if project is None:
+            return self._no_open_project(
+                "Cannot browse components because no valid project is open."
+            )
+        try:
+            result = self._backend.browse_components(Path(project.path), filters)
+        except Exception as error:
+            return self._operation_failure(
+                "Component browser refresh", error, preserve_project=True
+            )
+        self._snapshot = replace(
+            self._snapshot,
+            browser=result.components,
+            validation=result.validation,
+            detail=f"Component browser contains {len(result.components)} matching package(s).",
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Refreshed component browser with {len(result.components)} match(es).",
+            ),
+        )
+        return self._snapshot
+
+    def place_component(
+        self,
+        component: str,
+        version: str,
+        alias: str,
+        variants: Mapping[str, str] | None = None,
+    ) -> StudioSnapshot:
+        """Apply one linked YAML/USD placement to the in-memory project buffers."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot place a component without a valid open project.")
+        try:
+            result = self._backend.place_component(
+                Path(project.path),
+                contents,
+                component=component,
+                version=version,
+                alias=alias,
+                variants=variants or {},
+            )
+        except Exception as error:
+            return self._operation_failure("Component placement", error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected("Component placement", result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        self._snapshot = replace(
+            self._snapshot,
+            status=StudioStatus.PROJECT_READY,
+            headline=project.name,
+            detail=(
+                f"Placed component instance {result.instance_id}; save to commit both artifacts."
+            ),
+            project=replace(project, component_count=project.component_count + 1),
+            validation=(),
+            dirty=self._working_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(
+                LogLevel.INFO, f"Placed component instance {result.instance_id} in memory."
+            ),
+        )
+        return self._snapshot
+
+    def remove_component(
+        self, instance_id: str, *, remove_connections: bool = False
+    ) -> StudioSnapshot:
+        """Remove one linked instance, with an explicit connection-cascade decision."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot remove a component without a valid open project.")
+        try:
+            result = self._backend.remove_component(
+                Path(project.path),
+                contents,
+                instance_id=instance_id,
+                remove_connections=remove_connections,
+            )
+        except Exception as error:
+            return self._operation_failure("Component removal", error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected("Component removal", result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        self._snapshot = replace(
+            self._snapshot,
+            status=StudioStatus.PROJECT_READY,
+            headline=project.name,
+            detail=f"Removed {instance_id}; save to commit both artifacts.",
+            project=replace(
+                project,
+                component_count=project.component_count - 1,
+                connection_count=project.connection_count - len(result.removed_connections),
+            ),
+            validation=(),
+            dirty=self._working_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Removed {instance_id} and {len(result.removed_connections)} connection(s).",
+            ),
+        )
+        return self._snapshot
+
+    def undo(self) -> StudioSnapshot:
+        """Undo one complete paired-buffer placement/removal edit."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None or not self._undo_stack:
+            return self._no_open_project("No component edit is available to undo.")
+        previous_contents, previous_project = self._undo_stack.pop()
+        self._redo_stack.append((contents, project))
+        self._working_contents = previous_contents
+        self._snapshot = replace(
+            self._snapshot,
+            project=previous_project,
+            validation=(),
+            dirty=previous_contents != self._saved_contents,
+            can_undo=bool(self._undo_stack),
+            can_redo=True,
+            detail="Undid one linked component edit in memory.",
+            logs=self._append_log(LogLevel.INFO, "Undid one component edit."),
+        )
+        return self._snapshot
+
+    def redo(self) -> StudioSnapshot:
+        """Redo one complete paired-buffer placement/removal edit."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None or not self._redo_stack:
+            return self._no_open_project("No component edit is available to redo.")
+        next_contents, next_project = self._redo_stack.pop()
+        self._undo_stack.append((contents, project))
+        self._working_contents = next_contents
+        self._snapshot = replace(
+            self._snapshot,
+            project=next_project,
+            validation=(),
+            dirty=next_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=bool(self._redo_stack),
+            detail="Redid one linked component edit in memory.",
+            logs=self._append_log(LogLevel.INFO, "Redid one component edit."),
+        )
+        return self._snapshot
 
     def edit_cell_yaml(self, text: str) -> StudioSnapshot:
         """Replace the in-memory operational graph without touching project files."""
@@ -286,6 +548,8 @@ class StudioApplication:
         if result.project is None or result.contents is None:
             self._saved_contents = None
             self._working_contents = None
+            self._undo_stack.clear()
+            self._redo_stack.clear()
             self._snapshot = replace(
                 self._snapshot,
                 status=StudioStatus.PROJECT_INVALID,
@@ -294,6 +558,9 @@ class StudioApplication:
                 project=None,
                 validation=result.validation,
                 dirty=False,
+                browser=(),
+                can_undo=False,
+                can_redo=False,
                 logs=self._append_log(
                     LogLevel.WARNING,
                     f"Project validation failed for {resolved_path}; no files were changed.",
@@ -304,6 +571,8 @@ class StudioApplication:
         project = result.project
         self._saved_contents = result.contents
         self._working_contents = result.contents
+        self._undo_stack.clear()
+        self._redo_stack.clear()
         self._snapshot = replace(
             self._snapshot,
             status=StudioStatus.PROJECT_READY,
@@ -323,6 +592,8 @@ class StudioApplication:
             ),
             validation=result.validation,
             dirty=False,
+            can_undo=False,
+            can_redo=False,
             logs=self._append_log(LogLevel.INFO, f"{operation} project {project.name}."),
         )
         return self._snapshot
@@ -338,6 +609,22 @@ class StudioApplication:
                 else "Project matches the last opened or saved canonical files."
             ),
             logs=self._append_log(LogLevel.INFO, message),
+        )
+        return self._snapshot
+
+    def _record_edit(self, contents: ProjectContents, project: ProjectView) -> None:
+        self._undo_stack.append((contents, project))
+        self._undo_stack = self._undo_stack[-100:]
+        self._redo_stack.clear()
+
+    def _edit_rejected(
+        self, operation: str, validation: tuple[ValidationItem, ...]
+    ) -> StudioSnapshot:
+        self._snapshot = replace(
+            self._snapshot,
+            detail=f"{operation} was rejected by {len(validation)} finding(s).",
+            validation=validation,
+            logs=self._append_log(LogLevel.WARNING, f"{operation} made no changes."),
         )
         return self._snapshot
 
