@@ -118,6 +118,10 @@ No schema migration or breaking change is introduced; interfaces are additive.
   correction compiled in the service, while clang-tidy found four adapter call sites still passing
   an anonymous `{}` to the generated message's explicit constructor. Use an explicit
   `RobotTrajectory()` at those sites without changing outcome mapping.
+- 2026-08-10 — Hosted Jazzy run 31419075147 compiled all corrections and passed every C++ gtest and
+  clang-format check. The motion clang-tidy process emitted no errors but reached CTest's default
+  300-second limit; the existing supervisor lint took 272 seconds on the same runner. Use a
+  package-local 600-second ament clang-tidy timeout so the required analysis can finish.
 
 ## Results
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose
