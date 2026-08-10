@@ -46,6 +46,20 @@ class CellForgeStudioExtension(omni.ext.IExt):
         application.open_project(self._project_path_model.as_string)
         self._render_all()
 
+    def _on_create_project(self) -> None:
+        application = self._application
+        if application is None:
+            return
+        application.create_project(self._project_path_model.as_string)
+        self._render_all()
+
+    def _on_save_project(self) -> None:
+        application = self._application
+        if application is None:
+            return
+        application.save_project()
+        self._render_all()
+
     def _render_all(self) -> None:
         self._render_project_panel()
         self._render_validation_panel()
@@ -62,12 +76,16 @@ class CellForgeStudioExtension(omni.ext.IExt):
                 ui.Spacer(height=4)
                 ui.Label("Project directory")
                 ui.StringField(model=self._project_path_model)
-                ui.Button("Open / Refresh (read-only)", clicked_fn=self._on_open_project)
+                with ui.HStack(spacing=6, height=28):
+                    ui.Button("Create", clicked_fn=self._on_create_project)
+                    ui.Button("Open / Refresh", clicked_fn=self._on_open_project)
+                    ui.Button("Save", clicked_fn=self._on_save_project)
                 if snapshot.project is not None:
                     project = snapshot.project
                     ui.Separator(height=8)
                     ui.Label(f"Cell ID: {project.cell_id}", word_wrap=True)
                     ui.Label(f"Scene: {project.scene}", word_wrap=True)
+                    ui.Label(f"Dirty: {'yes' if snapshot.dirty else 'no'}")
                     ui.Label(f"Components: {project.component_count}")
                     ui.Label(f"Connections: {project.connection_count}")
                     ui.Label(f"Tasks: {project.task_count}")

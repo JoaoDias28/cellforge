@@ -19,6 +19,8 @@ def main() -> int:
         "cellforge/studio/application.py",
         "cellforge/studio/backend.py",
         "cellforge/studio/extension.py",
+        "cellforge/studio/project_service.py",
+        "cellforge/studio/scene.py",
     ):
         if not (extension / relative).is_file():
             print(f"Missing extension source: {relative}", file=sys.stderr)

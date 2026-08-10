@@ -327,6 +327,7 @@ def Xform "World"
 {
     def Xform "Workspace"
     {
+        custom string cellforge:instanceId = "workspace-001"
     }
 }
 """,

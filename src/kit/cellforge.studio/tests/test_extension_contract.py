@@ -12,7 +12,7 @@ def test_extension_manifest_declares_supported_module_and_ui_dependency() -> Non
         (EXTENSION_ROOT / "config" / "extension.toml").read_text(encoding="utf-8")
     )
 
-    assert manifest["package"]["version"] == "0.1.0"
+    assert manifest["package"]["version"] == "0.2.0"
     assert manifest["dependencies"] == {"omni.ui": {}}
     assert manifest["python"]["module"] == [{"name": "cellforge.studio.extension"}]
 
@@ -40,19 +40,26 @@ def test_application_layer_has_no_kit_ros_or_write_dependencies() -> None:
     assert "open(" not in source
 
 
-def test_ui_callback_delegates_to_application_service() -> None:
+def test_ui_callbacks_delegate_to_application_services() -> None:
     source = (EXTENSION_ROOT / "cellforge" / "studio" / "extension.py").read_text(encoding="utf-8")
     tree = ast.parse(source)
-    callback = next(
-        node
-        for node in ast.walk(tree)
-        if isinstance(node, ast.FunctionDef) and node.name == "_on_open_project"
-    )
-    called_attributes = {
-        node.func.attr
-        for node in ast.walk(callback)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    expected = {
+        "_on_create_project": "create_project",
+        "_on_open_project": "open_project",
+        "_on_save_project": "save_project",
     }
-
-    assert "open_project" in called_attributes
-    assert called_attributes.isdisjoint({"validate_project", "inspect_project", "load_document"})
+    for callback_name, command_name in expected.items():
+        callback = next(
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.FunctionDef) and node.name == callback_name
+        )
+        called_attributes = {
+            node.func.attr
+            for node in ast.walk(callback)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+        }
+        assert command_name in called_attributes
+        assert called_attributes.isdisjoint(
+            {"validate_project", "inspect_project", "load_document", "write_text"}
+        )
