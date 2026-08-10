@@ -15,15 +15,16 @@ namespace cellforge_motion {
 class MoveItPlanner final : public MotionPlanner {
  public:
   MoveItPlanner(rclcpp::Node::SharedPtr node, std::string planning_group = "manipulator");
-  PlannerResult moveToPose(const MotionRequest& request, std::stop_token stop_token) override;
-  PlannerResult executeManipulation(const ManipulationRequest& request,
-                                    std::stop_token stop_token) override;
-  SceneSyncResult syncPlanningScene(const SceneSyncRequest& request) override;
+  auto moveToPose(const MotionRequest& request,
+                  std::stop_token stop_token) -> PlannerResult override;
+  auto executeManipulation(const ManipulationRequest& request,
+                           std::stop_token stop_token) -> PlannerResult override;
+  auto syncPlanningScene(const SceneSyncRequest& request) -> SceneSyncResult override;
   void cancelActiveRequest() override;
 
  private:
-  static PlannerOutcome mapMoveItCode(const moveit::core::MoveItErrorCode& code,
-                                      bool execution_phase);
+  static auto mapMoveItCode(const moveit::core::MoveItErrorCode& code,
+                            bool execution_phase) -> PlannerOutcome;
 
   rclcpp::Node::SharedPtr node_;
   std::string planning_group_;

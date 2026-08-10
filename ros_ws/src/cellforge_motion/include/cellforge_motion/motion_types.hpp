@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 #include <functional>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <moveit_msgs/msg/planning_scene.hpp>
@@ -11,7 +12,7 @@
 
 namespace cellforge_motion {
 
-enum class PlannerOutcome {
+enum class PlannerOutcome : std::uint8_t {
   SUCCESS,
   INVALID_INPUT,
   UNREACHABLE,
@@ -22,7 +23,10 @@ enum class PlannerOutcome {
   OUTCOME_UNKNOWN,
 };
 
-enum class ManipulationOperation { PICK, LOAD, UNLOAD };
+enum class ManipulationOperation : std::uint8_t { PICK, LOAD, UNLOAD };
+
+inline constexpr auto kDefaultMotionTimeout = std::chrono::milliseconds{5000};
+inline constexpr auto kDefaultManipulationTimeout = std::chrono::milliseconds{10000};
 
 struct MotionRequest {
   std::string component_instance_id;
@@ -33,7 +37,7 @@ struct MotionRequest {
   bool plan_only{true};
   double max_velocity_scaling{1.0};
   double max_acceleration_scaling{1.0};
-  std::chrono::milliseconds timeout{5000};
+  std::chrono::milliseconds timeout{kDefaultMotionTimeout};
 };
 
 struct ManipulationRequest {
@@ -48,7 +52,7 @@ struct ManipulationRequest {
   bool plan_only{true};
   double max_velocity_scaling{1.0};
   double max_acceleration_scaling{1.0};
-  std::chrono::milliseconds timeout{10000};
+  std::chrono::milliseconds timeout{kDefaultManipulationTimeout};
 };
 
 struct SceneSyncRequest {

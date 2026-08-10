@@ -14,7 +14,7 @@
 namespace cellforge_motion {
 namespace mtc = moveit::task_constructor;
 namespace {
-std::string moveItMessage(const moveit::core::MoveItErrorCode& code) {
+auto moveItMessage(const moveit::core::MoveItErrorCode& code) -> std::string {
   return "MoveIt error code " + std::to_string(code.val) + ".";
 }
 }  // namespace
@@ -25,7 +25,8 @@ MoveItPlanner::MoveItPlanner(rclcpp::Node::SharedPtr node, std::string planning_
       move_group_(node_, planning_group_),
       task_builder_(node_, planning_group_) {}
 
-PlannerResult MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_token stop_token) {
+auto MoveItPlanner::moveToPose(const MotionRequest& request,
+                               std::stop_token stop_token) -> PlannerResult {
   std::scoped_lock lock(mutex_);
   if (stop_token.stop_requested()) {
     return {PlannerOutcome::EXECUTION_FAILED, "Request cancelled before planning."};
@@ -66,12 +67,12 @@ PlannerResult MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_
             false};
   }
   result.message = "Collision-aware plan executed by the selected trajectory controller.";
-  result.completed_stages.push_back("execute");
+  result.completed_stages.emplace_back("execute");
   return result;
 }
 
-PlannerResult MoveItPlanner::executeManipulation(const ManipulationRequest& request,
-                                                 std::stop_token stop_token) {
+auto MoveItPlanner::executeManipulation(const ManipulationRequest& request,
+                                        std::stop_token stop_token) -> PlannerResult {
   std::scoped_lock lock(mutex_);
   const auto started = std::chrono::steady_clock::now();
   if (stop_token.stop_requested()) {
@@ -113,7 +114,7 @@ PlannerResult MoveItPlanner::executeManipulation(const ManipulationRequest& requ
       return result;
     }
     result.message = "MTC staged manipulation executed by the selected controller.";
-    result.completed_stages.push_back("execute");
+    result.completed_stages.emplace_back("execute");
     return result;
   } catch (const mtc::InitStageException& error) {
     return {PlannerOutcome::INVALID_INPUT,
@@ -132,7 +133,7 @@ PlannerResult MoveItPlanner::executeManipulation(const ManipulationRequest& requ
   }
 }
 
-SceneSyncResult MoveItPlanner::syncPlanningScene(const SceneSyncRequest& request) {
+auto MoveItPlanner::syncPlanningScene(const SceneSyncRequest& request) -> SceneSyncResult {
   std::scoped_lock lock(mutex_);
   if (!planning_scene_.applyPlanningScene(request.planning_scene)) {
     return {false, "motion.scene.apply_failed", "MoveIt rejected the planning scene update."};
@@ -143,8 +144,8 @@ SceneSyncResult MoveItPlanner::syncPlanningScene(const SceneSyncRequest& request
 
 void MoveItPlanner::cancelActiveRequest() { move_group_.stop(); }
 
-PlannerOutcome MoveItPlanner::mapMoveItCode(const moveit::core::MoveItErrorCode& code,
-                                            bool execution_phase) {
+auto MoveItPlanner::mapMoveItCode(const moveit::core::MoveItErrorCode& code,
+                                  bool execution_phase) -> PlannerOutcome {
   using Codes = moveit_msgs::msg::MoveItErrorCodes;
   switch (code.val) {
     case Codes::SUCCESS:

@@ -14,7 +14,8 @@ namespace cellforge_motion {
 class MtcTaskBuilder {
  public:
   MtcTaskBuilder(rclcpp::Node::SharedPtr node, std::string planning_group);
-  std::unique_ptr<moveit::task_constructor::Task> build(const ManipulationRequest& request) const;
+  [[nodiscard]] auto build(const ManipulationRequest& request) const
+      -> std::unique_ptr<moveit::task_constructor::Task>;
 
  private:
   rclcpp::Node::SharedPtr node_;

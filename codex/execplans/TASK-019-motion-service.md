@@ -125,6 +125,9 @@ No schema migration or breaking change is introduced; interfaces are additive.
 - 2026-08-10 — Hosted Jazzy run 31420390501 confirmed the 600-second timeout and completed lint in
   296 seconds. It exposed the last two anonymous trajectory placeholders in the asynchronous
   exception path; make those generated-message values explicit as well.
+- 2026-08-10 — Hosted Jazzy run 31421542948 confirmed every generated-message constructor now
+  compiles and exposed the repository-wide clang-tidy profile's source-quality findings. Preserve
+  that profile and correct the Task 019 sources rather than weakening or bypassing lint checks.
 
 ## Results
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose

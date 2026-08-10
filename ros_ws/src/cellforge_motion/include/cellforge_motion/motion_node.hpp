@@ -26,20 +26,23 @@ class MotionNode final : public rclcpp::Node {
   using ManipulationGoalHandle = rclcpp_action::ServerGoalHandle<ExecuteManipulation>;
   using SyncPlanningScene = cellforge_interfaces::srv::SyncPlanningScene;
 
-  rclcpp_action::GoalResponse handleMoveGoal(const rclcpp_action::GoalUUID& uuid,
-                                             std::shared_ptr<const MoveToPose::Goal> goal);
-  rclcpp_action::CancelResponse handleMoveCancel(const std::shared_ptr<MoveGoalHandle> goal);
-  void handleMoveAccepted(const std::shared_ptr<MoveGoalHandle> goal);
-  void executeMove(const std::shared_ptr<MoveGoalHandle> goal_handle);
+  auto handleMoveGoal(const rclcpp_action::GoalUUID& uuid,
+                      const std::shared_ptr<const MoveToPose::Goal>& goal)
+      -> rclcpp_action::GoalResponse;
+  static auto handleMoveCancel(const std::shared_ptr<MoveGoalHandle>& goal)
+      -> rclcpp_action::CancelResponse;
+  void handleMoveAccepted(const std::shared_ptr<MoveGoalHandle>& goal);
+  void executeMove(const std::shared_ptr<MoveGoalHandle>& goal_handle);
 
-  rclcpp_action::GoalResponse handleManipulationGoal(
-      const rclcpp_action::GoalUUID& uuid, std::shared_ptr<const ExecuteManipulation::Goal> goal);
-  rclcpp_action::CancelResponse handleManipulationCancel(
-      const std::shared_ptr<ManipulationGoalHandle> goal);
-  void handleManipulationAccepted(const std::shared_ptr<ManipulationGoalHandle> goal);
-  void executeManipulation(const std::shared_ptr<ManipulationGoalHandle> goal_handle);
-  void syncScene(const std::shared_ptr<SyncPlanningScene::Request> request,
-                 std::shared_ptr<SyncPlanningScene::Response> response);
+  auto handleManipulationGoal(const rclcpp_action::GoalUUID& uuid,
+                              const std::shared_ptr<const ExecuteManipulation::Goal>& goal)
+      -> rclcpp_action::GoalResponse;
+  static auto handleManipulationCancel(const std::shared_ptr<ManipulationGoalHandle>& goal)
+      -> rclcpp_action::CancelResponse;
+  void handleManipulationAccepted(const std::shared_ptr<ManipulationGoalHandle>& goal);
+  void executeManipulation(const std::shared_ptr<ManipulationGoalHandle>& goal_handle);
+  void syncScene(const std::shared_ptr<SyncPlanningScene::Request>& request,
+                 const std::shared_ptr<SyncPlanningScene::Response>& response);
   void publishEvent(const std::string& event_type, const std::string& component_instance_id,
                     const std::string& command_id, const std::string& trace_id,
                     const std::string& severity, const std::string& evidence_json);

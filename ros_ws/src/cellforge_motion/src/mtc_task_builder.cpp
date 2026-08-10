@@ -21,7 +21,7 @@ MtcTaskBuilder::MtcTaskBuilder(rclcpp::Node::SharedPtr node, std::string plannin
   }
 }
 
-std::unique_ptr<mtc::Task> MtcTaskBuilder::build(const ManipulationRequest& request) const {
+auto MtcTaskBuilder::build(const ManipulationRequest& request) const -> std::unique_ptr<mtc::Task> {
   auto task = std::make_unique<mtc::Task>();
   task->stages()->setName("cellforge_" + request.object_id);
   task->loadRobotModel(node_);

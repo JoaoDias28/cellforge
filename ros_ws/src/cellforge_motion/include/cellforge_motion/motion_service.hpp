@@ -12,29 +12,28 @@ class MotionService {
  public:
   explicit MotionService(std::shared_ptr<MotionPlanner> planner);
 
-  MotionResult moveToPose(
+  auto moveToPose(
       const MotionRequest& request,
-      const CancellationRequested& cancellation_requested = [] { return false; });
-  MotionResult executeManipulation(
+      const CancellationRequested& cancellation_requested = [] { return false; }) -> MotionResult;
+  auto executeManipulation(
       const ManipulationRequest& request,
-      const CancellationRequested& cancellation_requested = [] { return false; });
-  SceneSyncResult syncPlanningScene(const SceneSyncRequest& request);
+      const CancellationRequested& cancellation_requested = [] { return false; }) -> MotionResult;
+  auto syncPlanningScene(const SceneSyncRequest& request) -> SceneSyncResult;
 
-  [[nodiscard]] std::string sceneRevision() const;
+  [[nodiscard]] auto sceneRevision() const -> std::string;
 
  private:
-  MotionResult run(const std::string& command_id, const std::string& trace_id, bool plan_only,
-                   std::chrono::milliseconds timeout,
-                   const CancellationRequested& cancellation_requested,
-                   const std::function<PlannerResult(std::stop_token)>& callable);
-  MotionResult mapResult(const std::string& command_id, const std::string& trace_id, bool plan_only,
-                         const PlannerResult& planner_result) const;
-  static std::string validate(const MotionRequest& request);
-  static std::string validate(const ManipulationRequest& request);
-  static std::string validate(const SceneSyncRequest& request);
-  static std::string evidence(const MotionResult& result, bool plan_only);
-  static std::string sceneEvidence(const SceneSyncRequest& request, bool success,
-                                   const std::string& code);
+  auto run(const std::string& command_id, const std::string& trace_id, bool plan_only,
+           std::chrono::milliseconds timeout, const CancellationRequested& cancellation_requested,
+           const std::function<PlannerResult(std::stop_token)>& callable) -> MotionResult;
+  auto mapResult(const std::string& command_id, const std::string& trace_id, bool plan_only,
+                 const PlannerResult& planner_result) const -> MotionResult;
+  static auto validate(const MotionRequest& request) -> std::string;
+  static auto validate(const ManipulationRequest& request) -> std::string;
+  static auto validate(const SceneSyncRequest& request) -> std::string;
+  static auto evidence(const MotionResult& result, bool plan_only) -> std::string;
+  static auto sceneEvidence(const SceneSyncRequest& request, bool success,
+                            const std::string& code) -> std::string;
 
   std::shared_ptr<MotionPlanner> planner_;
   mutable std::mutex mutex_;

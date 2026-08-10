@@ -18,26 +18,32 @@ namespace {
 using namespace std::chrono_literals;
 
 constexpr std::array<const char*, 4> kSafePoses{"home", "process_safe", "load_safe", "unload_safe"};
+constexpr double kUnitQuaternionTolerance = 1e-3;
+constexpr int kEvidencePrecision = 17;
 const std::regex kUuidPattern(
     "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$");
 const std::regex kSha256Pattern("^[0-9a-f]{64}$");
 const std::regex kStableIdPattern("^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$");
 
-bool safePose(const std::string& value) {
+auto safePose(const std::string& value) -> bool {
   return std::find(kSafePoses.begin(), kSafePoses.end(), value) != kSafePoses.end();
 }
 
-bool validPose(const geometry_msgs::msg::PoseStamped& pose) {
-  const auto& p = pose.pose.position;
-  const auto& q = pose.pose.orientation;
-  const auto norm = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
-  return !pose.header.frame_id.empty() && std::isfinite(p.x) && std::isfinite(p.y) &&
-         std::isfinite(p.z) && std::isfinite(norm) && std::abs(norm - 1.0) <= 1e-3;
+auto validPose(const geometry_msgs::msg::PoseStamped& pose) -> bool {
+  const auto& position = pose.pose.position;
+  const auto& orientation = pose.pose.orientation;
+  const auto norm = orientation.x * orientation.x + orientation.y * orientation.y +
+                    orientation.z * orientation.z + orientation.w * orientation.w;
+  return !pose.header.frame_id.empty() && std::isfinite(position.x) && std::isfinite(position.y) &&
+         std::isfinite(position.z) && std::isfinite(norm) &&
+         std::abs(norm - 1.0) <= kUnitQuaternionTolerance;
 }
 
-bool validScaling(double value) { return std::isfinite(value) && value > 0.0 && value <= 1.0; }
+auto validScaling(double value) -> bool {
+  return std::isfinite(value) && value > 0.0 && value <= 1.0;
+}
 
-std::string escapeJson(const std::string& value) {
+auto escapeJson(const std::string& value) -> std::string {
   std::string escaped;
   escaped.reserve(value.size());
   for (const char character : value) {
@@ -49,7 +55,7 @@ std::string escapeJson(const std::string& value) {
   return escaped;
 }
 
-std::pair<std::string, std::string> mappedCode(PlannerOutcome outcome, bool plan_only) {
+auto mappedCode(PlannerOutcome outcome, bool plan_only) -> std::pair<std::string, std::string> {
   switch (outcome) {
     case PlannerOutcome::SUCCESS:
       return {plan_only ? "motion.plan.completed" : "motion.execution.completed", "completed"};
@@ -79,8 +85,9 @@ MotionService::MotionService(std::shared_ptr<MotionPlanner> planner)
   }
 }
 
-MotionResult MotionService::moveToPose(const MotionRequest& request,
-                                       const CancellationRequested& cancellation_requested) {
+auto MotionService::moveToPose(const MotionRequest& request,
+                               const CancellationRequested& cancellation_requested)
+    -> MotionResult {
   if (const auto error = validate(request); !error.empty()) {
     PlannerResult invalid{PlannerOutcome::INVALID_INPUT, error};
     return mapResult(request.command_id, request.trace_id, request.plan_only, invalid);
@@ -92,12 +99,13 @@ MotionResult MotionService::moveToPose(const MotionRequest& request,
   }
   return run(request.command_id, request.trace_id, request.plan_only, request.timeout,
              cancellation_requested, [this, &request](std::stop_token token) {
-               return planner_->moveToPose(request, token);
+               return planner_->moveToPose(request, std::move(token));
              });
 }
 
-MotionResult MotionService::executeManipulation(
-    const ManipulationRequest& request, const CancellationRequested& cancellation_requested) {
+auto MotionService::executeManipulation(const ManipulationRequest& request,
+                                        const CancellationRequested& cancellation_requested)
+    -> MotionResult {
   if (const auto error = validate(request); !error.empty()) {
     PlannerResult invalid{PlannerOutcome::INVALID_INPUT, error};
     return mapResult(request.command_id, request.trace_id, request.plan_only, invalid);
@@ -109,11 +117,11 @@ MotionResult MotionService::executeManipulation(
   }
   return run(request.command_id, request.trace_id, request.plan_only, request.timeout,
              cancellation_requested, [this, &request](std::stop_token token) {
-               return planner_->executeManipulation(request, token);
+               return planner_->executeManipulation(request, std::move(token));
              });
 }
 
-SceneSyncResult MotionService::syncPlanningScene(const SceneSyncRequest& request) {
+auto MotionService::syncPlanningScene(const SceneSyncRequest& request) -> SceneSyncResult {
   if (const auto error = validate(request); !error.empty()) {
     return {false,
             "motion.scene.invalid_input",
@@ -134,20 +142,20 @@ SceneSyncResult MotionService::syncPlanningScene(const SceneSyncRequest& request
   return result;
 }
 
-std::string MotionService::sceneRevision() const {
+auto MotionService::sceneRevision() const -> std::string {
   std::scoped_lock lock(mutex_);
   return scene_revision_;
 }
 
-MotionResult MotionService::run(const std::string& command_id, const std::string& trace_id,
-                                bool plan_only, std::chrono::milliseconds timeout,
-                                const CancellationRequested& cancellation_requested,
-                                const std::function<PlannerResult(std::stop_token)>& callable) {
+auto MotionService::run(
+    const std::string& command_id, const std::string& trace_id, bool plan_only,
+    std::chrono::milliseconds timeout, const CancellationRequested& cancellation_requested,
+    const std::function<PlannerResult(std::stop_token)>& callable) -> MotionResult {
   std::promise<PlannerResult> promise;
   auto future = promise.get_future();
   std::jthread worker([&promise, &callable](std::stop_token token) {
     try {
-      promise.set_value(callable(token));
+      promise.set_value(callable(std::move(token)));
     } catch (const std::exception& error) {
       promise.set_value(PlannerResult{PlannerOutcome::OUTCOME_UNKNOWN,
                                       std::string("Planner exception: ") + error.what(),
@@ -195,8 +203,9 @@ MotionResult MotionService::run(const std::string& command_id, const std::string
   return result;
 }
 
-MotionResult MotionService::mapResult(const std::string& command_id, const std::string& trace_id,
-                                      bool plan_only, const PlannerResult& planner_result) const {
+auto MotionService::mapResult(const std::string& command_id, const std::string& trace_id,
+                              bool plan_only,
+                              const PlannerResult& planner_result) const -> MotionResult {
   const auto [code, fallback] = mappedCode(planner_result.outcome, plan_only);
   MotionResult result;
   result.success = planner_result.outcome == PlannerOutcome::SUCCESS;
@@ -214,7 +223,7 @@ MotionResult MotionService::mapResult(const std::string& command_id, const std::
   return result;
 }
 
-std::string MotionService::validate(const MotionRequest& request) {
+auto MotionService::validate(const MotionRequest& request) -> std::string {
   if (!std::regex_match(request.component_instance_id, kStableIdPattern)) {
     return "component_instance_id is invalid";
   }
@@ -238,7 +247,7 @@ std::string MotionService::validate(const MotionRequest& request) {
   return {};
 }
 
-std::string MotionService::validate(const ManipulationRequest& request) {
+auto MotionService::validate(const ManipulationRequest& request) -> std::string {
   if (!std::regex_match(request.component_instance_id, kStableIdPattern) ||
       !std::regex_match(request.command_id, kUuidPattern) ||
       !std::regex_match(request.trace_id, kUuidPattern)) {
@@ -258,7 +267,7 @@ std::string MotionService::validate(const ManipulationRequest& request) {
   return {};
 }
 
-std::string MotionService::validate(const SceneSyncRequest& request) {
+auto MotionService::validate(const SceneSyncRequest& request) -> std::string {
   if (!std::regex_match(request.cell_id, kUuidPattern) ||
       !std::regex_match(request.scene_revision, kStableIdPattern) ||
       !std::regex_match(request.cell_yaml_sha256, kSha256Pattern) ||
@@ -266,52 +275,52 @@ std::string MotionService::validate(const SceneSyncRequest& request) {
       request.component_instance_ids.empty()) {
     return "cell, revision, SHA-256 identities, and component IDs are required";
   }
-  std::unordered_set<std::string> ids;
-  for (const auto& id : request.component_instance_ids) {
-    if (!std::regex_match(id, kStableIdPattern) || !ids.insert(id).second) {
+  std::unordered_set<std::string> component_ids;
+  for (const auto& component_id : request.component_instance_ids) {
+    if (!std::regex_match(component_id, kStableIdPattern) ||
+        !component_ids.insert(component_id).second) {
       return "component instance IDs must be unique stable identifiers";
     }
   }
   for (const auto& object : request.planning_scene.world.collision_objects) {
     const auto separator = object.id.find('/');
     const auto owner = object.id.substr(0, separator);
-    if (!ids.contains(owner)) {
+    if (!component_ids.contains(owner)) {
       return "collision object IDs must be owned by a declared component instance";
     }
   }
   return {};
 }
 
-std::string MotionService::evidence(const MotionResult& result, bool plan_only) {
+auto MotionService::evidence(const MotionResult& result, bool plan_only) -> std::string {
   std::ostringstream stream;
-  stream << std::setprecision(17);
-  stream << "{\"command_id\":\"" << escapeJson(result.command_id) << "\",\"trace_id\":\""
-         << escapeJson(result.trace_id) << "\",\"scene_revision\":\""
-         << escapeJson(result.scene_revision) << "\",\"mode\":\""
-         << (plan_only ? "plan_only" : "plan_and_execute") << "\",\"result_code\":\""
-         << escapeJson(result.result_code)
-         << "\",\"planning_time_seconds\":" << result.planning_time_seconds
-         << ",\"completed_stages\":[";
+  stream << std::setprecision(kEvidencePrecision);
+  stream << R"({"command_id":")" << escapeJson(result.command_id) << R"(","trace_id":")"
+         << escapeJson(result.trace_id) << R"(","scene_revision":")"
+         << escapeJson(result.scene_revision) << R"(","mode":")"
+         << (plan_only ? "plan_only" : "plan_and_execute") << R"(","result_code":")"
+         << escapeJson(result.result_code) << R"(","planning_time_seconds":)"
+         << result.planning_time_seconds << R"(,"completed_stages":[)";
   for (std::size_t index = 0; index < result.completed_stages.size(); ++index) {
     if (index > 0) {
       stream << ',';
     }
     stream << '"' << escapeJson(result.completed_stages[index]) << '"';
   }
-  stream << "],\"failed_stage\":\"" << escapeJson(result.failed_stage)
-         << "\",\"outcome_certain\":" << (result.outcome_certain ? "true" : "false")
-         << ",\"safety_claim\":\"none; standard-control motion evidence only\"}";
+  stream << R"(],"failed_stage":")" << escapeJson(result.failed_stage) << R"(","outcome_certain":)"
+         << (result.outcome_certain ? "true" : "false")
+         << R"(,"safety_claim":"none; standard-control motion evidence only"})";
   return stream.str();
 }
 
-std::string MotionService::sceneEvidence(const SceneSyncRequest& request, bool success,
-                                         const std::string& code) {
+auto MotionService::sceneEvidence(const SceneSyncRequest& request, bool success,
+                                  const std::string& code) -> std::string {
   std::ostringstream stream;
-  stream << "{\"cell_id\":\"" << escapeJson(request.cell_id) << "\",\"scene_revision\":\""
-         << escapeJson(request.scene_revision) << "\",\"cell_yaml_sha256\":\""
-         << request.cell_yaml_sha256 << "\",\"usd_sha256\":\"" << request.usd_sha256
-         << "\",\"result_code\":\"" << escapeJson(code)
-         << "\",\"success\":" << (success ? "true" : "false") << "}";
+  stream << R"({"cell_id":")" << escapeJson(request.cell_id) << R"(","scene_revision":")"
+         << escapeJson(request.scene_revision) << R"(","cell_yaml_sha256":")"
+         << request.cell_yaml_sha256 << R"(","usd_sha256":")" << request.usd_sha256
+         << R"(","result_code":")" << escapeJson(code) << R"(","success":)"
+         << (success ? "true" : "false") << '}';
   return stream.str();
 }
 

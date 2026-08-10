@@ -44,7 +44,12 @@ class FakePlanner final : public MotionPlanner {
 };
 
 SceneSyncRequest sceneRequest() {
-  return {kCell, "scene-0001", kHashA, kHashB, {"robot-001", "fixture-001"}, {}};
+  return {kCell,
+          "scene-0001",
+          kHashA,
+          kHashB,
+          {"robot-001", "fixture-001"},
+          moveit_msgs::msg::PlanningScene()};
 }
 
 MotionRequest motionRequest(bool plan_only = true) {
@@ -160,8 +165,13 @@ TEST(MotionService, CallerCancellationStopsExecutionRequest) {
 
 TEST(MotionService, ExecutionFailureDoesNotClaimCertainSuccess) {
   auto planner = std::make_shared<FakePlanner>();
-  planner->next = {
-      PlannerOutcome::OUTCOME_UNKNOWN, "controller disconnected", {}, 0.2, {}, "execute", false};
+  planner->next = {PlannerOutcome::OUTCOME_UNKNOWN,
+                   "controller disconnected",
+                   moveit_msgs::msg::RobotTrajectory(),
+                   0.2,
+                   {},
+                   "execute",
+                   false};
   auto service = serviceWith(planner);
   const auto result = service->moveToPose(motionRequest(false));
   EXPECT_EQ(result.result_code, "motion.execution.outcome_unknown");

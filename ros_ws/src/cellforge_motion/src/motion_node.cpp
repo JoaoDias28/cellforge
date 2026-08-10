@@ -11,15 +11,23 @@
 namespace cellforge_motion {
 namespace {
 
-std::chrono::milliseconds duration(const builtin_interfaces::msg::Duration& value) {
+constexpr std::size_t kEventQueueDepth = 100;
+
+auto duration(const builtin_interfaces::msg::Duration& value) -> std::chrono::milliseconds {
   return std::chrono::duration_cast<std::chrono::milliseconds>(
       std::chrono::seconds(value.sec) + std::chrono::nanoseconds(value.nanosec));
 }
 
-ManipulationOperation operation(const std::string& value) {
-  if (value == "pick") return ManipulationOperation::PICK;
-  if (value == "load") return ManipulationOperation::LOAD;
-  if (value == "unload") return ManipulationOperation::UNLOAD;
+auto operation(const std::string& value) -> ManipulationOperation {
+  if (value == "pick") {
+    return ManipulationOperation::PICK;
+  }
+  if (value == "load") {
+    return ManipulationOperation::LOAD;
+  }
+  if (value == "unload") {
+    return ManipulationOperation::UNLOAD;
+  }
   return ManipulationOperation::PICK;
 }
 
@@ -27,42 +35,61 @@ ManipulationOperation operation(const std::string& value) {
 
 MotionNode::MotionNode(std::shared_ptr<MotionService> service, const rclcpp::NodeOptions& options)
     : Node("motion_service", options), service_(std::move(service)) {
-  if (!service_) throw std::invalid_argument("motion service must not be null");
+  if (!service_) {
+    throw std::invalid_argument("motion service must not be null");
+  }
   event_publisher_ = create_publisher<cellforge_interfaces::msg::JobEvent>(
-      "/events/job", rclcpp::QoS(100).reliable());
+      "/events/job", rclcpp::QoS(kEventQueueDepth).reliable());
   move_server_ = rclcpp_action::create_server<MoveToPose>(
       this, "/skills/move_to_pose",
-      std::bind(&MotionNode::handleMoveGoal, this, std::placeholders::_1, std::placeholders::_2),
-      std::bind(&MotionNode::handleMoveCancel, this, std::placeholders::_1),
-      std::bind(&MotionNode::handleMoveAccepted, this, std::placeholders::_1));
+      [this](const rclcpp_action::GoalUUID& uuid,
+             const std::shared_ptr<const MoveToPose::Goal>& goal) {
+        return handleMoveGoal(uuid, goal);
+      },
+      [](const std::shared_ptr<MoveGoalHandle>& goal) { return handleMoveCancel(goal); },
+      [this](const std::shared_ptr<MoveGoalHandle>& goal) { handleMoveAccepted(goal); });
   manipulation_server_ = rclcpp_action::create_server<ExecuteManipulation>(
       this, "/skills/execute_manipulation",
-      std::bind(&MotionNode::handleManipulationGoal, this, std::placeholders::_1,
-                std::placeholders::_2),
-      std::bind(&MotionNode::handleManipulationCancel, this, std::placeholders::_1),
-      std::bind(&MotionNode::handleManipulationAccepted, this, std::placeholders::_1));
+      [this](const rclcpp_action::GoalUUID& uuid,
+             const std::shared_ptr<const ExecuteManipulation::Goal>& goal) {
+        return handleManipulationGoal(uuid, goal);
+      },
+      [](const std::shared_ptr<ManipulationGoalHandle>& goal) {
+        return handleManipulationCancel(goal);
+      },
+      [this](const std::shared_ptr<ManipulationGoalHandle>& goal) {
+        handleManipulationAccepted(goal);
+      });
   scene_service_ = create_service<SyncPlanningScene>(
       "/motion/sync_planning_scene",
-      std::bind(&MotionNode::syncScene, this, std::placeholders::_1, std::placeholders::_2));
+      [this](const std::shared_ptr<SyncPlanningScene::Request>& request,
+             const std::shared_ptr<SyncPlanningScene::Response>& response) {
+        syncScene(request, response);
+      });
 }
 
-rclcpp_action::GoalResponse MotionNode::handleMoveGoal(const rclcpp_action::GoalUUID&,
-                                                       std::shared_ptr<const MoveToPose::Goal>) {
+auto MotionNode::handleMoveGoal(const rclcpp_action::GoalUUID& uuid,
+                                const std::shared_ptr<const MoveToPose::Goal>& goal)
+    -> rclcpp_action::GoalResponse {
+  static_cast<void>(uuid);
+  static_cast<void>(goal);
   bool expected = false;
   return active_goal_.compare_exchange_strong(expected, true)
              ? rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE
              : rclcpp_action::GoalResponse::REJECT;
 }
 
-rclcpp_action::CancelResponse MotionNode::handleMoveCancel(const std::shared_ptr<MoveGoalHandle>) {
+auto MotionNode::handleMoveCancel(const std::shared_ptr<MoveGoalHandle>& goal)
+    -> rclcpp_action::CancelResponse {
+  static_cast<void>(goal);
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void MotionNode::handleMoveAccepted(const std::shared_ptr<MoveGoalHandle> goal) {
+void MotionNode::handleMoveAccepted(const std::shared_ptr<MoveGoalHandle>& goal) {
   std::thread([this, goal] { executeMove(goal); }).detach();
 }
 
-void MotionNode::executeMove(const std::shared_ptr<MoveGoalHandle> goal_handle) {
+void MotionNode::executeMove(const std::shared_ptr<MoveGoalHandle>& goal_handle) {
   const auto goal = goal_handle->get_goal();
   auto feedback = std::make_shared<MoveToPose::Feedback>();
   feedback->phase = "planning";
@@ -106,8 +133,10 @@ void MotionNode::executeMove(const std::shared_ptr<MoveGoalHandle> goal_handle) 
   active_goal_.store(false);
 }
 
-rclcpp_action::GoalResponse MotionNode::handleManipulationGoal(
-    const rclcpp_action::GoalUUID&, std::shared_ptr<const ExecuteManipulation::Goal> goal) {
+auto MotionNode::handleManipulationGoal(
+    const rclcpp_action::GoalUUID& uuid,
+    const std::shared_ptr<const ExecuteManipulation::Goal>& goal) -> rclcpp_action::GoalResponse {
+  static_cast<void>(uuid);
   if (goal->operation != "pick" && goal->operation != "load" && goal->operation != "unload") {
     return rclcpp_action::GoalResponse::REJECT;
   }
@@ -117,16 +146,17 @@ rclcpp_action::GoalResponse MotionNode::handleManipulationGoal(
              : rclcpp_action::GoalResponse::REJECT;
 }
 
-rclcpp_action::CancelResponse MotionNode::handleManipulationCancel(
-    const std::shared_ptr<ManipulationGoalHandle>) {
+auto MotionNode::handleManipulationCancel(const std::shared_ptr<ManipulationGoalHandle>& goal)
+    -> rclcpp_action::CancelResponse {
+  static_cast<void>(goal);
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void MotionNode::handleManipulationAccepted(const std::shared_ptr<ManipulationGoalHandle> goal) {
+void MotionNode::handleManipulationAccepted(const std::shared_ptr<ManipulationGoalHandle>& goal) {
   std::thread([this, goal] { executeManipulation(goal); }).detach();
 }
 
-void MotionNode::executeManipulation(const std::shared_ptr<ManipulationGoalHandle> goal_handle) {
+void MotionNode::executeManipulation(const std::shared_ptr<ManipulationGoalHandle>& goal_handle) {
   const auto goal = goal_handle->get_goal();
   auto feedback = std::make_shared<ExecuteManipulation::Feedback>();
   feedback->phase = "planning";
@@ -172,8 +202,8 @@ void MotionNode::executeManipulation(const std::shared_ptr<ManipulationGoalHandl
   active_goal_.store(false);
 }
 
-void MotionNode::syncScene(const std::shared_ptr<SyncPlanningScene::Request> request,
-                           std::shared_ptr<SyncPlanningScene::Response> response) {
+void MotionNode::syncScene(const std::shared_ptr<SyncPlanningScene::Request>& request,
+                           const std::shared_ptr<SyncPlanningScene::Response>& response) {
   SceneSyncRequest update{
       request->cell_id,    request->scene_revision,         request->cell_yaml_sha256,
       request->usd_sha256, request->component_instance_ids, request->planning_scene};

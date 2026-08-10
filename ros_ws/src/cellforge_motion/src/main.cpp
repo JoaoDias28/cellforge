@@ -5,7 +5,7 @@
 #include "cellforge_motion/motion_service.hpp"
 #include "cellforge_motion/moveit_planner.hpp"
 
-int main(int argc, char** argv) {
+auto main(int argc, char** argv) -> int {
   rclcpp::init(argc, argv);
   auto backend_node = std::make_shared<rclcpp::Node>(
       "motion_planner_backend",
