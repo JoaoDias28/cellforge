@@ -4,7 +4,12 @@ import omni.kit.app
 import omni.ui as ui
 
 EXTENSION_ID = "cellforge.studio"
-WINDOWS = ("CellForge Project", "CellForge Validation", "CellForge Log")
+WINDOWS = (
+    "CellForge Project",
+    "CellForge Components",
+    "CellForge Validation",
+    "CellForge Log",
+)
 
 app = omni.kit.app.get_app()
 manager = app.get_extension_manager()

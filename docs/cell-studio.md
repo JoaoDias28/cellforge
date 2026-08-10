@@ -250,4 +250,50 @@ isaac-sim.bat --no-window `
 
 The Isaac Sim Python environment must contain the locked CellForge Python workspace, as required by
 the extension backend. Text USDA stages round-trip in deterministic non-Kit tests; binary USD stage
-inspection requires the Isaac Sim 6 OpenUSD runtime. Component placement remains Task 016 scope.
+inspection requires the Isaac Sim 6 OpenUSD runtime.
+
+## 9. Component browser and placement
+
+Task 016 adds a project-local component browser backed by the Task 005 filesystem registry. Kind,
+capability, support-level, and simulation-level filters are conjunctive. Detail records show exact
+type/version identity, declared capabilities, variants, support/fidelity, compatible execution
+modes, and clear production warnings. The browser reuses the domain resolver's compatibility
+policy; Kit widgets do not reproduce those rules.
+
+Placement generates an immutable UUID-derived component instance ID, accepts an editable stable
+alias and one selection for every declared variant set, adds the operational instance to
+`cell.yaml`, and authors a referenced USD Xform with the same `cellforge:instanceId`. Placement and
+removal update only the in-memory paired buffers until **Save** invokes Task 015's validation and
+transactional replacement. Undo and redo restore complete YAML/USD buffer pairs.
+
+Removing an instance with incident connections is refused until the engineer explicitly chooses
+to cancel or remove those connections with the instance. Modeled safety edges follow this graph
+editing rule but remain descriptive only; Cell Studio does not implement a safety function.
+
+The deterministic non-Kit Task 016 acceptance check is:
+
+```bash
+make studio-component-placement-check
+```
+
+Run the Isaac Sim 6/OpenUSD placement probe headlessly from the repository root on Linux with:
+
+```bash
+./isaac-sim.sh --no-window \
+  --ext-folder /absolute/path/to/cellforge/src/kit \
+  --enable cellforge.studio \
+  --exec /absolute/path/to/cellforge/scripts/verify_kit_component_placement.py
+```
+
+On Windows, use:
+
+```powershell
+isaac-sim.bat --no-window `
+  --ext-folder C:\absolute\path\to\cellforge\src\kit `
+  --enable cellforge.studio `
+  --exec C:\absolute\path\to\cellforge\scripts\verify_kit_component_placement.py
+```
+
+The Isaac Sim environment must contain the locked CellForge Python workspace. The deterministic
+fallback covers text USDA editing and cross-reference validation; the Isaac command verifies
+OpenUSD composition of the authored component reference. Connection authoring remains Task 017.

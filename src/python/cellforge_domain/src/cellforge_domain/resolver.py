@@ -145,7 +145,7 @@ def resolve_cell(
                 package_path=package.package_path,
             )
         )
-        mode_findings = _execution_mode_findings(instance, package.manifest, mode, component_path)
+        mode_findings = component_mode_findings(instance, package.manifest, mode, component_path)
         findings.extend(mode_findings)
         if not mode_findings:
             compatible_instances.add(instance.id)
@@ -200,12 +200,17 @@ def resolve_cell(
     )
 
 
-def _execution_mode_findings(
+def component_mode_findings(
     instance: ComponentInstance,
     component: ComponentType,
     mode: ExecutionMode,
     component_path: str,
 ) -> tuple[ValidationFinding, ...]:
+    """Return canonical engineering compatibility findings for one execution mode.
+
+    Browser badges and final cell resolution share this policy. These findings do not authorize
+    operation and do not implement a safety function.
+    """
     findings: list[ValidationFinding] = []
     level = component.support.level
 

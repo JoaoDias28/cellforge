@@ -29,9 +29,13 @@ from pydantic import ValidationError
 from cellforge.studio.application import (
     BackendProject,
     BackendResult,
+    BrowserResult,
+    ComponentEditResult,
+    ComponentFilters,
     ProjectContents,
     ValidationItem,
 )
+from cellforge.studio.component_service import ComponentPlacementService
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
 
 RECOVERY_FILE = ".cellforge-save-recovery.json"
@@ -62,9 +66,11 @@ class ProjectCommandService:
         canonical_schema_directory: Path,
         *,
         replace_file: Callable[[str | Path, str | Path], None] = os.replace,
+        component_service: ComponentPlacementService | None = None,
     ) -> None:
         self._canonical_schemas = canonical_schema_directory.resolve()
         self._replace_file = replace_file
+        self._components = component_service or ComponentPlacementService(self._canonical_schemas)
 
     def create(self, project_path: Path) -> BackendResult:
         """Explicitly create a starter project and return its validated buffers."""
@@ -198,6 +204,51 @@ class ProjectCommandService:
         """Explicitly resolve a retained recovery journal after an interrupted process."""
 
         self._resolve_recovery(project_path.resolve())
+
+    def browse_components(
+        self, project_path: Path, filters: ComponentFilters = ComponentFilters()
+    ) -> BrowserResult:
+        """Delegate registry filtering and compatibility details to the pure component service."""
+
+        return self._components.browse(project_path, filters)
+
+    def place_component(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        component: str,
+        version: str,
+        alias: str,
+        variants: Mapping[str, str],
+    ) -> ComponentEditResult:
+        """Return an in-memory linked YAML/USD placement without writing project files."""
+
+        return self._components.place(
+            project_path,
+            contents,
+            component=component,
+            version=version,
+            alias=alias,
+            variants=variants,
+        )
+
+    def remove_component(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        remove_connections: bool,
+    ) -> ComponentEditResult:
+        """Return an in-memory linked removal with explicit connection resolution."""
+
+        return self._components.remove(
+            project_path,
+            contents,
+            instance_id=instance_id,
+            remove_connections=remove_connections,
+        )
 
     def _registry_for(self, project_path: Path) -> SchemaRegistry:
         directory = resolve_project_schema_directory(project_path, self._canonical_schemas)

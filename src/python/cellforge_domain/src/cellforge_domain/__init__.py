@@ -73,6 +73,7 @@ from cellforge_domain.resolver import (
     ResolvedCapability,
     ResolvedComponent,
     ResolvedConnection,
+    component_mode_findings,
     resolve_cell,
 )
 from cellforge_domain.schemas import (
@@ -143,6 +144,7 @@ __all__ = [
     "ResolvedCapability",
     "ResolvedComponent",
     "ResolvedConnection",
+    "component_mode_findings",
     "Scenario",
     "ScenarioAssertions",
     "ScenarioIdentity",
