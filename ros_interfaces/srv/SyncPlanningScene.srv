@@ -1,0 +1,12 @@
+string cell_id
+string scene_revision
+string cell_yaml_sha256
+string usd_sha256
+string[] component_instance_ids
+moveit_msgs/PlanningScene planning_scene
+---
+bool success
+string result_code
+string result_message
+string applied_scene_revision
+string evidence_json

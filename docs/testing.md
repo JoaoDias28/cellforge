@@ -81,6 +81,11 @@ fidelity, fault, trace/assertion, and evidence coverage. The separate Isaac Sim 
 in `docs/simulation.md` remains required integration evidence and must be reported unavailable—not
 passing—when no supported Isaac runtime exists.
 
+Task 019 adds `make motion-service-check` for planner-neutral interfaces, canonical planning-scene
+identity, reference kinematics/configuration, named safe poses, and fake-controller configuration.
+The ROS Jazzy gate additionally compiles MoveIt/MTC and runs the fake-planner C++ suite. Plan-only
+success is not hardware execution evidence, and Task 020 physical simulation is outside this gate.
+
 ## 3. Required reference scenarios
 
 Pen engraving MVP:

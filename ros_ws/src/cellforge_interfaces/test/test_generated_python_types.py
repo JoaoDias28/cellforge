@@ -1,9 +1,11 @@
 from action_msgs.srv import CancelGoal
 from cellforge_interfaces.action import (
+    ExecuteManipulation,
     ExecuteProcess,
     ExecuteSkill,
     InspectObject,
     LocateObject,
+    MoveToPose,
     RunJob,
 )
 from cellforge_interfaces.msg import (
@@ -21,6 +23,7 @@ from cellforge_interfaces.srv import (
     InjectSimulationFault,
     RegisterSimulationAdapter,
     SetDiscreteOutput,
+    SyncPlanningScene,
     ValidateRecipe,
 )
 
@@ -32,6 +35,7 @@ def test_generated_python_types_are_importable() -> None:
         ControlSimulation,
         DeviceState,
         ExecuteProcess,
+        ExecuteManipulation,
         ExecuteSkill,
         FinalizeSimulation,
         GetDeviceState,
@@ -39,11 +43,13 @@ def test_generated_python_types_are_importable() -> None:
         InjectSimulationFault,
         JobEvent,
         LocateObject,
+        MoveToPose,
         PoseEstimate,
         RunJob,
         RegisterSimulationAdapter,
         SafetyState,
         SetDiscreteOutput,
+        SyncPlanningScene,
         ValidateRecipe,
     )
 

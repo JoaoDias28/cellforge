@@ -145,3 +145,15 @@ The local operator interface provides:
 - maintenance diagnostics behind explicit authorization.
 
 It does not expose raw arbitrary ROS calls.
+
+## 10. Task 019 motion service contract
+
+`cellforge_motion` serves `/skills/move_to_pose`, `/skills/execute_manipulation`, and
+`/motion/sync_planning_scene`. A synchronized scene revision is required before planning. Every
+action carries command/trace identity and returns stable `motion.*` codes, planning time, scene
+revision, evidence JSON, and explicit outcome certainty.
+
+`plan_only=true` requires the robot model and planning scene but no physical controller. The
+reference fake controller is simulation/test infrastructure. For plan-and-execute, cancellation or
+deadline expiry forwards a stop request; an adapter that cannot prove the physical result must
+return `motion.execution.outcome_unknown` and require reconciliation.

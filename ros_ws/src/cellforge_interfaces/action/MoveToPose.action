@@ -1,0 +1,27 @@
+# Goal
+string component_instance_id
+string command_id
+string trace_id
+geometry_msgs/PoseStamped target_pose
+string named_pose
+bool plan_only
+float64 max_velocity_scaling
+float64 max_acceleration_scaling
+builtin_interfaces/Duration timeout
+---
+# Result
+bool success
+string result_code
+string result_message
+string command_id
+string trace_id
+string scene_revision
+float64 planning_time_seconds
+trajectory_msgs/JointTrajectory planned_trajectory
+string evidence_json
+bool outcome_certain
+---
+# Feedback
+string phase
+float32 progress
+string message

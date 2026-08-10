@@ -1,0 +1,32 @@
+# Goal
+string component_instance_id
+string command_id
+string trace_id
+string operation
+string object_id
+geometry_msgs/PoseStamped object_pose
+string tool_frame
+string named_safe_pose
+bool plan_only
+float64 max_velocity_scaling
+float64 max_acceleration_scaling
+builtin_interfaces/Duration timeout
+---
+# Result
+bool success
+string result_code
+string result_message
+string command_id
+string trace_id
+string scene_revision
+float64 planning_time_seconds
+string[] completed_stages
+string failed_stage
+string evidence_json
+bool outcome_certain
+---
+# Feedback
+string phase
+string active_stage
+float32 progress
+string message
