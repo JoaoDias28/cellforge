@@ -93,7 +93,9 @@ No schema migration or breaking change is introduced; interfaces are additive.
 - [x] 2026-08-10 — application service, MoveIt/MTC adapter, node, tests and docs completed; local
   Ruff/mypy, 275-test regression, example validation, Task 018 regression, and Task 019 focused
   checks pass.
-- [ ] 2026-08-10 — local and hosted validation, commit, PR, merge and synchronized main completed.
+- [x] 2026-08-10 — local validation, task-scoped commits, ready PR, and final hosted Python/Jazzy
+  validation completed.
+- [ ] 2026-08-10 — PR merge and synchronized `main` completed.
 
 ## Decisions
 - 2026-08-10 — Keep planner and controller plugin names exclusively in MoveIt configuration so
@@ -133,5 +135,7 @@ No schema migration or breaking change is introduced; interfaces are additive.
 The additive interfaces, six-axis reference configuration, pure application boundary, MoveIt pose
 adapter, staged MTC builder, ROS node/events, fake-controller launch, deterministic evidence, docs,
 and tests are implemented. Local Python/configuration validation passes. PR #15 is ready and Python
-CI is green. Hosted ROS runs drove scoped CMake signature, Jazzy Plan-field, and Clang construction
-corrections; the latest correction awaits the next hosted run. Isaac Sim remains unavailable.
+CI is green. Hosted ROS runs drove scoped CMake signature, Jazzy Plan-field, generated-message
+construction, lint-timeout, and repository clang-tidy-profile corrections. Run 31422971739 passes
+Python validation and the complete ROS 2 Jazzy build/test job, including motion gtests,
+clang-format, and clang-tidy. Isaac Sim remains unavailable.
