@@ -7,6 +7,7 @@ EXTENSION_ID = "cellforge.studio"
 WINDOWS = (
     "CellForge Project",
     "CellForge Components",
+    "CellForge Connections",
     "CellForge Validation",
     "CellForge Log",
 )

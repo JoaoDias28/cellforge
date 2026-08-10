@@ -1,8 +1,8 @@
 [package]
-version = "0.3.0"
+version = "0.4.0"
 category = "CellForge"
 title = "Cell Studio Shell"
-description = "CellForge project, component placement, validation, and log panels for Isaac Sim 6."
+description = "CellForge project, component, connection, validation, and log panels for Isaac Sim 6."
 authors = ["CellForge contributors"]
 repository = "https://github.com/JoaoDias28/cellforge"
 keywords = ["cellforge", "robotics", "engineering", "isaac-sim"]

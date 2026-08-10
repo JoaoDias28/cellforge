@@ -93,3 +93,7 @@ the interactive launch command and the exact Isaac Sim 6 `--no-window` lifecycle
 The extension has no additional PyPI production dependency. `omni.ext` and `omni.ui` are supplied
 and maintained by the supported Isaac Sim 6 / Omniverse Kit installation. Removing the extension
 directory removes this engineering-only integration without affecting the runtime or domain model.
+
+Task 017 connection authoring can be checked without Kit using `make studio-connections-check`.
+The Isaac Sim 6/OpenUSD probe is documented in `docs/cell-studio.md`; it validates composition of a
+mechanically snapped prim and does not exercise or claim any hardware or functional-safety behavior.

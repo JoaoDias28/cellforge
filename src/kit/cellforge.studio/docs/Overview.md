@@ -17,3 +17,9 @@ Task 016 adds filtered registry browsing, component compatibility details, linke
 placement with immutable shared IDs and selected variants, explicit connection resolution on
 removal, and paired-buffer undo/redo. Production support warnings are engineering information only;
 they do not authorize physical operation or implement functional safety.
+
+Task 017 adds a typed port browser and connection graph for mechanical, software, industrial-I/O,
+and modeled-safety edges. Candidate edges are validated by the domain resolver. Mechanical snap
+previews use declared port transforms and apply `cell.yaml` plus USD changes as one undoable edit.
+Modeled-safety dependencies have distinct styling and remain non-executable engineering metadata;
+they do not implement or authorize any safety-rated function.

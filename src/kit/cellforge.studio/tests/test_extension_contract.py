@@ -12,7 +12,7 @@ def test_extension_manifest_declares_supported_module_and_ui_dependency() -> Non
         (EXTENSION_ROOT / "config" / "extension.toml").read_text(encoding="utf-8")
     )
 
-    assert manifest["package"]["version"] == "0.3.0"
+    assert manifest["package"]["version"] == "0.4.0"
     assert manifest["dependencies"] == {"omni.ui": {}}
     assert manifest["python"]["module"] == [{"name": "cellforge.studio.extension"}]
 
@@ -52,6 +52,9 @@ def test_ui_callbacks_delegate_to_application_services() -> None:
         "_on_remove_component": "remove_component",
         "_on_undo": "undo",
         "_on_redo": "redo",
+        "_on_refresh_connections": "refresh_connections",
+        "_on_preview_mechanical_connection": "preview_mechanical_connection",
+        "_on_connect_ports": "connect_ports",
     }
     for callback_name, command_name in expected.items():
         callback = next(
@@ -68,3 +71,11 @@ def test_ui_callbacks_delegate_to_application_services() -> None:
         assert called_attributes.isdisjoint(
             {"validate_project", "inspect_project", "load_document", "write_text"}
         )
+
+
+def test_safety_connections_have_distinct_non_executable_presentation() -> None:
+    source = (EXTENSION_ROOT / "cellforge" / "studio" / "extension.py").read_text(encoding="utf-8")
+
+    assert "MODELED SAFETY (NON-EXECUTABLE)" in source
+    assert "MODELED-ONLY SAFETY" in source
+    assert "Modeled safety dependencies are never executable wiring." in source

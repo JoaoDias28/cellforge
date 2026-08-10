@@ -296,4 +296,51 @@ isaac-sim.bat --no-window `
 
 The Isaac Sim environment must contain the locked CellForge Python workspace. The deterministic
 fallback covers text USDA editing and cross-reference validation; the Isaac command verifies
-OpenUSD composition of the authored component reference. Connection authoring remains Task 017.
+OpenUSD composition of the authored component reference. Task 017 builds on this placement contract.
+
+## 10. Connection authoring and validation
+
+Task 017 adds a pure connection-authoring service and a dockable typed connection graph. Ports and
+edges are grouped as mechanical, software, industrial I/O, or modeled safety. Stable component
+instance IDs and port IDs are persistence keys; aliases are display-only. Candidate connections are
+submitted to the Task 005 domain resolver, so endpoint kind, direction, and type rules are not
+duplicated in Kit callbacks.
+
+Mechanical ports declare a component-local row-major 4x4 `metadata.snap_transform`. A compatible preview
+computes the target transform and proposed USD prim path without changing either canonical source.
+Applying the connection reparents the target component prim, authors the snap transform, updates
+affected `usd_prim` paths, and adds the `cell.yaml` edge as one undoable paired-buffer edit. Missing,
+singular, or uneditable spatial data fails closed.
+
+Software and industrial-I/O edges update only the canonical operational graph. Modeled-safety edges
+are colored and labeled separately, persist `modeled_only: true`, and are always reported as
+non-executable. They are engineering-review metadata only; Cell Studio does not implement, replace,
+or authorize any safety-rated function or ordinary executable wiring.
+
+The deterministic non-Kit acceptance check is:
+
+```bash
+make studio-connections-check
+```
+
+Run the Isaac Sim 6/OpenUSD connection probe headlessly from the repository root on Linux with:
+
+```bash
+./isaac-sim.sh --no-window \
+  --ext-folder /absolute/path/to/cellforge/src/kit \
+  --enable cellforge.studio \
+  --exec /absolute/path/to/cellforge/scripts/verify_kit_connections.py
+```
+
+On Windows, use:
+
+```powershell
+isaac-sim.bat --no-window `
+  --ext-folder C:\absolute\path\to\cellforge\src\kit `
+  --enable cellforge.studio `
+  --exec C:\absolute\path\to\cellforge\scripts\verify_kit_connections.py
+```
+
+The Isaac Sim environment must contain the locked CellForge Python workspace. This probe composes
+the authored hierarchy, metadata, and transform through OpenUSD; deterministic non-Kit tests cover
+invalid inputs and filesystem-independent failure paths.

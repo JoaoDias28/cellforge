@@ -10,6 +10,7 @@ PROJECT_WINDOW = "CellForge Project"
 VALIDATION_WINDOW = "CellForge Validation"
 LOG_WINDOW = "CellForge Log"
 COMPONENT_WINDOW = "CellForge Components"
+CONNECTION_WINDOW = "CellForge Connections"
 
 
 class CellForgeStudioExtension(omni.ext.IExt):
@@ -26,13 +27,21 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._support_filter_model = ui.SimpleStringModel("")
         self._simulation_filter_model = ui.SimpleStringModel("")
         self._remove_instance_model = ui.SimpleStringModel("")
+        self._connection_id_model = ui.SimpleStringModel("")
+        self._connection_kind_model = ui.SimpleStringModel("software")
+        self._from_component_model = ui.SimpleStringModel("")
+        self._from_port_model = ui.SimpleStringModel("")
+        self._to_component_model = ui.SimpleStringModel("")
+        self._to_port_model = ui.SimpleStringModel("")
         self._project_window = ui.Window(PROJECT_WINDOW, width=360, height=420)
         self._component_window = ui.Window(COMPONENT_WINDOW, width=460, height=520)
+        self._connection_window = ui.Window(CONNECTION_WINDOW, width=520, height=620)
         self._validation_window = ui.Window(VALIDATION_WINDOW, width=460, height=420)
         self._log_window = ui.Window(LOG_WINDOW, width=820, height=220)
         self._render_all()
         ui.dock_window_in_window(VALIDATION_WINDOW, PROJECT_WINDOW, ui.DockPosition.RIGHT, 0.55)
         ui.dock_window_in_window(COMPONENT_WINDOW, PROJECT_WINDOW, ui.DockPosition.LEFT, 0.55)
+        ui.dock_window_in_window(CONNECTION_WINDOW, VALIDATION_WINDOW, ui.DockPosition.BOTTOM, 0.55)
         ui.dock_window_in_window(LOG_WINDOW, PROJECT_WINDOW, ui.DockPosition.BOTTOM, 0.35)
 
     def on_shutdown(self) -> None:
@@ -41,6 +50,7 @@ class CellForgeStudioExtension(omni.ext.IExt):
         for window_name in (
             "_project_window",
             "_component_window",
+            "_connection_window",
             "_validation_window",
             "_log_window",
         ):
@@ -124,9 +134,38 @@ class CellForgeStudioExtension(omni.ext.IExt):
             self._application.redo()
             self._render_all()
 
+    def _on_refresh_connections(self) -> None:
+        if self._application is not None:
+            self._application.refresh_connections()
+            self._render_all()
+
+    def _on_preview_mechanical_connection(self) -> None:
+        if self._application is not None:
+            self._application.preview_mechanical_connection(
+                self._connection_id_model.as_string,
+                self._from_component_model.as_string,
+                self._from_port_model.as_string,
+                self._to_component_model.as_string,
+                self._to_port_model.as_string,
+            )
+            self._render_all()
+
+    def _on_connect_ports(self) -> None:
+        if self._application is not None:
+            self._application.connect_ports(
+                self._connection_id_model.as_string,
+                self._connection_kind_model.as_string,
+                self._from_component_model.as_string,
+                self._from_port_model.as_string,
+                self._to_component_model.as_string,
+                self._to_port_model.as_string,
+            )
+            self._render_all()
+
     def _render_all(self) -> None:
         self._render_project_panel()
         self._render_component_panel()
+        self._render_connection_panel()
         self._render_validation_panel()
         self._render_log_panel()
 
@@ -230,6 +269,73 @@ class CellForgeStudioExtension(omni.ext.IExt):
             ),
         )
         ui.Separator(height=6)
+
+    def _render_connection_panel(self) -> None:
+        snapshot = self._application.snapshot
+        self._connection_window.frame.clear()
+        with self._connection_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Typed connection graph", style={"font_size": 18})
+                    ui.Button("Refresh ports and edges", clicked_fn=self._on_refresh_connections)
+                    for kind in ("mechanical", "software", "industrial_io", "safety"):
+                        title = "MODELED SAFETY (NON-EXECUTABLE)" if kind == "safety" else kind
+                        style = {"color": 0xFF4AA3FF} if kind == "safety" else {}
+                        ui.Label(title, style=style)
+                        for port in (
+                            item for item in snapshot.connection_ports if item.kind == kind
+                        ):
+                            ui.Label(
+                                f"{port.component_alias} [{port.component_instance}] / {port.port} "
+                                f"{port.direction} : {port.port_type}",
+                                word_wrap=True,
+                                style=style,
+                            )
+                    ui.Separator(height=8)
+                    ui.Label("Existing edges")
+                    for edge in snapshot.connection_edges:
+                        marker = "MODELED-ONLY SAFETY" if edge.modeled_only else edge.kind
+                        style = {"color": 0xFF4AA3FF} if edge.modeled_only else {}
+                        ui.Label(
+                            f"{marker}: {edge.connection_id} | "
+                            f"{edge.from_component}/{edge.from_port} -> "
+                            f"{edge.to_component}/{edge.to_port}",
+                            word_wrap=True,
+                            style=style,
+                        )
+                    ui.Separator(height=8)
+                    ui.Label("Create typed edge")
+                    for label, model in (
+                        ("Connection ID", self._connection_id_model),
+                        ("Kind", self._connection_kind_model),
+                        ("From component instance ID", self._from_component_model),
+                        ("From port", self._from_port_model),
+                        ("To component instance ID", self._to_component_model),
+                        ("To port", self._to_port_model),
+                    ):
+                        ui.Label(label)
+                        ui.StringField(model=model)
+                    with ui.HStack(spacing=6, height=28):
+                        ui.Button(
+                            "Preview mechanical snap",
+                            clicked_fn=self._on_preview_mechanical_connection,
+                        )
+                        ui.Button("Create connection", clicked_fn=self._on_connect_ports)
+                    if snapshot.mechanical_preview is not None:
+                        preview = snapshot.mechanical_preview
+                        ui.Label(
+                            f"Snap preview: {preview.current_target_prim} -> "
+                            f"{preview.snapped_target_prim}; adapter required: "
+                            f"{'yes' if preview.adapter_required else 'no'}",
+                            word_wrap=True,
+                        )
+                    ui.Separator(height=8)
+                    ui.Label(
+                        snapshot.safety_disclaimer
+                        or "Modeled safety dependencies are never executable wiring.",
+                        word_wrap=True,
+                        style={"color": 0xFF4AA3FF},
+                    )
 
     def _render_validation_panel(self) -> None:
         snapshot = self._application.snapshot

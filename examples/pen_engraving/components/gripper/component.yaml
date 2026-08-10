@@ -27,6 +27,8 @@ ports:
       type: iso_9409_reference
       frame: robot_mount
       required: true
+      metadata:
+        snap_transform: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
   software:
     - id: open
       direction: input
