@@ -90,7 +90,7 @@ the feature without migrating project schemas or existing projects.
 - [x] 2026-08-10 — Establish the green pre-edit deterministic baseline and create the task branch.
 - [x] 2026-08-10 — Implement pure browser, detail, placement, and removal services with tests.
 - [x] 2026-08-10 — Wire undo/redo and thin Kit callbacks, probes, and documentation.
-- [ ] 2026-08-10 — Complete checks, commit, ready PR, CI, merge, and local-main synchronization.
+- [x] 2026-08-10 — Complete checks, commit, ready PR, CI, merge, and local-main synchronization.
 
 ## Decisions
 - 2026-08-10 — Reuse the resolver's execution-mode rule through a public function so browser
@@ -117,3 +117,10 @@ documents, 28 Studio tests, 10 Task 015 regression tests, 7 focused Task 016 tes
 manifest verification, and both deterministic Studio probes. The documented Isaac Sim 6 command
 is unavailable because `isaac-sim.bat` is not installed/on PATH; no OpenUSD/Kit integration result
 is claimed. GNU Make is unavailable, so the exact underlying Makefile commands were executed.
+
+Implementation commit `a0426e8` was published in ready PR #10. GitHub Actions CI run 48
+completed successfully: `Python 3.12 validation` passed lint, type checks, all tests, and example
+validation; `ROS 2 Jazzy build and test` passed repository setup, dependency resolution, workspace
+build, and workspace tests. GitHub reported the PR conflict-free and ready to merge. Merge commit
+`5503846` was synchronized to local and remote `main`, and the implementation commit is an ancestor
+of `origin/main` with a clean working tree. Task 017 was not started.
