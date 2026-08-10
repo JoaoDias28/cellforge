@@ -7,6 +7,7 @@ from pathlib import Path
 from cellforge.studio.application import (
     BackendProject,
     BackendResult,
+    ProjectContents,
     StudioApplication,
     StudioStatus,
     ValidationItem,
@@ -21,9 +22,19 @@ class RecordingBackend:
     def __init__(self, result: BackendResult) -> None:
         self.result = result
         self.paths: list[Path] = []
+        self.created: list[Path] = []
+        self.saved: list[tuple[Path, ProjectContents]] = []
 
     def inspect(self, project_path: Path) -> BackendResult:
         self.paths.append(project_path)
+        return self.result
+
+    def create(self, project_path: Path) -> BackendResult:
+        self.created.append(project_path)
+        return self.result
+
+    def save(self, project_path: Path, contents: ProjectContents) -> BackendResult:
+        self.saved.append((project_path, contents))
         return self.result
 
 
@@ -84,7 +95,10 @@ def test_valid_backend_project_maps_to_presentation_state(tmp_path: Path) -> Non
         scenario_count=3,
         deployment_profile_count=1,
     )
-    application = StudioApplication(RecordingBackend(BackendResult(project=project, validation=())))
+    contents = ProjectContents(cell_yaml="cell", scene_usda="scene")
+    application = StudioApplication(
+        RecordingBackend(BackendResult(project=project, validation=(), contents=contents))
+    )
 
     snapshot = application.open_project(tmp_path)
 
@@ -92,12 +106,49 @@ def test_valid_backend_project_maps_to_presentation_state(tmp_path: Path) -> Non
     assert snapshot.project is not None
     assert snapshot.project.name == "Test Cell"
     assert snapshot.project.component_count == 2
-    assert "read-only" in snapshot.detail
+    assert snapshot.dirty is False
+
+
+def test_in_memory_edits_are_dirty_and_only_explicit_save_calls_backend(tmp_path: Path) -> None:
+    project = BackendProject(
+        path=tmp_path,
+        cell_id="00000000-0000-4000-8000-000000000001",
+        name="Test Cell",
+        scene="scene.usda",
+        component_count=0,
+        connection_count=0,
+        task_count=0,
+        recipe_count=0,
+        scenario_count=0,
+        deployment_profile_count=1,
+    )
+    original = ProjectContents(cell_yaml="original cell", scene_usda="original scene")
+    saved = ProjectContents(cell_yaml="changed cell", scene_usda="original scene")
+    backend = RecordingBackend(BackendResult(project=project, validation=(), contents=original))
+    application = StudioApplication(backend)
+    application.open_project(tmp_path)
+
+    snapshot = application.edit_cell_yaml(saved.cell_yaml)
+
+    assert snapshot.dirty is True
+    assert backend.saved == []
+
+    backend.result = BackendResult(project=project, validation=(), contents=saved)
+    snapshot = application.save_project()
+
+    assert backend.saved == [(tmp_path.resolve(), saved)]
+    assert snapshot.dirty is False
 
 
 def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
     class FailingBackend:
         def inspect(self, project_path: Path) -> BackendResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def create(self, project_path: Path) -> BackendResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def save(self, project_path: Path, contents: ProjectContents) -> BackendResult:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
     snapshot = StudioApplication(FailingBackend()).open_project(PEN_PROJECT)

@@ -201,7 +201,53 @@ make kit-extension-check
 ```
 
 The shell starts with no selected project and does not read or modify project files. Project paths
-are inspected only after the user chooses **Open / Refresh (read-only)**. The Kit callback delegates
-to the pure application service, which in turn reuses Task 004 project validation and inspection.
+are inspected only after the user chooses **Open / Refresh**. The Kit callback delegates to the
+pure application service, which in turn reuses Task 004 project validation and inspection.
 Missing CellForge backend packages or schemas produce an actionable panel state instead of blocking
-extension startup. No project/scene editing is implemented until Task 015.
+extension startup.
+
+## 8. Project and scene round trip
+
+Task 015 adds explicit **Create**, **Open / Refresh**, and **Save** commands. Opening a project and
+editing its in-memory buffers do not write project files. Dirty state is derived by comparing the
+working buffers with the exact text last opened or successfully saved; only **Save** replaces an
+existing `cell.yaml` and scene.
+
+Every component prim authors a namespaced `cellforge:instanceId` string equal to the immutable
+component instance ID in `cell.yaml`. The application service validates the two canonical artifacts
+together and returns structured findings for missing prims, missing or mismatched IDs, duplicate
+operational or scene IDs, and unreferenced tagged prims. UI callbacks render those findings but do
+not implement domain or spatial validation.
+
+Save validates both candidates first. It then writes a `.cellforge-save-recovery.json` journal with
+the previous canonical bytes, fsyncs temporary candidates, and atomically replaces each file. A
+replacement failure restores the previous pair. A journal retained by abrupt process termination is
+resolved only by an explicit save/recovery operation, so ordinary open remains read-only.
+
+The deterministic non-Kit acceptance check is:
+
+```bash
+make studio-project-scene-check
+```
+
+Run the Isaac Sim 6/OpenUSD integration probe headlessly from the repository root on Linux with:
+
+```bash
+./isaac-sim.sh --no-window \
+  --ext-folder /absolute/path/to/cellforge/src/kit \
+  --enable cellforge.studio \
+  --exec /absolute/path/to/cellforge/scripts/verify_kit_project_scene.py
+```
+
+On Windows, use:
+
+```powershell
+isaac-sim.bat --no-window `
+  --ext-folder C:\absolute\path\to\cellforge\src\kit `
+  --enable cellforge.studio `
+  --exec C:\absolute\path\to\cellforge\scripts\verify_kit_project_scene.py
+```
+
+The Isaac Sim Python environment must contain the locked CellForge Python workspace, as required by
+the extension backend. Text USDA stages round-trip in deterministic non-Kit tests; binary USD stage
+inspection requires the Isaac Sim 6 OpenUSD runtime. Component placement remains Task 016 scope.

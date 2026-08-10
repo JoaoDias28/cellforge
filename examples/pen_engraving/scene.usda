@@ -5,9 +5,22 @@
     upAxis = "Z"
 )
 def Xform "World" {
-    def Xform "Robot" {}
-    def Xform "Laser" {}
-    def Xform "Camera" {}
-    def Xform "Fixture" {}
-    def Xform "SafetyStatus" {}
+    def Xform "Robot" {
+        custom string cellforge:instanceId = "robot-001"
+        def Xform "Gripper" {
+            custom string cellforge:instanceId = "gripper-001"
+        }
+    }
+    def Xform "Laser" {
+        custom string cellforge:instanceId = "laser-001"
+    }
+    def Xform "Camera" {
+        custom string cellforge:instanceId = "camera-001"
+    }
+    def Xform "Fixture" {
+        custom string cellforge:instanceId = "fixture-001"
+    }
+    def Xform "SafetyStatus" {
+        custom string cellforge:instanceId = "safety-status-001"
+    }
 }
