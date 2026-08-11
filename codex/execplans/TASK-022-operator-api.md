@@ -28,7 +28,7 @@ Excluded:
 - safety logic, safety reset, interlock bypass, or claims of functional-safety enforcement.
 
 ## Current state
-The clean starting point is synchronized `main`/`origin/main` at `416f9e0). Task 010
+The clean starting point is synchronized `main`/`origin/main` at `416f9e0`. Task 010
 (`b09ec6e`), Task 012 (`a82fa68`), and Task 021 (`d61fc84`) are ancestors of `main`; Tasks
 012 and 021 have merged PR commits, and Task 010 is in the merged prerequisite history before Task
 011. The existing runtime has canonical `CellState` and durable `JobEvent` records, a public
@@ -117,7 +117,8 @@ catalog need no migration for earlier packages.
 - [x] 2026-08-11 — core authorization, recovery catalog, audit, and operator service complete.
 - [x] 2026-08-11 — API, minimal UI, fixed ROS bridge, and bundle compiler integration complete.
 - [x] 2026-08-11 — documentation and all available local checks complete.
-- [ ] 2026-08-11 — task commit, ready PR, green CI, merge, and local main synchronization complete.
+- [x] 2026-08-11 — task commit `656fa00`, ready PR #18, and required hosted CI checks complete.
+- [ ] 2026-08-11 — merge and local main synchronization complete.
 
 ## Decisions
 - 2026-08-11 — Keep recovery configuration semantic and immutable; never accept ROS graph names or
@@ -141,4 +142,8 @@ sources, all 324 runnable pytest tests, validation of 5 canonical schemas/7 auxi
 example YAML documents, the 19-test Task 022 contract suite, and the Task 021 bundle-agent regression
 check. One pre-existing real directory-symlink test is skipped on Windows because elevated symlink
 privilege is unavailable. Literal GNU Make, ROS 2 Jazzy, and colcon remain unavailable locally;
-hosted Jazzy CI, publication, merge, and final main synchronization remain pending.
+the hosted replacement run passed Python 3.12 validation in 40 seconds and the complete ROS 2 Jazzy
+build/test job in 11 minutes. The first hosted ROS attempt was cancelled after a pre-existing
+`cellforge_job_gateway` test process stopped producing output for about an hour; its clean rerun
+passed without code changes. PR #18 is ready and green; merge and final main synchronization remain
+pending.
