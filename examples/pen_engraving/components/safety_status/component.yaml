@@ -32,8 +32,8 @@ config_schema: config.schema.json
 capabilities: []
 adapters:
   simulation:
-    package: cellforge_adapter_safety_status_sim
-    entrypoint: SafetyStatusSimulationAdapter
+    package: cellforge_mock_adapters
+    entrypoint: mock_safety_status_node
     minimum_version: 0.1.0
     fidelity: L0
   hardware: null

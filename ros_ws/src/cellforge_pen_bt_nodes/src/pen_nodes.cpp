@@ -149,7 +149,7 @@ auto CheckRequiredDevicesReady::tick() -> BT::NodeStatus {
 }
 
 auto LocateProduct::providedPorts() -> BT::PortsList {
-  auto ports = commonActionPorts("/device/camera-001/locate_object", kLocateTimeoutMilliseconds);
+  auto ports = commonActionPorts("/device/camera_001/locate_object", kLocateTimeoutMilliseconds);
   ports.insert(BT::InputPort<std::string>("object_type"));
   ports.insert(BT::InputPort<std::string>("profile"));
   ports.insert(BT::OutputPort<geometry_msgs::msg::PoseStamped>("output_pose"));
@@ -310,7 +310,7 @@ VerifyFixture::VerifyFixture(const std::string& name, const BT::NodeConfig& conf
 auto VerifyFixture::providedPorts() -> BT::PortsList {
   auto ports = commonPorts();
   ports.erase("action_name");
-  ports.insert(BT::InputPort<std::string>("action_name", "/device/fixture-001/verify_seated",
+  ports.insert(BT::InputPort<std::string>("action_name", "/device/fixture_001/verify_seated",
                                           "Typed ROS action endpoint."));
   ports.insert(BT::InputPort<std::string>("fixture"));
   return ports;
@@ -330,7 +330,7 @@ SelectProcessProgram::SelectProcessProgram(const std::string& name, const BT::No
 auto SelectProcessProgram::providedPorts() -> BT::PortsList {
   auto ports = commonPorts();
   ports.erase("action_name");
-  ports.insert(BT::InputPort<std::string>("action_name", "/device/laser-001/select_program",
+  ports.insert(BT::InputPort<std::string>("action_name", "/device/laser_001/select_program",
                                           "Typed ROS action endpoint."));
   ports.insert(BT::InputPort<std::string>("program"));
   ports.insert(BT::InputPort<std::string>("variable_data"));
@@ -347,7 +347,7 @@ auto SelectProcessProgram::inputPayload() -> std::string {
 }
 
 auto ExecuteProcess::providedPorts() -> BT::PortsList {
-  auto ports = commonActionPorts("/device/laser-001/execute_cycle", kProcessTimeoutMilliseconds);
+  auto ports = commonActionPorts("/device/laser_001/execute_cycle", kProcessTimeoutMilliseconds);
   ports.insert(BT::InputPort<std::string>("program"));
   ports.insert(BT::InputPort<std::string>("variable_data"));
   ports.insert(BT::InputPort<std::string>("recipe_id"));
@@ -392,7 +392,7 @@ auto ExecuteProcess::handleDeadline() -> BT::NodeStatus {
 
 auto InspectProduct::providedPorts() -> BT::PortsList {
   auto ports =
-      commonActionPorts("/device/camera-001/inspect_object", kInspectionTimeoutMilliseconds);
+      commonActionPorts("/device/camera_001/inspect_object", kInspectionTimeoutMilliseconds);
   ports.insert(BT::InputPort<std::string>("profile"));
   ports.insert(BT::InputPort<std::string>("expected"));
   ports.insert(BT::OutputPort<std::string>("measurements"));

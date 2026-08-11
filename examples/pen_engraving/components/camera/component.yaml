@@ -48,12 +48,12 @@ capabilities:
     modes: [simulation, commissioning, production]
 adapters:
   simulation:
-    package: cellforge_adapter_vision_sim
-    entrypoint: VisionSimulationAdapter
+    package: cellforge_mock_adapters
+    entrypoint: mock_device_node
     minimum_version: 0.1.0
-    fidelity: L2
+    fidelity: L0
   hardware: null
 support:
   level: simulated
-  simulation_level: L2
+  simulation_level: L0
   owner: automation-platform

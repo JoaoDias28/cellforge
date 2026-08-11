@@ -208,3 +208,13 @@ signals. Laser simulation covers readiness, command ordering, handshake, and tim
 not model beam/material interaction, heat, plume, optics, engraving contrast, text fidelity, or
 mark quality. Physical process qualification and independent functional-safety validation remain
 required.
+
+## 11. Task 025 fidelity selection
+
+The reference offline runtime is explicitly L0. Its adapter configuration is immutable bundle
+content and its deterministic motion backend validates scene identity, request contracts,
+cancellation, and stable outcomes without claiming geometry or physics. Component manifests expose
+only fidelity levels their selected entrypoint can actually provide.
+
+Requesting L2 from the Task 025 bringup returns `bringup.fidelity.unavailable`; L0 behavior is never
+relabelled as L2. Genuine Isaac Sim L2 composition remains Task 027 scope.

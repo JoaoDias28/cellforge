@@ -16,7 +16,7 @@
       </RetryUntilSuccessful>
       <LoadFixture fixture="pen_rotary_fixture_reference"/>
       <VerifyFixture fixture="pen_rotary_fixture_reference"/>
-      <MoveRobotToProcessSafePose pose="laser_process_safe"/>
+      <MoveRobotToProcessSafePose pose="process_safe"/>
       <SelectProcessProgram program="ALU_REFERENCE_01" variable_data="{input_payload_json}"/>
       <ExecuteProcess
         program="ALU_REFERENCE_01"

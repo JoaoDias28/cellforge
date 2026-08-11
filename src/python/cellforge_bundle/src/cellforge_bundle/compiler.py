@@ -16,6 +16,7 @@ from cellforge_domain import (
     BundleFile,
     BundleManifest,
     BundleRecipeReference,
+    BundleRuntimeGraph,
     BundleTaskReference,
     CellProject,
     ComponentType,
@@ -60,6 +61,18 @@ _SEEDED_BLACKBOARD_KEYS = {
     "trace_id",
 }
 _CONTROL_NODES = {"Sequence", "Fallback", "RetryUntilSuccessful", "Timeout", "SubTree"}
+_RUNTIME_EXECUTABLE_ROLES = {
+    "adapter",
+    "coordinator",
+    "gateway",
+    "motion_l0",
+    "motion_l2",
+    "operator",
+    "safety_status",
+    "state",
+    "supervisor",
+    "trace",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -289,6 +302,17 @@ def compile_project(
     )
     _freeze_calibrations(project_root, cell_path, cell, state, inventory)
     _freeze_operator_recovery(project_root, state, inventory)
+    runtime = _freeze_runtime_graph(
+        project_root,
+        cell,
+        profile,
+        scene_path,
+        components,
+        component_registry,
+        resolution,
+        state,
+        inventory,
+    )
 
     state.attempt(CompilerStage.EVIDENCE)
     if mode == ExecutionMode.PRODUCTION:
@@ -339,6 +363,7 @@ def compile_project(
         native_packages=native_packages,
         containers=tuple(sorted(profile.runtime.containers)),
         external_prerequisites=tuple(sorted(profile.external_prerequisites)),
+        runtime=runtime,
         evidence=BundleEvidenceSummary(required=False, status="not-required"),
         files=files,
     )
@@ -357,6 +382,139 @@ def compile_project(
         manifest=manifest,
         manifest_json=to_canonical_json(manifest),
     )
+
+
+def _freeze_runtime_graph(
+    project_root: Path,
+    cell: CellProject,
+    profile: DeploymentProfile | None,
+    scene_path: Path | None,
+    components: tuple[BundleComponentReference, ...],
+    component_registry: FilesystemComponentRegistry,
+    resolution: ResolutionReport,
+    state: _CompilerState,
+    inventory: _FileInventory,
+) -> BundleRuntimeGraph | None:
+    """Freeze launch-critical ROS identities without consulting a live graph at runtime."""
+
+    if profile is None:
+        return None
+    runtime = profile.runtime
+    configured = (
+        runtime.simulation_fidelity is not None
+        or runtime.adapter_configuration is not None
+        or bool(runtime.executables)
+    )
+    if not configured:
+        return None
+    where = "deployment-profile.yaml#/runtime"
+    fidelity = runtime.simulation_fidelity
+    if fidelity is None or runtime.adapter_configuration is None:
+        state.add(
+            CompilerStage.TARGET,
+            _finding(
+                "compiler.runtime.configuration-incomplete",
+                where,
+                "Integrated runtime requires simulation_fidelity and adapter_configuration.",
+            ),
+        )
+        return None
+    missing_roles = sorted(_RUNTIME_EXECUTABLE_ROLES - set(runtime.executables))
+    extra_roles = sorted(set(runtime.executables) - _RUNTIME_EXECUTABLE_ROLES)
+    if missing_roles or extra_roles:
+        state.add(
+            CompilerStage.TARGET,
+            _finding(
+                "compiler.runtime.executables-invalid",
+                f"{where}/executables",
+                f"Executable roles missing={missing_roles}, unexpected={extra_roles}.",
+            ),
+        )
+    native_packages = set(runtime.native_packages)
+    for role, executable in sorted(runtime.executables.items()):
+        if executable.package not in native_packages:
+            state.add(
+                CompilerStage.TARGET,
+                _finding(
+                    "compiler.runtime.executable-package-undeclared",
+                    f"{where}/executables/{role}/package",
+                    f"Runtime package '{executable.package}' is not a declared native package.",
+                ),
+            )
+    resolved_by_instance = {item.instance_id: item for item in resolution.components}
+    unavailable: list[str] = []
+    for component in components:
+        resolved = resolved_by_instance.get(component.instance_id)
+        package = (
+            None
+            if resolved is None
+            else component_registry.get(resolved.component, resolved.version)
+        )
+        adapter = None if package is None else package.manifest.adapters.simulation
+        if adapter is None or adapter.fidelity != fidelity:
+            unavailable.append(component.instance_id)
+    unavailable.sort()
+    if unavailable:
+        state.add(
+            CompilerStage.TARGET,
+            _finding(
+                "compiler.runtime.fidelity-unavailable",
+                f"{where}/simulation_fidelity",
+                f"Requested {fidelity.value} is unavailable for component instances {unavailable}.",
+            ),
+        )
+    adapter_source = _project_reference(
+        project_root,
+        runtime.adapter_configuration,
+        state,
+        CompilerStage.TARGET,
+        f"{where}/adapter_configuration",
+    )
+    if adapter_source is not None:
+        inventory.add("config/adapters/runtime.json", adapter_source, CompilerStage.TARGET)
+    if scene_path is None:
+        return None
+
+    topics: dict[str, str] = {
+        "cell_state": "/cell/state",
+        "events": "/events/job",
+        "safety_state": "/safety/state",
+        "supervisor_state": "/cell/supervisor_state",
+    }
+    for component in sorted(components, key=lambda item: item.instance_id):
+        topics[f"device.{component.instance_id}"] = (
+            f"/device/{_ros_instance_name(component.instance_id)}/state"
+        )
+    endpoints: dict[str, str] = {
+        "operator_action": "/cell/operator_action",
+        "run_job": "/cell/run_job",
+        "supervisor_run_job": "/cell/supervisor/run_job",
+        "motion.move_to_pose": "/skills/move_to_pose",
+        "motion.execute_manipulation": "/skills/execute_manipulation",
+        "motion.sync_planning_scene": "/motion/sync_planning_scene",
+    }
+    for capability in resolution.capabilities:
+        endpoints[f"capability.{capability.contract}"] = (
+            f"/device/{_ros_instance_name(capability.provider_instance)}/{capability.endpoint}"
+        )
+    return BundleRuntimeGraph(
+        simulation_fidelity=fidelity,
+        topics=topics,
+        endpoints=endpoints,
+        required_devices=tuple(sorted(item.instance_id for item in components)),
+        tree_root="config/behavior-trees",
+        cell_config_path="config/cell.yaml",
+        scene_path=f"assets/{scene_path.name}",
+        adapter_configuration_path="config/adapters/runtime.json",
+        recovery_catalog_path="config/operator-recovery.json",
+        executables=dict(sorted(runtime.executables.items())),
+    )
+
+
+def _ros_instance_name(instance_id: str) -> str:
+    """Encode an immutable domain ID as a reversible-enough ROS graph token."""
+
+    return instance_id.replace("-", "_")
 
 
 def _resolve_target_profile(

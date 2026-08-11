@@ -62,7 +62,12 @@ void TypedActionNode<ActionT>::sendGoal() {
       state->cancel_sent = cancel_after_accept || state->cancel_sent;
     }
     if (cancel_after_accept) {
-      (void)client->async_cancel_goal(handle);
+      try {
+        (void)client->async_cancel_goal(handle);
+      } catch (const rclcpp_action::exceptions::UnknownGoalHandleError& error) {
+        // A terminal result won the race with cancellation; no cancellation remains to send.
+        (void)error;
+      }
     }
   };
   options.result_callback = [state](const typename GoalHandle::WrappedResult& wrapped) {
@@ -130,7 +135,12 @@ void TypedActionNode<ActionT>::requestCancellation() {
     }
   }
   if (handle && client_) {
-    (void)client_->async_cancel_goal(handle);
+    try {
+      (void)client_->async_cancel_goal(handle);
+    } catch (const rclcpp_action::exceptions::UnknownGoalHandleError& error) {
+      // A terminal result won the race with cancellation; no cancellation remains to send.
+      (void)error;
+    }
   }
 }
 

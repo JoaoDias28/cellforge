@@ -208,3 +208,16 @@ revision, evidence JSON, and explicit outcome certainty.
 reference fake controller is simulation/test infrastructure. For plan-and-execute, cancellation or
 deadline expiry forwards a stop request; an adapter that cannot prove the physical result must
 return `motion.execution.outcome_unknown` and require reconciliation.
+
+## 11. Task 025 offline bringup
+
+The integrated launch verifies the manifest content address and every launch-critical file before
+starting nodes. It synchronizes the L0 planning-scene identity, waits for fresh periodic adapter and
+read-only safety heartbeats, and reaches `READY` without a platform or internet connection. Mutable
+authentication, job, audit, and trace databases live under the cell-local state root outside the
+immutable bundle.
+
+Cancellation propagates through the gateway, supervisor, behavior tree, and active typed action.
+Adapters resume fresh `READY` heartbeats after certain cancellation or restart. Recovery requests
+use only `/cell/operator_action`; acknowledgement records the decision without clearing device or
+safety state, and unsupported maintenance execution returns `operator.recovery.service_unavailable`.

@@ -90,6 +90,19 @@ class CanonicalStatePublisher:
             self._sink(snapshot)
         return snapshot
 
+    def heartbeat(self) -> DeviceStateSnapshot:
+        """Refresh and emit the current state without changing its semantic fields."""
+
+        snapshot = replace(
+            self._snapshot,
+            heartbeat_at=datetime.now(UTC),
+            revision=self._snapshot.revision + 1,
+        )
+        self._snapshot = snapshot
+        if self._sink is not None:
+            self._sink(snapshot)
+        return snapshot
+
 
 class RosPublisher(Protocol):
     """The minimal publish protocol supplied by an ``rclpy`` publisher."""

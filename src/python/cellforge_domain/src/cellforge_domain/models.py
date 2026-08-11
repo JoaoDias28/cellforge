@@ -375,10 +375,20 @@ class BehaviorTreePluginDeclaration(DomainModel):
     manifest: NonEmptyString
 
 
+class RuntimeExecutable(DomainModel):
+    """One concrete ROS package/executable identity selected by a deployment profile."""
+
+    package: StableIdentifier
+    executable: StableIdentifier
+
+
 class DeploymentRuntime(DomainModel):
     native_packages: tuple[StableIdentifier, ...] = ()
     containers: tuple[NonEmptyString, ...] = ()
     behavior_tree_plugins: tuple[BehaviorTreePluginDeclaration, ...] = ()
+    simulation_fidelity: SimulationLevel | None = None
+    adapter_configuration: NonEmptyString | None = None
+    executables: dict[StableIdentifier, RuntimeExecutable] = Field(default_factory=dict)
 
 
 class DeploymentProfile(DomainModel):
@@ -443,6 +453,21 @@ class BundleEvidenceSummary(DomainModel):
     status: StableIdentifier = "not-required"
 
 
+class BundleRuntimeGraph(DomainModel):
+    """Immutable ROS graph and launch identities for one active cell runtime."""
+
+    simulation_fidelity: SimulationLevel
+    topics: dict[StableIdentifier, NonEmptyString]
+    endpoints: dict[StableIdentifier, NonEmptyString]
+    required_devices: tuple[StableIdentifier, ...]
+    tree_root: NonEmptyString
+    cell_config_path: NonEmptyString
+    scene_path: NonEmptyString
+    adapter_configuration_path: NonEmptyString
+    recovery_catalog_path: NonEmptyString
+    executables: dict[StableIdentifier, RuntimeExecutable]
+
+
 class BundleFile(DomainModel):
     path: NonEmptyString
     sha256: Sha256Digest
@@ -467,5 +492,6 @@ class BundleManifest(DomainModel):
     native_packages: tuple[StableIdentifier, ...] = ()
     containers: tuple[NonEmptyString, ...] = ()
     external_prerequisites: tuple[NonEmptyString, ...] = ()
+    runtime: BundleRuntimeGraph | None = None
     evidence: BundleEvidenceSummary = Field(default_factory=BundleEvidenceSummary)
     files: tuple[BundleFile, ...]

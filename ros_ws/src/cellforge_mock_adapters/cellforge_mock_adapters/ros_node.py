@@ -37,6 +37,7 @@ from cellforge_interfaces.msg import (
 from cellforge_interfaces.msg import (
     PoseEstimate,
 )
+from cellforge_interfaces.msg import SafetyState as RosSafetyState
 from cellforge_interfaces.srv import GetDeviceState, RegisterSimulationAdapter
 from geometry_msgs.msg import PoseStamped
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -99,21 +100,23 @@ class MockDeviceNode(Node):  # type: ignore[misc]
         super().__init__(node_name, parameter_overrides=parameter_overrides)
         self.declare_parameter("scenario_file", "")
         self.declare_parameter("scenario_json", "")
+        self.declare_parameter("endpoint_root", "")
         self._bridge = _AsyncioBridge()
         self._commands: dict[bytes, str] = {}
         self._action_servers: list[Any] = []
         self._action_group = ReentrantCallbackGroup()
 
         scenario = self._load_scenario()
+        self._endpoint_root = str(self.get_parameter("endpoint_root").value).rstrip("/")
+        state_topic = f"{self._endpoint_root}/state" if self._endpoint_root else "~/state"
         state_publisher = RosDeviceStatePublisher(
-            self.create_publisher(RosDeviceState, "~/state", 10)
+            self.create_publisher(RosDeviceState, state_topic, 10)
         )
         self._adapter = build_device_mock(scenario, state_sink=state_publisher.publish)
         self._scenario = scenario
-        self._state_edge = state_publisher
         self.create_service(
             GetDeviceState,
-            "~/get_state",
+            f"{self._endpoint_root}/get_state" if self._endpoint_root else "~/get_state",
             self._handle_get_device_state,
             callback_group=self._action_group,
         )
@@ -213,7 +216,7 @@ class MockDeviceNode(Node):  # type: ignore[misc]
             ActionServer(
                 self,
                 action_type,
-                f"~/{endpoint}",
+                f"{self._endpoint_root}/{endpoint}" if self._endpoint_root else f"~/{endpoint}",
                 execute_callback=lambda handle: self._execute(capability, handle),
                 goal_callback=lambda goal: self._accept_goal(capability, goal),
                 cancel_callback=self._cancel_goal,
@@ -287,10 +290,7 @@ class MockDeviceNode(Node):  # type: ignore[misc]
                 "recipe_version": int(goal.recipe_version),
             }
         if capability.endswith(".select_program"):
-            return {
-                "program_id": goal.program_id,
-                "variable_data": _json_object(goal.variable_data_json),
-            }
+            return _json_object(goal.input_payload_json)
         return _json_object(goal.input_payload_json)
 
     def _finish_goal(self, goal_handle: Any, result: CommandResult) -> None:
@@ -358,7 +358,7 @@ class MockDeviceNode(Node):  # type: ignore[misc]
         return response
 
     def _publish_heartbeat(self) -> None:
-        self._state_edge.publish(self._adapter.state_publisher.snapshot)
+        self._adapter.state_publisher.heartbeat()
 
 
 def _json_object(raw: str) -> dict[str, Any]:
@@ -402,10 +402,69 @@ def main() -> None:
     executor.add_node(node)
     try:
         executor.spin()
+    except KeyboardInterrupt:
+        pass
     finally:
         node.close_bridge()
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+
+class MockSafetyStatusNode(Node):  # type: ignore[misc]
+    """Publish read-only safety status for L0 readiness tests; never enforce safety."""
+
+    def __init__(self, *, parameter_overrides: list[Any] | None = None) -> None:
+        super().__init__("mock_safety_status", parameter_overrides=parameter_overrides)
+        self.declare_parameter("component_instance_id", "safety-status-001")
+        self.declare_parameter("healthy", True)
+        self._component_id = str(self.get_parameter("component_instance_id").value)
+        ros_component_id = self._component_id.replace("-", "_")
+        self._healthy = bool(self.get_parameter("healthy").value)
+        self._safety = self.create_publisher(RosSafetyState, "/safety/state", 10)
+        self._device = self.create_publisher(
+            RosDeviceState, f"/device/{ros_component_id}/state", 10
+        )
+        self.create_timer(0.25, self._publish)
+
+    def _publish(self) -> None:
+        stamp = self.get_clock().now().to_msg()
+        safety = RosSafetyState()
+        safety.header.stamp = stamp
+        safety.healthy = self._healthy
+        safety.emergency_stop_ok = self._healthy
+        safety.guards_ok = self._healthy
+        safety.process_interlocks_ok = self._healthy
+        safety.reset_required = not self._healthy
+        safety.details_json = json.dumps(
+            {"source": "L0 read-only mock", "safety_claim": "none"}, sort_keys=True
+        )
+        self._safety.publish(safety)
+        device = RosDeviceState()
+        device.header.stamp = stamp
+        device.component_instance_id = self._component_id
+        device.state = "READY" if self._healthy else "NOT_READY"
+        device.ready = self._healthy
+        device.faulted = not self._healthy
+        device.fault_code = "" if self._healthy else "safety.status.unhealthy"
+        device.fault_message = "" if self._healthy else "Independent safety status is unhealthy."
+        device.details_json = safety.details_json
+        self._device.publish(device)
+
+
+def safety_main() -> None:
+    """Run the read-only L0 safety status publisher."""
+
+    rclpy.init()
+    node = MockSafetyStatusNode()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
 
 
 if __name__ == "__main__":

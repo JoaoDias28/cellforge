@@ -7,21 +7,31 @@ platform:
   os: ubuntu-24.04
   ros_distribution: jazzy
   gpu:
-    required: true
-    vendor: nvidia
+    required: false
 runtime:
+  simulation_fidelity: L0
+  adapter_configuration: runtime/l0-adapters.json
   native_packages:
+    - cellforge_bringup
+    - cellforge_interfaces
     - cellforge_supervisor
     - cellforge_pen_bt_nodes
     - cellforge_job_gateway
     - cellforge_motion
-    - cellforge_trace
-    - cellforge_adapter_robot_sim
-    - cellforge_adapter_gripper_sim
-    - cellforge_adapter_laser_sim
-    - cellforge_adapter_vision_sim
-    - cellforge_adapter_fixture_sim
-    - cellforge_adapter_safety_status_sim
+    - cellforge_state_trace
+    - cellforge_operator_api
+    - cellforge_mock_adapters
+  executables:
+    adapter: {package: cellforge_mock_adapters, executable: mock_device_node}
+    coordinator: {package: cellforge_bringup, executable: runtime_coordinator}
+    gateway: {package: cellforge_job_gateway, executable: job_gateway}
+    motion_l0: {package: cellforge_motion, executable: cellforge_l0_motion_service}
+    motion_l2: {package: cellforge_motion, executable: cellforge_motion_service}
+    operator: {package: cellforge_operator_api, executable: operator_api}
+    safety_status: {package: cellforge_mock_adapters, executable: mock_safety_status_node}
+    state: {package: cellforge_state_trace, executable: state_aggregator}
+    supervisor: {package: cellforge_supervisor, executable: cellforge_supervisor_node}
+    trace: {package: cellforge_state_trace, executable: durable_event_recorder}
   behavior_tree_plugins:
     - package: cellforge_pen_bt_nodes
       library: cellforge_pen_bt_nodes
@@ -30,5 +40,4 @@ runtime:
 network:
   ros_domain_id: 42
 modes: [simulation]
-external_prerequisites:
-  - Isaac Sim 6.x compatible installation
+external_prerequisites: []

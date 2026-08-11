@@ -161,3 +161,14 @@ Task 006 compiler tests run headlessly and deterministically. They cover:
 - the CLI build success and output-failure paths.
 
 These are compiler/domain tests. They are not hardware, ROS, Isaac Sim, or safety-validation evidence.
+
+## 8. Task 025 integrated runtime acceptance
+
+`make integrated-runtime-check` builds the ROS workspace and runs the `cellforge_bringup`
+`launch_testing` suite in Jazzy. The suite launches the real L0 graph and verifies `READY`, loopback
+HTTP submission, live step and exact bundle identity, nominal completion, cancellation, injected
+fault propagation, semantic acknowledgement, unavailable maintenance service, local SQLite job and
+trace persistence, fresh heartbeats/restart readiness, and operation with no platform dependency.
+
+Pure loader/compiler tests separately cover canonical bundle identity, tampering, path containment,
+runtime-graph determinism, package/entrypoint validation, and fail-closed L2 selection.

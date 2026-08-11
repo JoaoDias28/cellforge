@@ -27,7 +27,7 @@
         {"name": "variable_data", "direction": "input", "type": "json", "required": true},
         {"name": "recipe_id", "direction": "input", "type": "string", "required": true},
         {"name": "recipe_version", "direction": "input", "type": "uint32", "required": true},
-        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/laser-001/execute_cycle"},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/laser_001/execute_cycle"},
         {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 15000}
       ]
     },
@@ -38,7 +38,7 @@
         {"name": "profile", "direction": "input", "type": "string", "required": true},
         {"name": "expected", "direction": "input", "type": "json", "required": true},
         {"name": "measurements", "direction": "output", "type": "json", "required": true},
-        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/camera-001/inspect_object"},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/camera_001/inspect_object"},
         {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 5000}
       ]
     },
@@ -58,7 +58,7 @@
         {"name": "object_type", "direction": "input", "type": "string", "required": true},
         {"name": "profile", "direction": "input", "type": "string", "required": true},
         {"name": "output_pose", "direction": "output", "type": "geometry_msgs/PoseStamped", "required": true},
-        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/camera-001/locate_object"},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/camera_001/locate_object"},
         {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 3000}
       ]
     },
@@ -98,7 +98,7 @@
       "ports": [
         {"name": "program", "direction": "input", "type": "string", "required": true},
         {"name": "variable_data", "direction": "input", "type": "json", "required": true},
-        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/laser-001/select_program"},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/laser_001/select_program"},
         {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 4000}
       ]
     },
@@ -127,7 +127,7 @@
       "category": "action",
       "ports": [
         {"name": "fixture", "direction": "input", "type": "string", "required": true},
-        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/fixture-001/verify_seated"},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/fixture_001/verify_seated"},
         {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 4000}
       ]
     }
