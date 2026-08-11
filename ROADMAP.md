@@ -72,7 +72,24 @@ Outcome: collision-aware simulated pick/load/unload.
 
 Exit: repeated simulated cycles meet scenario and collision requirements.
 
-## Phase 5 — Pen engraving hardware integration
+## Phase 5 — Pre-hardware software integration and qualification
+
+Outcome: the complete engineering-to-runtime workflow operates with L0 mocks and genuine Isaac
+Sim L2 adapters before physical equipment is selected.
+
+- unified frozen-job and trace identity;
+- canonical BehaviorTree.CPP pen execution;
+- integrated offline runtime bringup;
+- signed installable bundle assembly;
+- genuine Isaac Sim 6 L2 execution;
+- complete Studio spatial, task, recipe, deployment, and evidence workflows;
+- platform registry, artifacts, approvals, evidence, and result synchronization;
+- clean-environment software release qualification.
+
+Exit: Task 033 passes every software-side MVP criterion and explicitly unlocks Task 034. CPU-only,
+mock-only, and synthetic-event checks cannot satisfy the L2 exit gate.
+
+## Phase 6 — Pen engraving hardware integration
 
 Outcome: commissioned first physical cell.
 
@@ -86,7 +103,7 @@ Outcome: commissioned first physical cell.
 
 Exit: approved production acceptance criteria met. Simulation alone cannot satisfy this phase.
 
-## Phase 6 — Reusable low-code engineering
+## Phase 7 — Reusable low-code engineering
 
 Outcome: new cells can be assembled from components and skills.
 
@@ -98,7 +115,7 @@ Outcome: new cells can be assembled from components and skills.
 - operator UI;
 - support-level/evidence promotion workflow.
 
-## Phase 7 — Advanced perception and optimization
+## Phase 8 — Advanced perception and optimization
 
 Add only for justified applications:
 
