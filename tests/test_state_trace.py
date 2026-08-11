@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 import sys
 import threading
 from datetime import UTC, datetime, timedelta
@@ -47,6 +48,7 @@ class FakeTraceEventStore(TraceEventStore):
             trace_id=event.trace_id,
             job_id=event.job_id,
             cell_id=event.cell_id,
+            bundle_id=event.bundle_id,
             component_instance_id=event.component_instance_id,
             command_id=event.command_id,
             sequence=self._sequence,
@@ -100,6 +102,7 @@ def make_event(
     trace_id: str = UUID_1,
     job_id: str = UUID_2,
     cell_id: str = "cell-ref",
+    bundle_id: str = "b" * 64,
     component_instance_id: str = "robot-001",
     command_id: str = UUID_3,
     event_type: str = "device.state.changed",
@@ -110,6 +113,7 @@ def make_event(
         trace_id=trace_id,
         job_id=job_id,
         cell_id=cell_id,
+        bundle_id=bundle_id,
         component_instance_id=component_instance_id,
         command_id=command_id,
         sequence=0,
@@ -256,6 +260,36 @@ class TestSqliteTraceEventStore:
             assert [event.sequence for event in results] == [1, 2]
         finally:
             reopened.close()
+
+    def test_existing_database_migrates_bundle_identity_without_data_loss(
+        self, tmp_path: Path
+    ) -> None:
+        db = tmp_path / "legacy-events.db"
+        connection = sqlite3.connect(db)
+        connection.execute(
+            "CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, trace_id TEXT NOT NULL, "
+            "job_id TEXT NOT NULL, cell_id TEXT NOT NULL, component_instance_id TEXT NOT NULL "
+            "DEFAULT '', command_id TEXT NOT NULL DEFAULT '', sequence INTEGER NOT NULL, "
+            "event_type TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'INFO', payload_json TEXT "
+            "NOT NULL DEFAULT '{}', recorded_at TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO events (trace_id, job_id, cell_id, sequence, event_type, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (UUID_1, UUID_2, "cell-ref", 1, "job.started", datetime.now(UTC).isoformat()),
+        )
+        connection.commit()
+        connection.close()
+
+        store = SqliteTraceEventStore(db)
+        try:
+            legacy = store.query(limit=10)
+            assert len(legacy) == 1
+            assert legacy[0].bundle_id == ""
+            store.record(make_event(bundle_id="c" * 64))
+            assert store.query(limit=10)[1].bundle_id == "c" * 64
+        finally:
+            store.close()
 
     def test_sequence_resumes_after_restart(self, tmp_path: Path) -> None:
         db = tmp_path / "events.db"
@@ -996,6 +1030,7 @@ class TestRecorderConversion:
         trace_id: str = UUID_1,
         job_id: str = UUID_2,
         cell_id: str = "cell-ref",
+        bundle_id: str = "b" * 64,
         component_instance_id: str = "robot-001",
         command_id: str = UUID_3,
         event_type: str = "device.command.requested",
@@ -1019,6 +1054,7 @@ class TestRecorderConversion:
         msg.trace_id = trace_id
         msg.job_id = job_id
         msg.cell_id = cell_id
+        msg.bundle_id = bundle_id
         msg.component_instance_id = component_instance_id
         msg.command_id = command_id
         msg.event_type = event_type
@@ -1047,6 +1083,13 @@ class TestRecorderConversion:
 
         event = convert_job_event_to_trace_event(msg)
         assert event.cell_id == "cell-ref"
+
+    def test_conversion_preserves_bundle_id(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.bundle_id == "b" * 64
 
     def test_conversion_preserves_component_instance_id(self) -> None:
         msg = self._fake_message()

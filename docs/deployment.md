@@ -29,7 +29,9 @@ bundle/
 │   ├── cell.yaml
 │   ├── device configs
 │   ├── behavior trees
-│   └── target profile
+│   ├── target-profile.yaml
+│   ├── agent.json
+│   └── secret-references.json  names only; optional
 ├── recipes/
 ├── calibration/
 ├── assets/                    only runtime-required assets
@@ -75,9 +77,93 @@ Activation procedure:
 7. run health check;
 8. mark active or rollback.
 
+### 4.1 Task 021 agent contract
+
+`cellforge-bundle-agent install <bundle>` accepts a directory only when:
+
+- `manifest.json` has its canonical Task 006 SHA-256 bundle ID;
+- the manifest inventory digest and size bind every content file except the manifest and its
+  derived checksum list;
+- sorted `checksums.txt` covers every regular file except itself exactly once;
+- every path is normalized, relative, and regular (bundle symlinks are rejected);
+- `config/agent.json` selects a valid runtime target and loopback health endpoint;
+- `scripts/start-runtime` exists and is executable on the Linux cell target;
+- locally provisioned `/etc/cellforge/target.json` exactly matches the target profile and lists
+  every required native package and external prerequisite.
+
+The agent copies to a unique staging directory, verifies the copy, and renames it to
+`/opt/cellforge/releases/<bundle-id>`. Existing releases are verified and never overwritten. It
+stops the currently selected systemd target, atomically replaces the relative `current` symlink,
+starts the candidate target, and waits for `{"status":"healthy","bundle_id":"<exact-id>"}` from
+the configured loopback endpoint. A failed candidate is stopped and the previous release link,
+runtime environment, secrets, service, and health check are restored automatically. Both candidate
+and active IDs are written to `/var/lib/cellforge/deployment-events.jsonl`.
+
+`checksums.txt` uses sorted GNU SHA-256 lines (`<64 lowercase hex><two spaces><relative path>`).
+`config/agent.json` is intentionally small:
+
+```json
+{
+  "schema_version": "0.1.0",
+  "systemd_unit": "cellforge-runtime.target",
+  "health": {
+    "url": "http://127.0.0.1:9080/health",
+    "timeout_seconds": 30,
+    "interval_seconds": 1
+  }
+}
+```
+
+Only an HTTP loopback URL is accepted. Target facts are separately provisioned local assertions,
+not copied out of the bundle:
+
+```json
+{
+  "schema_version": "0.1.0",
+  "profile_id": "pen-cell-amd64",
+  "platform": {
+    "arch": "amd64",
+    "os": "ubuntu-24.04",
+    "ros_distribution": "jazzy",
+    "gpu": {"available": false}
+  },
+  "native_packages": ["cellforge_supervisor"],
+  "external_prerequisites": []
+}
+```
+
+The local commands are:
+
+```text
+cellforge-bundle-agent verify <bundle>
+cellforge-bundle-agent install <bundle>
+cellforge-bundle-agent status [--json]
+cellforge-bundle-agent rollback
+cellforge-bundle-agent prepare-active
+cellforge-bundle-agent install-systemd
+```
+
+`prepare-active` is the systemd boot guard: it rechecks the selected immutable release and local
+target, then regenerates runtime environment files before ROS/runtime processes start.
+
 ## 5. Secrets
 
 Secrets are never stored in cell source, recipes, or bundles. Target installation resolves secret references from local protected storage.
+
+Task 021 permits only `config/secret-references.json`, whose `environment` map contains environment
+variable names and local secret identifiers. Values are read from `/etc/cellforge/secrets` and
+written atomically with mode 0600 to `/var/lib/cellforge/secrets.env`. The release remains byte-for-
+byte identical to the verified source bundle. Secret-bearing paths, private keys, and sensitive
+configuration values cause bundle rejection.
+
+Example reference document (the strings on the right are local identifiers, not values):
+
+```json
+{
+  "schema_version": "0.1.0",
+  "environment": {"LASER_API_TOKEN": "laser/api-token"}
+}
+```
 
 ## 6. Upgrade policy
 

@@ -25,6 +25,12 @@ All events carry:
 - operator acknowledgement;
 - deployment activated/rolled back.
 
+Task 021 adds `bundle_id` as an explicit canonical `JobEvent` and durable trace column. Runtime
+producers receive it from the active systemd environment/launch configuration. The trace database
+migrates older stores by adding an empty-default column; new events preserve the exact active ID.
+Bundle activation and rollback also append durable cell-local deployment events containing the
+candidate, previous, and final active IDs, including failed-health rollback outcomes.
+
 ## 3. Storage
 
 Local cell storage is authoritative during outages. Structured events use an append-only local database or durable journal. Selected ROS topics use rosbag2 with MCAP. Attachments are referenced by content hash.

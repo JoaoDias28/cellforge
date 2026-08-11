@@ -81,3 +81,9 @@ def test_standard_action_cancellation_type_is_available() -> None:
     request = CancelGoal.Request()
 
     assert len(request.goal_info.goal_id.uuid) == 16
+
+
+def test_job_event_carries_active_bundle_identity() -> None:
+    event = JobEvent(bundle_id="b" * 64)
+
+    assert event.bundle_id == "b" * 64

@@ -179,3 +179,17 @@ The planning scene is a derived runtime projection synchronized through the exac
 USD SHA-256 identities plus immutable component instance IDs. It does not become a third source of
 truth. Cancellation requests MoveIt/controller stop and reports only the outcome certainty known by
 the adapter; it is standard control, not functional-safety enforcement.
+
+## 10. Task 021 deployment boundary
+
+The bundle agent is the only component that mutates local release selection. It accepts a complete
+content-addressed directory, verifies the canonical manifest plus full checksum inventory, matches
+it against separately provisioned target facts, and installs it under its exact bundle ID. Release
+contents are read-only; only the same-filesystem `current` symlink and protected files under
+`/var/lib/cellforge` change during activation.
+
+systemd owns runtime process lifecycle. A candidate becomes active only after a loopback health
+response echoes its exact bundle ID; otherwise the previous known-good symlink, environment,
+service, and health are restored. Secret identifiers cross the bundle boundary, but values exist
+only in local protected storage/state. Deployment refusal and rollback are standard-control and
+availability mechanisms and do not implement a safety-rated protective function.

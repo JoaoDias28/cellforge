@@ -34,6 +34,8 @@ jobs:
         run: make motion-service-check
       - name: Run Task 020 deterministic physical-simulation checks
         run: make pen-physical-sim-check
+      - name: Run Task 021 bundle-agent checks
+        run: make bundle-agent-check
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

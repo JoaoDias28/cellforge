@@ -1,0 +1,23 @@
+[Unit]
+Description=CellForge production runtime
+Requires=cellforge-bundle-agent.service
+After=cellforge-bundle-agent.service network-online.target
+PartOf=cellforge-runtime.target
+
+[Service]
+Type=simple
+User=cellforge
+Group=cellforge
+EnvironmentFile=/var/lib/cellforge/runtime.env
+EnvironmentFile=-/var/lib/cellforge/secrets.env
+ExecStart=/opt/cellforge/current/scripts/start-runtime
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/cellforge /var/log/cellforge
+
+[Install]
+WantedBy=cellforge-runtime.target

@@ -2,6 +2,7 @@ std_msgs/Header header
 string trace_id
 string job_id
 string cell_id
+string bundle_id
 string component_instance_id
 string command_id
 uint64 sequence

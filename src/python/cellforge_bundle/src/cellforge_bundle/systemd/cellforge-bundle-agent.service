@@ -1,0 +1,12 @@
+[Unit]
+Description=Verify and prepare the active CellForge bundle
+Before=cellforge-runtime.service
+PartOf=cellforge-runtime.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cellforge-bundle-agent prepare-active
+RemainAfterExit=yes
+
+[Install]
+WantedBy=cellforge-runtime.target

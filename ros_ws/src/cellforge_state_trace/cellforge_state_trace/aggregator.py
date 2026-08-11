@@ -8,6 +8,7 @@ reads is informational and used only to refuse work.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import rclpy
@@ -44,7 +45,7 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
     ) -> None:
         super().__init__(node_name, parameter_overrides=parameter_overrides)
         self.declare_parameter("cell_id", "")
-        self.declare_parameter("bundle_id", "")
+        self.declare_parameter("bundle_id", os.environ.get("CELLFORGE_BUNDLE_ID", ""))
         self.declare_parameter("device_topics", [""])
         self.declare_parameter("required_device_ids", [""])
         self.declare_parameter("safety_topic", "/safety/state")

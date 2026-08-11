@@ -38,10 +38,14 @@ version = "0.1.0"
 source = { editable = "src/python/cellforge_bundle" }
 dependencies = [
     { name = "cellforge-domain" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "cellforge-domain", editable = "src/python/cellforge_domain" }]
+requires-dist = [
+    { name = "cellforge-domain", editable = "src/python/cellforge_domain" },
+    { name = "pyyaml", specifier = ">=6,<7" },
+]
 
 [[package]]
 name = "cellforge-cli"
