@@ -1037,8 +1037,7 @@ def _exclusive_lock(path: Path) -> Iterator[None]:
         raise AgentError("agent.lock.unavailable", "Could not open the activation lock.") from None
     try:
         if os.name == "nt":
-            import msvcrt
-
+            msvcrt: Any = importlib.import_module("msvcrt")
             if path.stat().st_size == 0:
                 stream.write(b"0")
                 stream.flush()
@@ -1060,8 +1059,7 @@ def _exclusive_lock(path: Path) -> Iterator[None]:
         yield
     finally:
         if os.name == "nt":
-            import msvcrt
-
+            msvcrt = importlib.import_module("msvcrt")
             try:
                 stream.seek(0)
                 msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)

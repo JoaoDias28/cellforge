@@ -163,4 +163,6 @@ Python and 15 Kit sources, 308 pytest tests, validation of 5 canonical schemas/6
 passes 106 tests. One real directory-symlink test is skipped locally because Windows requires an
 elevated symlink privilege; it is enabled on hosted Linux. Literal Make, local ROS 2 Jazzy,
 clang-format, Docker Linux, WSL, and a running systemd instance are unavailable on this host. Hosted
-Ubuntu/Jazzy CI, Git publication, and final merge verification remain.
+Ubuntu/Jazzy CI first exposed platform-specific mypy resolution of the guarded `msvcrt` import;
+both OS lock modules now load dynamically so strict typing is platform-neutral. CI rerun, final
+merge, and local-main verification remain.
