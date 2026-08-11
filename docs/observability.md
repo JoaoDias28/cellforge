@@ -9,7 +9,8 @@ All events carry:
 - `command_id` for an action/service operation;
 - `cell_id`;
 - `component_instance_id` where applicable;
-- bundle, recipe, and task versions.
+- bundle/source revision, exact recipe/task IDs and SHA-256 digests, execution mode, and calibration
+  artifact IDs/digests.
 
 ## 2. Event types
 
@@ -30,6 +31,11 @@ producers receive it from the active systemd environment/launch configuration. T
 migrates older stores by adding an empty-default column; new events preserve the exact active ID.
 Bundle activation and rollback also append durable cell-local deployment events containing the
 candidate, previous, and final active IDs, including failed-health rollback outcomes.
+
+Task 023 extends `JobEvent` additively with the complete frozen execution identity. The recorder
+adds corresponding empty-default columns to legacy SQLite stores without rewriting existing rows.
+All events for a newly admitted job use the trace ID created by the gateway, including restart
+reconciliation and the final public result.
 
 ## 3. Storage
 

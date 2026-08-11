@@ -42,14 +42,17 @@ config_schema: config.schema.json
 capabilities:
   - contract: fixture.clamp
     version: 1.0.0
+    definition: cellforge://capabilities/fixture.clamp/1.0.0
     endpoint: clamp
     modes: [simulation, commissioning, production]
   - contract: fixture.release
     version: 1.0.0
+    definition: cellforge://capabilities/fixture.release/1.0.0
     endpoint: release
     modes: [simulation, commissioning, production]
   - contract: fixture.verify_seated
     version: 1.0.0
+    definition: cellforge://capabilities/fixture.verify_seated/1.0.0
     endpoint: verify_seated
     modes: [simulation, commissioning, production]
 adapters:

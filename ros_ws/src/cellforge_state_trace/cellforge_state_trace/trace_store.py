@@ -25,6 +25,15 @@ class TraceEvent:
     event_type: str
     severity: str
     bundle_id: str = ""
+    source_revision: str = ""
+    recipe_id: str = ""
+    recipe_version: int = 0
+    recipe_sha256: str = ""
+    task_id: str = ""
+    task_sha256: str = ""
+    execution_mode: str = ""
+    calibration_ids: tuple[str, ...] = ()
+    calibration_sha256s: tuple[str, ...] = ()
     payload: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -34,6 +43,15 @@ class TraceEvent:
             self.job_id,
             self.cell_id,
             self.bundle_id,
+            self.source_revision,
+            self.recipe_id,
+            self.recipe_version,
+            self.recipe_sha256,
+            self.task_id,
+            self.task_sha256,
+            self.execution_mode,
+            json.dumps(self.calibration_ids),
+            json.dumps(self.calibration_sha256s),
             self.component_instance_id,
             self.command_id,
             self.sequence,
@@ -50,13 +68,22 @@ class TraceEvent:
             job_id=row[1],
             cell_id=row[2],
             bundle_id=row[3],
-            component_instance_id=row[4],
-            command_id=row[5],
-            sequence=row[6],
-            event_type=row[7],
-            severity=row[8],
-            payload=json.loads(row[9]) if row[9] else {},
-            timestamp=datetime.fromisoformat(row[10]),
+            source_revision=row[4],
+            recipe_id=row[5],
+            recipe_version=row[6],
+            recipe_sha256=row[7],
+            task_id=row[8],
+            task_sha256=row[9],
+            execution_mode=row[10],
+            calibration_ids=tuple(json.loads(row[11])),
+            calibration_sha256s=tuple(json.loads(row[12])),
+            component_instance_id=row[13],
+            command_id=row[14],
+            sequence=row[15],
+            event_type=row[16],
+            severity=row[17],
+            payload=json.loads(row[18]) if row[18] else {},
+            timestamp=datetime.fromisoformat(row[19]),
         )
 
 
@@ -93,6 +120,15 @@ CREATE TABLE IF NOT EXISTS events (
     job_id TEXT NOT NULL,
     cell_id TEXT NOT NULL,
     bundle_id TEXT NOT NULL DEFAULT '',
+    source_revision TEXT NOT NULL DEFAULT '',
+    recipe_id TEXT NOT NULL DEFAULT '',
+    recipe_version INTEGER NOT NULL DEFAULT 0,
+    recipe_sha256 TEXT NOT NULL DEFAULT '',
+    task_id TEXT NOT NULL DEFAULT '',
+    task_sha256 TEXT NOT NULL DEFAULT '',
+    execution_mode TEXT NOT NULL DEFAULT '',
+    calibration_ids_json TEXT NOT NULL DEFAULT '[]',
+    calibration_sha256s_json TEXT NOT NULL DEFAULT '[]',
     component_instance_id TEXT NOT NULL DEFAULT '',
     command_id TEXT NOT NULL DEFAULT '',
     sequence INTEGER NOT NULL,
@@ -128,8 +164,21 @@ class SqliteTraceEventStore(TraceEventStore):
         columns = {
             str(row[1]) for row in self._conn.execute("PRAGMA table_info(events)").fetchall()
         }
-        if "bundle_id" not in columns:
-            self._conn.execute("ALTER TABLE events ADD COLUMN bundle_id TEXT NOT NULL DEFAULT ''")
+        migrations = {
+            "bundle_id": "TEXT NOT NULL DEFAULT ''",
+            "source_revision": "TEXT NOT NULL DEFAULT ''",
+            "recipe_id": "TEXT NOT NULL DEFAULT ''",
+            "recipe_version": "INTEGER NOT NULL DEFAULT 0",
+            "recipe_sha256": "TEXT NOT NULL DEFAULT ''",
+            "task_id": "TEXT NOT NULL DEFAULT ''",
+            "task_sha256": "TEXT NOT NULL DEFAULT ''",
+            "execution_mode": "TEXT NOT NULL DEFAULT ''",
+            "calibration_ids_json": "TEXT NOT NULL DEFAULT '[]'",
+            "calibration_sha256s_json": "TEXT NOT NULL DEFAULT '[]'",
+        }
+        for column, definition in migrations.items():
+            if column not in columns:
+                self._conn.execute(f"ALTER TABLE events ADD COLUMN {column} {definition}")
         self._conn.commit()
         self._sequence = self._load_max_sequence()
         self._lock = threading.Lock()
@@ -143,14 +192,25 @@ class SqliteTraceEventStore(TraceEventStore):
         with self._lock:
             next_seq = self._sequence + 1
             self._conn.execute(
-                "INSERT INTO events (trace_id, job_id, cell_id, bundle_id, component_instance_id, "
+                "INSERT INTO events (trace_id, job_id, cell_id, bundle_id, source_revision, "
+                "recipe_id, recipe_version, recipe_sha256, task_id, task_sha256, execution_mode, "
+                "calibration_ids_json, calibration_sha256s_json, component_instance_id, "
                 "command_id, sequence, event_type, severity, payload_json, recorded_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     event.trace_id,
                     event.job_id,
                     event.cell_id,
                     event.bundle_id,
+                    event.source_revision,
+                    event.recipe_id,
+                    event.recipe_version,
+                    event.recipe_sha256,
+                    event.task_id,
+                    event.task_sha256,
+                    event.execution_mode,
+                    json.dumps(event.calibration_ids),
+                    json.dumps(event.calibration_sha256s),
                     event.component_instance_id,
                     event.command_id,
                     next_seq,
@@ -199,8 +259,10 @@ class SqliteTraceEventStore(TraceEventStore):
 
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         columns = (
-            "trace_id, job_id, cell_id, bundle_id, component_instance_id, command_id, "
-            "sequence, event_type, severity, payload_json, recorded_at"
+            "trace_id, job_id, cell_id, bundle_id, source_revision, recipe_id, recipe_version, "
+            "recipe_sha256, task_id, task_sha256, execution_mode, calibration_ids_json, "
+            "calibration_sha256s_json, component_instance_id, command_id, sequence, event_type, "
+            "severity, payload_json, recorded_at"
         )
         query_sql = f"SELECT {columns} FROM events {where} ORDER BY sequence ASC LIMIT ?"
         params.append(limit)
@@ -260,6 +322,15 @@ def convert_job_event_to_trace_event(message: Any) -> TraceEvent:
         job_id=message.job_id,
         cell_id=message.cell_id,
         bundle_id=str(getattr(message, "bundle_id", "")),
+        source_revision=str(getattr(message, "source_revision", "")),
+        recipe_id=str(getattr(message, "recipe_id", "")),
+        recipe_version=int(getattr(message, "recipe_version", 0)),
+        recipe_sha256=str(getattr(message, "recipe_sha256", "")),
+        task_id=str(getattr(message, "task_id", "")),
+        task_sha256=str(getattr(message, "task_sha256", "")),
+        execution_mode=str(getattr(message, "execution_mode", "")),
+        calibration_ids=tuple(getattr(message, "calibration_ids", ())),
+        calibration_sha256s=tuple(getattr(message, "calibration_sha256s", ())),
         component_instance_id=message.component_instance_id,
         command_id=message.command_id,
         sequence=0,

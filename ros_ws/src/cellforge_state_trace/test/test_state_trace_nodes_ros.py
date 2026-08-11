@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 import rclpy
-from cellforge_interfaces.msg import DeviceState, JobEvent
+from cellforge_interfaces.msg import CellState, DeviceState, JobEvent
 from cellforge_state_trace.aggregator import StateAggregatorNode
 from cellforge_state_trace.recorder import DurableEventRecorderNode
 from cellforge_state_trace.trace_store import SqliteTraceEventStore
@@ -73,6 +73,27 @@ def test_state_aggregator_reports_ready_for_fresh_required_device() -> None:
         node.destroy_node()
 
 
+def test_state_aggregator_merges_supervisor_execution_identity() -> None:
+    node = StateAggregatorNode(node_name="state_aggregator_supervisor_test")
+    capture = _CapturePublisher()
+    node._cell_pub = capture
+    supervisor = CellState()
+    supervisor.state = "RUNNING"
+    supervisor.active_job_id = "11111111-1111-4111-8111-111111111111"
+    supervisor.active_trace_id = "22222222-2222-4222-8222-222222222222"
+
+    try:
+        node._safety_entry.update(True)
+        node._on_supervisor_state(supervisor)
+        node._publish_cell_state()
+        message = capture.last_message
+        assert message.state == "RUNNING"
+        assert message.active_job_id == supervisor.active_job_id
+        assert message.active_trace_id == supervisor.active_trace_id
+    finally:
+        node.destroy_node()
+
+
 def test_durable_recorder_persists_a_correlated_event(tmp_path: Path) -> None:
     db_path = tmp_path / "trace" / "events.db"
     node = DurableEventRecorderNode(
@@ -84,6 +105,14 @@ def test_durable_recorder_persists_a_correlated_event(tmp_path: Path) -> None:
     event.trace_id = "11111111-1111-1111-1111-111111111111"
     event.job_id = "22222222-2222-2222-2222-222222222222"
     event.cell_id = "cell-test"
+    event.bundle_id = "b" * 64
+    event.source_revision = "a" * 40
+    event.recipe_id = "pen-reference"
+    event.recipe_version = 1
+    event.recipe_sha256 = "c" * 64
+    event.task_id = "engrave@1"
+    event.task_sha256 = "d" * 64
+    event.execution_mode = "simulation"
     event.component_instance_id = "robot-test-001"
     event.command_id = "33333333-3333-3333-3333-333333333333"
     event.event_type = "device.command.completed"
@@ -99,6 +128,8 @@ def test_durable_recorder_persists_a_correlated_event(tmp_path: Path) -> None:
         assert len(recorded) == 1
         assert recorded[0].job_id == event.job_id
         assert recorded[0].command_id == event.command_id
+        assert recorded[0].recipe_sha256 == event.recipe_sha256
+        assert recorded[0].task_sha256 == event.task_sha256
         assert recorded[0].payload == {"result": "ok"}
     finally:
         store.close()

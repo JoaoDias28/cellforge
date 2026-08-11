@@ -24,6 +24,11 @@ class SchemaDocumentKind(StrEnum):
     RECIPE = "recipe"
     SCENARIO = "scenario"
     DEPLOYMENT_PROFILE = "deployment-profile"
+    CAPABILITY_CONTRACT = "capability-contract"
+    SKILL = "skill"
+    FAULT_CATALOG = "fault-catalog"
+    CALIBRATION = "calibration"
+    EVIDENCE = "evidence"
 
 
 _MODEL_KIND_BY_NAME: dict[str, SchemaDocumentKind] = {
@@ -52,6 +57,11 @@ _SCHEMA_FILENAMES: dict[SchemaDocumentKind, str] = {
     SchemaDocumentKind.RECIPE: "recipe.schema.json",
     SchemaDocumentKind.SCENARIO: "scenario.schema.json",
     SchemaDocumentKind.DEPLOYMENT_PROFILE: "deployment-profile.schema.json",
+    SchemaDocumentKind.CAPABILITY_CONTRACT: "capability-contract.schema.json",
+    SchemaDocumentKind.SKILL: "skill.schema.json",
+    SchemaDocumentKind.FAULT_CATALOG: "fault-catalog.schema.json",
+    SchemaDocumentKind.CALIBRATION: "calibration.schema.json",
+    SchemaDocumentKind.EVIDENCE: "evidence.schema.json",
 }
 
 

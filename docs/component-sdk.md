@@ -50,6 +50,10 @@ Every adapter shall:
 - avoid automatic continuation after uncertain outcomes;
 - include simulator tests using the same contract suite.
 
+Every `component.yaml` capability entry must include the exact versioned definition URI
+`cellforge://capabilities/<contract>/<version>`. The URI, `contract`, and `version` fields must
+agree; this prevents a component from claiming a name while binding to a different contract.
+
 ## 4. Support levels
 
 - `metadata_only`: geometry and documentation, no executable adapter.

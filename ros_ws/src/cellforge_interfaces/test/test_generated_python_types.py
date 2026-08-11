@@ -1,5 +1,6 @@
 from action_msgs.srv import CancelGoal
 from cellforge_interfaces.action import (
+    ExecuteFrozenJob,
     ExecuteManipulation,
     ExecuteProcess,
     ExecuteSkill,
@@ -36,6 +37,7 @@ def test_generated_python_types_are_importable() -> None:
         ControlSimulation,
         DeviceState,
         ExecuteProcess,
+        ExecuteFrozenJob,
         ExecuteManipulation,
         ExecuteSkill,
         FinalizeSimulation,
@@ -85,10 +87,12 @@ def test_standard_action_cancellation_type_is_available() -> None:
     assert len(request.goal_info.goal_id.uuid) == 16
 
 
-def test_job_event_carries_active_bundle_identity() -> None:
-    event = JobEvent(bundle_id="b" * 64)
+def test_job_event_carries_frozen_execution_identity() -> None:
+    event = JobEvent(bundle_id="b" * 64, recipe_sha256="c" * 64, task_sha256="d" * 64)
 
     assert event.bundle_id == "b" * 64
+    assert event.recipe_sha256 == "c" * 64
+    assert event.task_sha256 == "d" * 64
 
 
 def test_operator_action_is_semantic_and_reports_outcome_certainty() -> None:

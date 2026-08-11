@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>cellforge_job_gateway</name>
-  <version>0.1.0</version>
+  <version>0.2.0</version>
   <description>Durable job admission, recipe freeze, and supervisor gateway for CellForge.</description>
   <maintainer email="engineering@example.invalid">CellForge Engineering</maintainer>
   <license>Proprietary</license>

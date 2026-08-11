@@ -270,6 +270,11 @@ class ActiveJob:
     execution_mode: str
     active_step: str = ""
     progress: float = 0.0
+    bundle_id: str = ""
+    source_revision: str = ""
+    recipe_sha256: str = ""
+    task_sha256: str = ""
+    calibration_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +293,11 @@ class IdentityView:
     recipe_id: str = ""
     recipe_version: int = 0
     task_id: str = ""
+    source_revision: str = ""
+    recipe_sha256: str = ""
+    task_sha256: str = ""
+    execution_mode: str = ""
+    calibration_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,6 +323,15 @@ class TraceSummary:
     final_event_type: str
     final_severity: str
     fault_codes: tuple[str, ...] = ()
+    bundle_id: str = ""
+    source_revision: str = ""
+    recipe_id: str = ""
+    recipe_version: int = 0
+    recipe_sha256: str = ""
+    task_id: str = ""
+    task_sha256: str = ""
+    execution_mode: str = ""
+    calibration_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

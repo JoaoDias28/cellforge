@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
+#include <openssl/evp.h>
 
 #include <algorithm>
 #include <atomic>
+#include <cellforge_interfaces/action/execute_frozen_job.hpp>
 #include <cellforge_interfaces/action/execute_skill.hpp>
-#include <cellforge_interfaces/action/run_job.hpp>
 #include <cellforge_interfaces/msg/cell_state.hpp>
 #include <cellforge_interfaces/msg/job_event.hpp>
 #include <chrono>
@@ -26,8 +27,8 @@ using namespace std::chrono_literals;
 namespace cellforge_supervisor {
 namespace {
 
+using ExecuteFrozenJob = cellforge_interfaces::action::ExecuteFrozenJob;
 using ExecuteSkill = cellforge_interfaces::action::ExecuteSkill;
-using RunJob = cellforge_interfaces::action::RunJob;
 using SkillGoalHandle = rclcpp_action::ServerGoalHandle<ExecuteSkill>;
 
 class ExecutorThread {
@@ -74,13 +75,40 @@ std::filesystem::path writeWorkflow() {
   return root;
 }
 
-RunJob::Goal makeJob(const std::string& job_id) {
-  RunJob::Goal goal;
+std::string sha256(const std::string& value) {
+  auto* context = EVP_MD_CTX_new();
+  EXPECT_NE(context, nullptr);
+  EXPECT_EQ(EVP_DigestInit_ex(context, EVP_sha256(), nullptr), 1);
+  EXPECT_EQ(EVP_DigestUpdate(context, value.data(), value.size()), 1);
+  unsigned char digest[EVP_MAX_MD_SIZE];
+  unsigned int length = 0;
+  EXPECT_EQ(EVP_DigestFinal_ex(context, digest, &length), 1);
+  EVP_MD_CTX_free(context);
+  static constexpr char hex[] = "0123456789abcdef";
+  std::string output(length * 2, '0');
+  for (unsigned int index = 0; index < length; ++index) {
+    output[index * 2] = hex[digest[index] >> 4U];
+    output[index * 2 + 1] = hex[digest[index] & 0x0FU];
+  }
+  return output;
+}
+
+ExecuteFrozenJob::Goal makeJob(const std::string& job_id, const std::filesystem::path& tree_root) {
+  ExecuteFrozenJob::Goal goal;
+  goal.trace_id = job_id;
   goal.job_id = job_id;
   goal.cell_id = "test-cell";
+  goal.bundle_id = std::string(64, 'b');
+  goal.source_revision = std::string(40, 'c');
   goal.recipe_id = "test.recipe";
   goal.recipe_version = 1;
+  goal.recipe_yaml = "{}";
+  goal.recipe_sha256 = sha256(goal.recipe_yaml);
   goal.task_id = "workflow@1";
+  std::ifstream input(tree_root / "workflow@1.xml", std::ios::binary);
+  const std::string tree_content{std::istreambuf_iterator<char>(input),
+                                 std::istreambuf_iterator<char>()};
+  goal.task_sha256 = sha256(tree_content);
   goal.input_payload_json = "{\"value\":1}";
   goal.execution_mode = "simulation";
   goal.idempotency_key = job_id;
@@ -137,7 +165,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
         event_types.push_back(event.event_type);
       });
   (void)event_subscription;
-  auto run_job_client = rclcpp_action::create_client<RunJob>(harness, "/cell/run_job");
+  auto run_job_client = rclcpp_action::create_client<ExecuteFrozenJob>(harness, "/cell/run_job");
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
   executor.add_node(supervisor);
@@ -158,7 +186,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
   std::this_thread::sleep_for(50ms);
 
   auto success_goal_future =
-      run_job_client->async_send_goal(makeJob("11111111-1111-4111-8111-111111111111"));
+      run_job_client->async_send_goal(makeJob("11111111-1111-4111-8111-111111111111", tree_root));
   ASSERT_EQ(success_goal_future.wait_for(2s), std::future_status::ready);
   auto success_goal = success_goal_future.get();
   ASSERT_NE(success_goal, nullptr);
@@ -194,9 +222,23 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
               event_types.end());
   }
 
+  auto mismatched = makeJob("22222222-2222-4222-8222-222222222222", tree_root);
+  mismatched.task_sha256 = std::string(64, '0');
+  auto mismatch_goal_future = run_job_client->async_send_goal(mismatched);
+  ASSERT_EQ(mismatch_goal_future.wait_for(2s), std::future_status::ready);
+  auto mismatch_goal = mismatch_goal_future.get();
+  ASSERT_NE(mismatch_goal, nullptr);
+  auto mismatch_result_future = run_job_client->async_get_result(mismatch_goal);
+  ASSERT_EQ(mismatch_result_future.wait_for(2s), std::future_status::ready);
+  const auto mismatch_result = mismatch_result_future.get();
+  EXPECT_EQ(mismatch_result.code, rclcpp_action::ResultCode::ABORTED);
+  ASSERT_NE(mismatch_result.result, nullptr);
+  EXPECT_EQ(mismatch_result.result->result_code, "supervisor.frozen.task_digest_mismatch");
+  EXPECT_EQ(skill_accepted.load(), 1);
+
   hang_skill.store(true);
   auto cancel_goal_future =
-      run_job_client->async_send_goal(makeJob("22222222-2222-4222-8222-222222222222"));
+      run_job_client->async_send_goal(makeJob("33333333-3333-4333-8333-333333333333", tree_root));
   ASSERT_EQ(cancel_goal_future.wait_for(2s), std::future_status::ready);
   auto cancel_goal = cancel_goal_future.get();
   ASSERT_NE(cancel_goal, nullptr);

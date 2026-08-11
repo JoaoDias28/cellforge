@@ -151,6 +151,7 @@ class ComponentPorts(DomainModel):
 class CapabilityImplementation(DomainModel):
     contract: StableIdentifier
     version: SemanticVersion
+    definition: NonEmptyString
     endpoint: StableIdentifier
     modes: tuple[ExecutionMode, ...] = ()
     limits: JsonObject = Field(default_factory=dict)
@@ -160,6 +161,13 @@ class CapabilityImplementation(DomainModel):
     def modes_are_unique(cls, values: tuple[ExecutionMode, ...]) -> tuple[ExecutionMode, ...]:
         _require_unique(tuple(values), "modes")
         return values
+
+    @model_validator(mode="after")
+    def definition_matches_contract_version(self) -> Self:
+        expected = f"cellforge://capabilities/{self.contract}/{self.version}"
+        if self.definition != expected:
+            raise ValueError(f"definition must equal '{expected}'")
+        return self
 
 
 class Adapter(DomainModel):

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/fault-catalog.schema.json",
+  "title": "CellForge fault catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "catalog", "version", "faults"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "catalog": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "faults": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["code", "severity", "outcome", "recovery"], "properties": {"code": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"}, "severity": {"enum": ["warning", "recoverable", "terminal"]}, "outcome": {"enum": ["known_safe", "known_failed", "uncertain"]}, "recovery": {"type": "string", "minLength": 1}}}}
+  }
+}

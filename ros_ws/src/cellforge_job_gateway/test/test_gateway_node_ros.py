@@ -13,7 +13,7 @@ from typing import Any
 
 import rclpy
 import yaml
-from cellforge_interfaces.action import RunJob
+from cellforge_interfaces.action import ExecuteFrozenJob, RunJob
 from cellforge_job_gateway.node import JobGatewayNode
 from rclpy.action import ActionClient, ActionServer, CancelResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -125,10 +125,14 @@ def test_gateway_forwards_once_persists_then_replays_and_rejects_conflict() -> N
         harness = Node("job_gateway_test_harness")
         supervisor_calls = 0
 
-        def execute_supervisor(goal_handle: Any) -> RunJob.Result:
+        frozen_goals: list[Any] = []
+
+        def execute_supervisor(goal_handle: Any) -> ExecuteFrozenJob.Result:
             nonlocal supervisor_calls
             supervisor_calls += 1
-            result = RunJob.Result()
+            frozen_goals.append(goal_handle.request)
+            result = ExecuteFrozenJob.Result()
+            result.trace_id = goal_handle.request.trace_id
             if json.loads(goal_handle.request.input_payload_json).get("hang"):
                 while not goal_handle.is_cancel_requested:
                     time.sleep(0.01)
@@ -147,7 +151,7 @@ def test_gateway_forwards_once_persists_then_replays_and_rejects_conflict() -> N
 
         supervisor = ActionServer(
             harness,
-            RunJob,
+            ExecuteFrozenJob,
             "/cell/supervisor/run_job",
             execute_callback=execute_supervisor,
             cancel_callback=lambda _goal: CancelResponse.ACCEPT,
@@ -166,6 +170,18 @@ def test_gateway_forwards_once_persists_then_replays_and_rejects_conflict() -> N
             first = wait_future(first_handle.get_result_async())
             assert first.result.success
             assert supervisor_calls == 1
+            assert first.result.trace_id == frozen_goals[0].trace_id
+            assert (
+                frozen_goals[0].bundle_id
+                == json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))["bundle_id"]
+            )
+            assert frozen_goals[0].source_revision == "1" * 40
+            assert frozen_goals[0].recipe_sha256 == sha256(
+                (bundle / "recipes/reference/1/recipe.yaml").read_bytes()
+            )
+            assert frozen_goals[0].task_sha256 == sha256(
+                (bundle / "config/behavior-trees/reference@1.xml").read_bytes()
+            )
 
             with sqlite3.connect(database) as connection:
                 status, result_json = connection.execute(

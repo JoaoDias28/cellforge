@@ -49,6 +49,7 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         self.declare_parameter("device_topics", [""])
         self.declare_parameter("required_device_ids", [""])
         self.declare_parameter("safety_topic", "/safety/state")
+        self.declare_parameter("supervisor_state_topic", "/cell/supervisor_state")
         self.declare_parameter("safety_timeout_s", 3.0)
         self.declare_parameter("publish_rate_hz", 1.0)
 
@@ -56,6 +57,7 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         self._bundle_id = str(self.get_parameter("bundle_id").value)
         safety_timeout = float(self.get_parameter("safety_timeout_s").value)
         self._safety_entry = SafetyStatusEntry(timeout_s=safety_timeout)
+        self._supervisor_state: RosCellState | None = None
 
         self._required_ids: set[str] = set(
             str(v) for v in self.get_parameter("required_device_ids").value if str(v)
@@ -88,6 +90,13 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
             10,
             callback_group=self._group,
         )
+        self.create_subscription(
+            RosCellState,
+            str(self.get_parameter("supervisor_state_topic").value),
+            self._on_supervisor_state,
+            10,
+            callback_group=self._group,
+        )
 
         self._cell_pub = self.create_publisher(RosCellState, "/cell/state", 10)
         rate = float(self.get_parameter("publish_rate_hz").value)
@@ -107,6 +116,9 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
 
     def _on_safety_state(self, message: RosSafetyState) -> None:
         self._safety_entry.update(message.healthy)
+
+    def _on_supervisor_state(self, message: RosCellState) -> None:
+        self._supervisor_state = message
 
     def _publish_cell_state(self) -> None:
         ros_devices: list[RosDeviceState] = []
@@ -147,6 +159,17 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
             any_busy=any_busy,
             any_required_stale=any_required_stale,
         )
+        supervisor = self._supervisor_state
+        execution_states = {
+            "RUNNING",
+            "PAUSED",
+            "RECOVERABLE_FAULT",
+            "TERMINAL_FAULT",
+            "MAINTENANCE",
+            "STOPPING",
+        }
+        if supervisor is not None and supervisor.state in execution_states:
+            cell_state = supervisor.state
 
         message = RosCellState()
         now = self.get_clock().now().to_msg()
@@ -155,8 +178,8 @@ class StateAggregatorNode(Node):  # type: ignore[misc]
         message.state = cell_state
         message.safety_healthy = safety_healthy
         message.all_required_devices_ready = all_required_ready
-        message.active_job_id = ""
-        message.active_trace_id = ""
+        message.active_job_id = str(supervisor.active_job_id) if supervisor is not None else ""
+        message.active_trace_id = str(supervisor.active_trace_id) if supervisor is not None else ""
         message.bundle_id = self._bundle_id
         message.devices = ros_devices
         self._cell_pub.publish(message)

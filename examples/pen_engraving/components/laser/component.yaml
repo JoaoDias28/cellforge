@@ -58,10 +58,12 @@ config_schema: config.schema.json
 capabilities:
   - contract: process.select_program
     version: 1.0.0
+    definition: cellforge://capabilities/process.select_program/1.0.0
     endpoint: select_program
     modes: [simulation, commissioning, production]
   - contract: process.execute_cycle
     version: 1.0.0
+    definition: cellforge://capabilities/process.execute_cycle/1.0.0
     endpoint: execute_cycle
     modes: [simulation, commissioning, production]
 adapters:

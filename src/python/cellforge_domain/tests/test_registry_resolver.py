@@ -256,6 +256,7 @@ def test_conflicting_capability_versions_are_not_selected(
         manifest["component"]["version"] = "2.0.0"
         for capability in manifest["capabilities"]:
             capability["version"] = "2.0.0"
+            capability["definition"] = f"cellforge://capabilities/{capability['contract']}/2.0.0"
 
     _copy_component("camera", registry_root / "camera_v2", make_camera_v2)
     registry = FilesystemComponentRegistry.from_directory(

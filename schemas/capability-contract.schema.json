@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/capability-contract.schema.json",
+  "title": "CellForge capability contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "contract", "version", "request_schema", "result_schema", "fault_catalog"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "contract": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "description": {"type": "string", "minLength": 1},
+    "request_schema": {"type": "object"},
+    "result_schema": {"type": "object"},
+    "fault_catalog": {"type": "string", "minLength": 1},
+    "supports_cancellation": {"type": "boolean"},
+    "timeout_required": {"type": "boolean"}
+  }
+}
