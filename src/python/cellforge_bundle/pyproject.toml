@@ -5,9 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "cellforge-bundle"
 version = "0.1.0"
-description = "Deterministic CellForge cell compiler and bundle manifest builder"
+description = "Deterministic CellForge bundle compiler, installer, and activation agent"
 requires-python = ">=3.12"
-dependencies = ["cellforge-domain==0.1.0"]
+dependencies = ["cellforge-domain==0.1.0", "pyyaml>=6,<7"]
+
+[project.scripts]
+cellforge-bundle-agent = "cellforge_bundle.agent_cli:main"
 
 [tool.uv.sources]
 cellforge-domain = { workspace = true }

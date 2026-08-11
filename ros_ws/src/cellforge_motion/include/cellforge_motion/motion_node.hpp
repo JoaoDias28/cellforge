@@ -48,6 +48,7 @@ class MotionNode final : public rclcpp::Node {
                     const std::string& severity, const std::string& evidence_json);
 
   std::shared_ptr<MotionService> service_;
+  std::string bundle_id_;
   std::atomic_bool active_goal_{false};
   std::atomic_uint64_t event_sequence_{0};
   rclcpp_action::Server<MoveToPose>::SharedPtr move_server_;

@@ -3,7 +3,8 @@
 ## 1. Startup sequence
 
 1. systemd starts bundle agent and runtime target;
-2. bundle manifest and hashes are verified;
+2. the bundle agent verifies the active manifest, complete checksums, local target compatibility,
+   and resolves named secrets to protected cell-local state;
 3. configuration and schemas are validated;
 4. ROS domain/network profile is loaded;
 5. device adapters start but remain inactive;
@@ -12,6 +13,11 @@
 8. supervisor loads behavior-tree plugins and validates tree contracts;
 9. recipe cache loads approved bundle recipes;
 10. cell enters `READY` only when required readiness and safety status are healthy.
+
+The agent supplies `CELLFORGE_BUNDLE_ID`, `CELLFORGE_BUNDLE_ROOT`, and `CELLFORGE_MANIFEST` through
+`/var/lib/cellforge/runtime.env`. Runtime launch passes the exact bundle ID to the supervisor,
+motion service, state aggregator, and trace recorder. Activation health must echo that ID; a healthy
+response from an older process is rejected and triggers rollback.
 
 ## 2. Job execution sequence
 

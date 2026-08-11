@@ -53,6 +53,16 @@ Initial requirements:
 - disable unused services;
 - offline-capable production.
 
+### 4.1 Bundle-agent secret boundary
+
+Deployment bundles may contain secret identifiers but never secret values. Task 021 rejects secret-
+bearing paths, structured password/token/private-key values, private-key material, and symlinks.
+The cell's separately provisioned secret store is resolved locally into a mode-0600 environment
+file under `/var/lib/cellforge`; that file is not copied into the immutable release. systemd runs
+the runtime as the least-privilege `cellforge` account with `NoNewPrivileges`, a read-only system
+view, and only CellForge state/log paths writable. These are security and standard-control measures,
+not functional-safety enforcement.
+
 ## 5. Supply chain
 
 Every imported component package records:

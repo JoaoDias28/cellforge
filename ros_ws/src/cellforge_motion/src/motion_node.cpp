@@ -1,6 +1,7 @@
 #include "cellforge_motion/motion_node.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -38,6 +39,9 @@ MotionNode::MotionNode(std::shared_ptr<MotionService> service, const rclcpp::Nod
   if (!service_) {
     throw std::invalid_argument("motion service must not be null");
   }
+  const auto* active_bundle = std::getenv("CELLFORGE_BUNDLE_ID");
+  bundle_id_ =
+      declare_parameter<std::string>("bundle_id", active_bundle == nullptr ? "" : active_bundle);
   event_publisher_ = create_publisher<cellforge_interfaces::msg::JobEvent>(
       "/events/job", rclcpp::QoS(kEventQueueDepth).reliable());
   move_server_ = rclcpp_action::create_server<MoveToPose>(
@@ -224,6 +228,7 @@ void MotionNode::publishEvent(const std::string& event_type,
   cellforge_interfaces::msg::JobEvent event;
   event.header.stamp = now();
   event.trace_id = trace_id;
+  event.bundle_id = bundle_id_;
   event.component_instance_id = component_instance_id;
   event.command_id = command_id;
   event.sequence = event_sequence_.fetch_add(1) + 1;

@@ -51,6 +51,7 @@ TEST(GeneratedCppTypes, ConstructsEveryGeneratedInterfaceType) {
   EXPECT_TRUE(cell_state.devices.empty());
   EXPECT_FALSE(device_state.ready);
   EXPECT_EQ(job_event.sequence, 0U);
+  EXPECT_TRUE(job_event.bundle_id.empty());
   EXPECT_FLOAT_EQ(pose_estimate.confidence, 0.0F);
   EXPECT_FALSE(safety_state.healthy);
   EXPECT_TRUE(state_request.component_instance_id.empty());

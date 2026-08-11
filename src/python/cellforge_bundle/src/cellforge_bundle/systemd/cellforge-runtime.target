@@ -1,0 +1,7 @@
+[Unit]
+Description=CellForge runtime target
+Requires=cellforge-bundle-agent.service cellforge-runtime.service
+After=network-online.target cellforge-bundle-agent.service
+
+[Install]
+WantedBy=multi-user.target

@@ -24,6 +24,7 @@ class TraceEvent:
     sequence: int
     event_type: str
     severity: str
+    bundle_id: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -32,6 +33,7 @@ class TraceEvent:
             self.trace_id,
             self.job_id,
             self.cell_id,
+            self.bundle_id,
             self.component_instance_id,
             self.command_id,
             self.sequence,
@@ -47,13 +49,14 @@ class TraceEvent:
             trace_id=row[0],
             job_id=row[1],
             cell_id=row[2],
-            component_instance_id=row[3],
-            command_id=row[4],
-            sequence=row[5],
-            event_type=row[6],
-            severity=row[7],
-            payload=json.loads(row[8]) if row[8] else {},
-            timestamp=datetime.fromisoformat(row[9]),
+            bundle_id=row[3],
+            component_instance_id=row[4],
+            command_id=row[5],
+            sequence=row[6],
+            event_type=row[7],
+            severity=row[8],
+            payload=json.loads(row[9]) if row[9] else {},
+            timestamp=datetime.fromisoformat(row[10]),
         )
 
 
@@ -89,6 +92,7 @@ CREATE TABLE IF NOT EXISTS events (
     trace_id TEXT NOT NULL,
     job_id TEXT NOT NULL,
     cell_id TEXT NOT NULL,
+    bundle_id TEXT NOT NULL DEFAULT '',
     component_instance_id TEXT NOT NULL DEFAULT '',
     command_id TEXT NOT NULL DEFAULT '',
     sequence INTEGER NOT NULL,
@@ -121,6 +125,11 @@ class SqliteTraceEventStore(TraceEventStore):
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(_DDL)
+        columns = {
+            str(row[1]) for row in self._conn.execute("PRAGMA table_info(events)").fetchall()
+        }
+        if "bundle_id" not in columns:
+            self._conn.execute("ALTER TABLE events ADD COLUMN bundle_id TEXT NOT NULL DEFAULT ''")
         self._conn.commit()
         self._sequence = self._load_max_sequence()
         self._lock = threading.Lock()
@@ -134,13 +143,14 @@ class SqliteTraceEventStore(TraceEventStore):
         with self._lock:
             next_seq = self._sequence + 1
             self._conn.execute(
-                "INSERT INTO events (trace_id, job_id, cell_id, component_instance_id, "
+                "INSERT INTO events (trace_id, job_id, cell_id, bundle_id, component_instance_id, "
                 "command_id, sequence, event_type, severity, payload_json, recorded_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     event.trace_id,
                     event.job_id,
                     event.cell_id,
+                    event.bundle_id,
                     event.component_instance_id,
                     event.command_id,
                     next_seq,
@@ -189,7 +199,7 @@ class SqliteTraceEventStore(TraceEventStore):
 
         where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         columns = (
-            "trace_id, job_id, cell_id, component_instance_id, command_id, "
+            "trace_id, job_id, cell_id, bundle_id, component_instance_id, command_id, "
             "sequence, event_type, severity, payload_json, recorded_at"
         )
         query_sql = f"SELECT {columns} FROM events {where} ORDER BY sequence ASC LIMIT ?"
@@ -230,7 +240,7 @@ def convert_job_event_to_trace_event(message: Any) -> TraceEvent:
 
     The *message* argument may be a generated ROS message or any object with the same
     shape (``header.stamp.sec/nanosec``, ``trace_id``, ``job_id``, ``cell_id``,
-    ``component_instance_id``, ``command_id``, ``event_type``, ``severity``,
+    ``bundle_id``, ``component_instance_id``, ``command_id``, ``event_type``, ``severity``,
     ``payload_json``).  This function is intentionally ROS-free so it can be tested
     without a runtime.
     """
@@ -249,6 +259,7 @@ def convert_job_event_to_trace_event(message: Any) -> TraceEvent:
         trace_id=message.trace_id,
         job_id=message.job_id,
         cell_id=message.cell_id,
+        bundle_id=str(getattr(message, "bundle_id", "")),
         component_instance_id=message.component_instance_id,
         command_id=message.command_id,
         sequence=0,

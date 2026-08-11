@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <builtin_interfaces/msg/duration.hpp>
 #include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -104,7 +105,9 @@ SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
     : rclcpp::Node("cell_supervisor", options) {
   tree_root_ = declare_parameter<std::string>("tree_root", "");
   cell_id_ = declare_parameter<std::string>("cell_id", "");
-  bundle_id_ = declare_parameter<std::string>("bundle_id", "");
+  const auto* active_bundle = std::getenv("CELLFORGE_BUNDLE_ID");
+  bundle_id_ =
+      declare_parameter<std::string>("bundle_id", active_bundle == nullptr ? "" : active_bundle);
   const auto action_name =
       declare_parameter<std::string>("action_name", "/cell/supervisor/run_job");
   default_job_timeout_ = std::chrono::milliseconds(
@@ -400,6 +403,7 @@ void SupervisorNode::publishEvent(const std::string& event_type, const std::stri
   event.trace_id = trace_id;
   event.job_id = job_id;
   event.cell_id = cell_id_;
+  event.bundle_id = bundle_id_;
   event.command_id = command_id;
   event.sequence = 0;
   event.event_type = event_type;
