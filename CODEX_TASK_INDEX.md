@@ -26,6 +26,21 @@ Execute tasks in order unless dependencies indicate safe parallel work.
 | 020 | simulated pen manipulation | 013, 018, 019 |
 | 021 | bundle install/activate/rollback agent | 006, 012 |
 | 022 | operator API and local UI | 010, 012, 021 |
-| 023 | first real hardware adapters | selected hardware, 013, 019, 021 |
+| 023 | execution contracts and trace identity | 007, 010, 012, 022 |
+| 024 | canonical pen runtime on BehaviorTree.CPP | 011, 013, 019, 023 |
+| 025 | integrated offline runtime bringup | 009, 010, 012, 021, 022, 024 |
+| 026 | installable signed bundle assembly | 006, 021, 025 |
+| 027 | genuine Isaac Sim L2 runtime integration | 018, 019, 020, 024, 025, 026 |
+| 028 | Studio spatial configuration and calibration | 015, 016, 017, 023 |
+| 029 | Studio task and recipe authoring | 024, 028 |
+| 030 | Studio deployment and evidence workflow | 026, 027, 029 |
+| 031 | platform registry and artifact services | 005, 006, 023 |
+| 032 | platform approvals, evidence, and result sync | 010, 012, 021, 022, 026, 031 |
+| 033 | complete software release qualification | 025, 026, 027, 028, 029, 030, 031, 032 |
+| 034 | first real hardware adapters | selected hardware, independent safety architecture, 033 |
 
 Tasks 007 and 002 may proceed in parallel after Task 001. Tasks 014 and 009 may proceed in parallel after their dependencies.
+
+Tasks 028 and 031 may proceed in parallel after their listed dependencies. Task 034 is blocked until
+Task 033 is merged and the exact hardware and independent safety architecture are recorded. CPU,
+mock, or synthetic-event evidence cannot substitute for the required Isaac Sim 6 L2 qualification.
