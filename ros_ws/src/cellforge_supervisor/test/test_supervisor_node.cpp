@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <openssl/evp.h>
 
 #include <algorithm>
 #include <atomic>
@@ -12,7 +13,6 @@
 #include <future>
 #include <memory>
 #include <mutex>
-#include <openssl/evp.h>
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
@@ -93,8 +93,7 @@ std::string sha256(const std::string& value) {
   return output;
 }
 
-ExecuteFrozenJob::Goal makeJob(const std::string& job_id,
-                               const std::filesystem::path& tree_root) {
+ExecuteFrozenJob::Goal makeJob(const std::string& job_id, const std::filesystem::path& tree_root) {
   ExecuteFrozenJob::Goal goal;
   goal.trace_id = job_id;
   goal.job_id = job_id;
@@ -166,8 +165,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
         event_types.push_back(event.event_type);
       });
   (void)event_subscription;
-  auto run_job_client =
-      rclcpp_action::create_client<ExecuteFrozenJob>(harness, "/cell/run_job");
+  auto run_job_client = rclcpp_action::create_client<ExecuteFrozenJob>(harness, "/cell/run_job");
 
   rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 4);
   executor.add_node(supervisor);
@@ -188,8 +186,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
   std::this_thread::sleep_for(50ms);
 
   auto success_goal_future =
-      run_job_client->async_send_goal(
-          makeJob("11111111-1111-4111-8111-111111111111", tree_root));
+      run_job_client->async_send_goal(makeJob("11111111-1111-4111-8111-111111111111", tree_root));
   ASSERT_EQ(success_goal_future.wait_for(2s), std::future_status::ready);
   auto success_goal = success_goal_future.get();
   ASSERT_NE(success_goal, nullptr);
@@ -241,8 +238,7 @@ TEST_F(SupervisorNodeTest, RunJobSucceedsEmitsTransitionsAndReturnsDefinedCancel
 
   hang_skill.store(true);
   auto cancel_goal_future =
-      run_job_client->async_send_goal(
-          makeJob("33333333-3333-4333-8333-333333333333", tree_root));
+      run_job_client->async_send_goal(makeJob("33333333-3333-4333-8333-333333333333", tree_root));
   ASSERT_EQ(cancel_goal_future.wait_for(2s), std::future_status::ready);
   auto cancel_goal = cancel_goal_future.get();
   ASSERT_NE(cancel_goal, nullptr);

@@ -2,8 +2,10 @@
 
 #include <behaviortree_cpp/basic_types.h>
 #include <behaviortree_cpp/blackboard.h>
+#include <openssl/evp.h>
 
 #include <algorithm>
+#include <array>
 #include <builtin_interfaces/msg/duration.hpp>
 #include <chrono>
 #include <cstdlib>
@@ -11,9 +13,9 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <openssl/evp.h>
 #include <regex>
 #include <sstream>
+#include <string_view>
 #include <utility>
 
 #include "cellforge_supervisor/supervisor_nodes.hpp"
@@ -60,22 +62,24 @@ auto isGitRevision(const std::string& value) -> bool {
 }
 
 auto sha256(const std::string& value) -> std::string {
-  auto context = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(EVP_MD_CTX_new(),
-                                                                        EVP_MD_CTX_free);
+  auto context =
+      std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(EVP_MD_CTX_new(), EVP_MD_CTX_free);
   if (!context || EVP_DigestInit_ex(context.get(), EVP_sha256(), nullptr) != 1 ||
       EVP_DigestUpdate(context.get(), value.data(), value.size()) != 1) {
     throw std::runtime_error("Could not initialize SHA-256 validation.");
   }
-  unsigned char digest[EVP_MAX_MD_SIZE];
-  unsigned int length = 0;
-  if (EVP_DigestFinal_ex(context.get(), digest, &length) != 1) {
+  std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+  unsigned int digest_length = 0;
+  if (EVP_DigestFinal_ex(context.get(), digest.data(), &digest_length) != 1) {
     throw std::runtime_error("Could not finalize SHA-256 validation.");
   }
-  static constexpr char hex[] = "0123456789abcdef";
-  std::string output(length * 2, '0');
-  for (unsigned int index = 0; index < length; ++index) {
-    output[index * 2] = hex[digest[index] >> 4U];
-    output[index * 2 + 1] = hex[digest[index] & 0x0FU];
+  static constexpr std::string_view kHexDigits = "0123456789abcdef";
+  static constexpr auto kLowNibbleMask = 0x0FU;
+  const auto length = static_cast<std::size_t>(digest_length);
+  std::string output(length * 2U, '0');
+  for (std::size_t index = 0; index < length; ++index) {
+    output[index * 2U] = kHexDigits[digest[index] >> 4U];
+    output[index * 2U + 1U] = kHexDigits[digest[index] & kLowNibbleMask];
   }
   return output;
 }

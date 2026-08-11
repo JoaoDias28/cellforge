@@ -116,4 +116,7 @@ configuration schemas. Docker/ROS is unavailable on this workstation, so Jazzy b
 interface, C++ mismatch/cancellation, and ROS node integration checks remain assigned to hosted CI.
 The first hosted build exposed mixed keyword/plain `target_link_libraries` signatures after
 `ament_target_dependencies`; the OpenSSL link was changed to the matching plain signature before
-rerunning CI.
+rerunning CI. The rerun compiled the complete Jazzy workspace and passed all runtime gtests; its
+remaining failures were limited to clang-format ordering/wrapping and clang-tidy findings in the
+new OpenSSL digest helper. The helper now uses `std::array`, typed sizes, a named nibble mask, and
+the repository's exact formatting.
