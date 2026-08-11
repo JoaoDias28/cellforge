@@ -86,7 +86,8 @@ persistent-data migration.
   branch, and pre-edit baseline verified
 - [x] 2026-08-10 — scene, deterministic model, fault detection, and tests complete
 - [x] 2026-08-10 — Isaac edge, MoveIt/MTC verifier, and 100-seed report complete
-- [ ] 2026-08-10 — full validation, Git, GitHub, merge, and final verification complete
+- [x] 2026-08-11 — task commit, push, ready PR #16, and first hosted validation run complete
+- [ ] 2026-08-11 — PR merge and synchronized `main` verification complete
 
 ## Decisions
 - 2026-08-10 — Keep runtime pen instances as spatial simulation entities beneath the canonical USD
@@ -119,4 +120,10 @@ absent, and the local Docker engine is not running, so local `make ros-build`/`m
 generated-action ROS smoke test are unavailable; hosted Jazzy CI is authoritative. The only local
 Isaac installation reports 5.1.0-rc.19, while Task 020 targets Isaac Sim 6, so the documented
 headless PhysX probe is unavailable and is not reported as passing. CPU evidence explicitly records
-that PhysX did not execute. Publication and merge results remain pending.
+that PhysX did not execute.
+
+Commit `3a12cd9` was pushed to ready PR #16. Hosted run `31476557555` passed Python 3.12
+validation, including the Task 020 deterministic gate, and the complete ROS 2 Jazzy build/test job,
+including the generated Task 019 action mapping smoke test. GitHub reports the PR clean and
+mergeable with no pending review requirement. Merge and local `main` synchronization remain
+pending.
