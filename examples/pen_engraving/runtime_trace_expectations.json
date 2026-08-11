@@ -1,0 +1,12 @@
+{
+  "pen-fixture-not-seated": {"final_status": "RECOVERABLE_FAULT", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture"]},
+  "pen-inspection-text-mismatch": {"final_status": "RECOVERABLE_FAULT", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture", "MoveRobotToProcessSafePose", "SelectProcessProgram", "ExecuteProcess", "InspectProduct"]},
+  "pen-laser-not-ready": {"final_status": "RECOVERABLE_FAULT", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture", "MoveRobotToProcessSafePose", "SelectProcessProgram", "ExecuteProcess"]},
+  "pen-laser-timeout": {"final_status": "RECOVERABLE_FAULT", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture", "MoveRobotToProcessSafePose", "SelectProcessProgram", "ExecuteProcess"]},
+  "pen-no-pen": {"final_status": "RECOVERABLE_FAULT", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct"]},
+  "pen-nominal": {"final_status": "SUCCESS", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture", "MoveRobotToProcessSafePose", "SelectProcessProgram", "ExecuteProcess", "InspectProduct", "UnloadProduct", "RouteByInspection", "RecordProductionResult"]},
+  "pen-operator-cancel": {"final_status": "CANCELLED", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture", "MoveRobotToProcessSafePose"]},
+  "pen-pose-outside-limit": {"final_status": "RECOVERABLE_FAULT", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct"]},
+  "pen-process-outcome-unknown": {"final_status": "OUTCOME_UNKNOWN", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy", "CheckRequiredDevicesReady", "LocateProduct", "PickProduct", "LoadFixture", "VerifyFixture", "MoveRobotToProcessSafePose", "SelectProcessProgram", "ExecuteProcess"]},
+  "pen-safety-unhealthy": {"final_status": "REJECTED", "nodes": ["ValidateFrozenJob", "CheckSafetyHealthy"]}
+}

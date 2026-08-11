@@ -9,14 +9,18 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(ament_cmake REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(behaviortree_cpp REQUIRED)
 find_package(cellforge_interfaces REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(nlohmann_json_schema_validator_vendor REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
 
 add_library(cellforge_supervisor_core SHARED
+  src/bundle_plugin_loader.cpp
   src/supervisor_node.cpp
   src/supervisor_nodes.cpp
   src/tree_validation.cpp
@@ -26,13 +30,14 @@ target_include_directories(cellforge_supervisor_core PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 ament_target_dependencies(cellforge_supervisor_core
+  ament_index_cpp
   behaviortree_cpp
   cellforge_interfaces
   rclcpp
   rclcpp_action
   std_msgs
 )
-target_link_libraries(cellforge_supervisor_core OpenSSL::Crypto)
+target_link_libraries(cellforge_supervisor_core OpenSSL::Crypto nlohmann_json::nlohmann_json)
 
 add_library(cellforge_supervisor_bt_nodes SHARED src/plugin.cpp)
 target_compile_definitions(cellforge_supervisor_bt_nodes PRIVATE BT_PLUGIN_EXPORT)
@@ -86,5 +91,14 @@ if(BUILD_TESTING)
 endif()
 
 ament_export_targets(export_cellforge_supervisor HAS_LIBRARY_TARGET)
-ament_export_dependencies(behaviortree_cpp cellforge_interfaces rclcpp rclcpp_action)
+ament_export_dependencies(
+  ament_index_cpp
+  behaviortree_cpp
+  cellforge_interfaces
+  nlohmann_json
+  nlohmann_json_schema_validator_vendor
+  OpenSSL
+  rclcpp
+  rclcpp_action
+)
 ament_package()

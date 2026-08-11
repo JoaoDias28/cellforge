@@ -208,3 +208,15 @@ current state before acting. Platform availability is outside the local read/con
 
 This is an operator and standard-control boundary. Safety status is display-only; neither a role nor
 a recovery action can reset or bypass independent rated safety hardware.
+
+## 12. Task 024 canonical behavior-tree boundary
+
+The compiler freezes reviewed BehaviorTree node/port manifests and rejects tree/plugin contract
+errors before bundle creation. At runtime the supervisor loads only the package libraries named by
+the active immutable bundle and verifies the frozen manifest digest plus registration parity.
+`cellforge_pen_bt_nodes` owns pen sequencing leaves and calls typed capability interfaces; it does
+not import adapters, planner plugins, Python oracle code, vendor SDKs, or safety enforcement.
+
+An uncertain process result is terminal to the current automatic sequence and requires explicit
+reconciliation. Cancellation is forwarded to active actions but remains standard control. Rated
+safety hardware independently enforces protective functions regardless of behavior-tree state.

@@ -93,6 +93,12 @@ CPU report. The separate Isaac Sim 6 command in `docs/simulation.md` is required
 evidence and must be reported unavailable when a supported runtime/GPU runner is absent. CPU checks
 must never be relabeled as L2 execution, hardware, laser-process, or functional-safety evidence.
 
+Task 024 adds the canonical C++ pen-runtime contract suite. It executes the unchanged canonical XML
+through BehaviorTree.CPP and the supervisor preflight validator for all ten Task 013 scenarios,
+exercises real typed asynchronous leaves against ROS action servers, verifies cancellation and
+process uncertainty, and compares timestamp-free runtime node ordering/final outcomes with the
+Python oracle's golden traces. The Python runner is not a production execution path.
+
 ## 3. Required reference scenarios
 
 Pen engraving MVP:

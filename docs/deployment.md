@@ -29,6 +29,7 @@ bundle/
 │   ├── cell.yaml
 │   ├── device configs
 │   ├── behavior trees
+│   ├── behavior-tree-plugins
 │   ├── target-profile.yaml
 │   ├── agent.json
 │   └── secret-references.json  names only; optional
@@ -195,6 +196,7 @@ manifest freezes:
 - the optional fixed-path approved operator recovery catalog as `config/operator-recovery.json`;
 - the selected adapter package, entrypoint, and minimum version per instance;
 - sorted native packages, containers, external prerequisites, recipes, and task references;
+- immutable BehaviorTree plugin package/library references plus frozen node/port manifest digests;
 - SHA-256 and byte size for every required source/configuration file;
 - the evidence-policy result.
 

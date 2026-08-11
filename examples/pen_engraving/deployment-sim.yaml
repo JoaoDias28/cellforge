@@ -12,7 +12,9 @@ platform:
 runtime:
   native_packages:
     - cellforge_supervisor
+    - cellforge_pen_bt_nodes
     - cellforge_job_gateway
+    - cellforge_motion
     - cellforge_trace
     - cellforge_adapter_robot_sim
     - cellforge_adapter_gripper_sim
@@ -20,6 +22,10 @@ runtime:
     - cellforge_adapter_vision_sim
     - cellforge_adapter_fixture_sim
     - cellforge_adapter_safety_status_sim
+  behavior_tree_plugins:
+    - package: cellforge_pen_bt_nodes
+      library: cellforge_pen_bt_nodes
+      manifest: behavior_tree_plugins/cellforge_pen_bt_nodes.json
   containers: []
 network:
   ros_domain_id: 42

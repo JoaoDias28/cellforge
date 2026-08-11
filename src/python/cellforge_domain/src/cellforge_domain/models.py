@@ -367,9 +367,18 @@ class DeploymentPlatform(DomainModel):
     gpu: JsonObject = Field(default_factory=dict)
 
 
+class BehaviorTreePluginDeclaration(DomainModel):
+    """Source declaration for one runtime-loadable BehaviorTree.CPP plugin."""
+
+    package: StableIdentifier
+    library: StableIdentifier
+    manifest: NonEmptyString
+
+
 class DeploymentRuntime(DomainModel):
     native_packages: tuple[StableIdentifier, ...] = ()
     containers: tuple[NonEmptyString, ...] = ()
+    behavior_tree_plugins: tuple[BehaviorTreePluginDeclaration, ...] = ()
 
 
 class DeploymentProfile(DomainModel):
@@ -422,6 +431,13 @@ class BundleTaskReference(DomainModel):
     sha256: Sha256Digest
 
 
+class BundleBehaviorTreePluginReference(DomainModel):
+    package: StableIdentifier
+    library: StableIdentifier
+    manifest_path: NonEmptyString
+    manifest_sha256: Sha256Digest
+
+
 class BundleEvidenceSummary(DomainModel):
     required: bool = False
     status: StableIdentifier = "not-required"
@@ -446,6 +462,7 @@ class BundleManifest(DomainModel):
     components: tuple[BundleComponentReference, ...]
     recipes: tuple[BundleRecipeReference, ...]
     tasks: tuple[BundleTaskReference, ...] = ()
+    behavior_tree_plugins: tuple[BundleBehaviorTreePluginReference, ...] = ()
     calibrations: tuple[NonEmptyString, ...] = ()
     native_packages: tuple[StableIdentifier, ...] = ()
     containers: tuple[NonEmptyString, ...] = ()

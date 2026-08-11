@@ -12,7 +12,9 @@ def test_supervisor_package_declares_cpp20_and_runtime_contracts() -> None:
     dependencies = {element.text for element in package.findall("depend")}
     assert {
         "behaviortree_cpp",
+        "ament_index_cpp",
         "cellforge_interfaces",
+        "nlohmann_json_schema_validator_vendor",
         "rclcpp",
         "rclcpp_action",
         "std_msgs",
@@ -25,6 +27,19 @@ def test_supervisor_package_declares_cpp20_and_runtime_contracts() -> None:
     assert "ament_add_gtest(test_tree_validation" in cmake
     assert "ament_add_gtest(test_supervisor_nodes" in cmake
     assert "ament_add_gtest(test_supervisor_node" in cmake
+    assert "bundle_plugin_loader.cpp" in cmake
+
+
+def test_supervisor_loads_plugins_only_from_the_active_bundle_manifest() -> None:
+    source = (PACKAGE / "src" / "bundle_plugin_loader.cpp").read_text(encoding="utf-8")
+    node = (PACKAGE / "src" / "supervisor_node.cpp").read_text(encoding="utf-8")
+    assert "behavior_tree_plugins" in source
+    assert "native_packages" in source
+    assert "manifest_sha256" in source
+    assert "get_package_prefix" in source
+    assert "registerFromPlugin" in source
+    assert "CELLFORGE_MANIFEST" in node
+    assert "plugin_libraries" not in node
 
 
 def test_action_wrapper_has_no_blocking_future_waits() -> None:
