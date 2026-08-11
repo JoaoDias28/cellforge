@@ -20,6 +20,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/ControlSimulation.srv"
   "srv/FinalizeSimulation.srv"
   "srv/InjectSimulationFault.srv"
+  "srv/RequestOperatorAction.srv"
   "srv/RegisterSimulationAdapter.srv"
   "srv/SyncPlanningScene.srv"
   "srv/SetDiscreteOutput.srv"

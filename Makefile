@@ -4,13 +4,13 @@ ROS_SETUP ?= /opt/ros/$(ROS_DISTRO)/setup.bash
 ROS_WORKSPACE ?= ros_ws
 COLCON ?= colcon
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check operator-api-check ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen ruff format --check .
 	$(UV) run --frozen ruff check .
-	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_bundle/src src/python/cellforge_bundle/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests ros_ws/src/cellforge_device_sdk/cellforge_device_sdk ros_ws/src/cellforge_mock_adapters/cellforge_mock_adapters ros_ws/src/cellforge_state_trace/cellforge_state_trace ros_ws/src/cellforge_job_gateway/cellforge_job_gateway ros_ws/src/cellforge_simulation/cellforge_simulation tests
+	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_bundle/src src/python/cellforge_bundle/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests ros_ws/src/cellforge_device_sdk/cellforge_device_sdk ros_ws/src/cellforge_mock_adapters/cellforge_mock_adapters ros_ws/src/cellforge_state_trace/cellforge_state_trace ros_ws/src/cellforge_job_gateway/cellforge_job_gateway ros_ws/src/cellforge_operator_api/cellforge_operator_api ros_ws/src/cellforge_simulation/cellforge_simulation tests
 	$(UV) run --frozen mypy --explicit-package-bases src/kit/cellforge.studio/cellforge/studio/application.py src/kit/cellforge.studio/cellforge/studio/backend.py src/kit/cellforge.studio/cellforge/studio/component_service.py src/kit/cellforge.studio/cellforge/studio/connection_service.py src/kit/cellforge.studio/cellforge/studio/project_service.py src/kit/cellforge.studio/cellforge/studio/scene.py src/kit/cellforge.studio/cellforge/studio/simulation_application.py src/kit/cellforge.studio/cellforge/studio/simulation_backend.py src/kit/cellforge.studio/cellforge/studio/simulation_host.py src/kit/cellforge.studio/tests
 
 test:
@@ -60,6 +60,11 @@ bundle-agent-check:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen pytest src/python/cellforge_bundle/tests/test_agent.py tests/test_state_trace.py
 	$(UV) run --frozen python scripts/verify_bundle_agent.py
+
+operator-api-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest tests/test_operator_api.py tests/test_ros_interface_definitions.py
+	$(UV) run --frozen python scripts/verify_operator_api.py
 
 ros-build:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --symlink-install --event-handlers console_direct+'

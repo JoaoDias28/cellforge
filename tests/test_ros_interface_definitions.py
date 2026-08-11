@@ -23,6 +23,7 @@ INTERFACE_PATHS = (
     "srv/ControlSimulation.srv",
     "srv/FinalizeSimulation.srv",
     "srv/InjectSimulationFault.srv",
+    "srv/RequestOperatorAction.srv",
     "srv/RegisterSimulationAdapter.srv",
     "srv/SetDiscreteOutput.srv",
     "srv/SyncPlanningScene.srv",

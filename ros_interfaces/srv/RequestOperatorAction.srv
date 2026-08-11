@@ -1,0 +1,10 @@
+# Approved semantic operator action. The server must independently validate current runtime state.
+string action_id
+string action_kind
+string fault_id
+string principal_id
+---
+bool accepted
+string result_code
+string result_message
+bool outcome_certain

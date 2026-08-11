@@ -93,6 +93,7 @@ def test_manifest_freezes_exact_components_adapters_packages_recipes_and_tasks(
     assert report.manifest.recipes[0].sha256 is not None
     assert report.manifest.tasks[0].id == "pen_engraving"
     assert report.manifest.tasks[0].sha256 is not None
+    assert "config/operator-recovery.json" in {item.path for item in report.manifest.files}
     assert "cellforge_adapter_laser_sim" in report.manifest.native_packages
     assert report.manifest.evidence.status == "not-required"
 
@@ -117,6 +118,34 @@ def test_changed_recipe_changes_manifest_and_bundle_id(tmp_path: Path) -> None:
     assert after.manifest is not None
     assert before.manifest.bundle_id != after.manifest.bundle_id
     assert before.manifest.recipes[0].sha256 != after.manifest.recipes[0].sha256
+
+
+def test_operator_recovery_catalog_is_validated_and_content_addressed(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    before = _compile(project)
+    catalog_path = project / "operator" / "operator-recovery.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog["actions"][0]["instructions"] += " Record the inspection result."
+    catalog_path.write_text(json.dumps(catalog), encoding="utf-8", newline="\n")
+
+    after = _compile(project)
+
+    assert before.manifest is not None
+    assert after.manifest is not None
+    assert before.manifest.bundle_id != after.manifest.bundle_id
+    before_file = next(
+        item for item in before.manifest.files if item.path == "config/operator-recovery.json"
+    )
+    after_file = next(
+        item for item in after.manifest.files if item.path == "config/operator-recovery.json"
+    )
+    assert before_file.sha256 != after_file.sha256
+
+    catalog["actions"][0]["service_name"] = "/arbitrary/service"
+    catalog_path.write_text(json.dumps(catalog), encoding="utf-8", newline="\n")
+    invalid = _compile(project)
+    assert invalid.manifest is None
+    assert "compiler.operator-recovery-invalid" in {finding.code for finding in invalid.findings}
 
 
 def test_production_rejects_simulated_components_unapproved_recipe_and_evidence(

@@ -193,3 +193,18 @@ response echoes its exact bundle ID; otherwise the previous known-good symlink, 
 service, and health are restored. Secret identifiers cross the bundle boundary, but values exist
 only in local protected storage/state. Deployment refusal and rollback are standard-control and
 availability mechanisms and do not implement a safety-rated protective function.
+
+## 11. Task 022 operator boundary
+
+`cellforge_operator_api` is a loopback-only FastAPI service on the production cell. It consumes
+canonical `CellState`/`JobEvent` data and calls only the fixed public job-gateway action and fixed
+typed operator-action service. HTTP payloads and recovery configuration cannot select ROS topics,
+services, actions, packages, executables, or device commands.
+
+Bearer-token digests and the append-only audit database are cell-local protected state outside the
+bundle. The approved recovery catalog is immutable bundle content binding stable fault codes to
+semantic actions, instructions, confirmation text, and minimum roles. The runtime revalidates the
+current state before acting. Platform availability is outside the local read/control path.
+
+This is an operator and standard-control boundary. Safety status is display-only; neither a role nor
+a recovery action can reset or bypass independent rated safety hardware.

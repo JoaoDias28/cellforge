@@ -22,6 +22,7 @@ from cellforge_interfaces.srv import (
     GetDeviceState,
     InjectSimulationFault,
     RegisterSimulationAdapter,
+    RequestOperatorAction,
     SetDiscreteOutput,
     SyncPlanningScene,
     ValidateRecipe,
@@ -46,6 +47,7 @@ def test_generated_python_types_are_importable() -> None:
         MoveToPose,
         PoseEstimate,
         RunJob,
+        RequestOperatorAction,
         RegisterSimulationAdapter,
         SafetyState,
         SetDiscreteOutput,
@@ -87,3 +89,22 @@ def test_job_event_carries_active_bundle_identity() -> None:
     event = JobEvent(bundle_id="b" * 64)
 
     assert event.bundle_id == "b" * 64
+
+
+def test_operator_action_is_semantic_and_reports_outcome_certainty() -> None:
+    request = RequestOperatorAction.Request(
+        action_id="acknowledge-timeout",
+        action_kind="acknowledge_fault",
+        fault_id="laser-1:laser.timeout",
+        principal_id="operator-1",
+    )
+    response = RequestOperatorAction.Response(
+        accepted=False,
+        result_code="operator.recovery.state_changed",
+        result_message="Fault is no longer active.",
+        outcome_certain=True,
+    )
+
+    assert request.action_kind == "acknowledge_fault"
+    assert response.accepted is False
+    assert response.outcome_certain is True
