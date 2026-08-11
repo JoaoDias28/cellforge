@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/evidence.schema.json",
+  "title": "CellForge evidence record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_id", "kind", "subject", "created_at", "issuer", "artifact_sha256"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "evidence_id": {"type": "string", "format": "uuid"},
+    "kind": {"enum": ["simulation", "calibration", "commissioning", "production", "safety_review"]},
+    "subject": {"type": "object", "minProperties": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "valid_until": {"type": "string", "format": "date-time"},
+    "issuer": {"type": "string", "minLength": 1},
+    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "signature": {"type": "string", "minLength": 1}
+  }
+}

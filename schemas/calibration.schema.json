@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/calibration.schema.json",
+  "title": "CellForge immutable calibration artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "calibration_id", "component_instance_id", "kind", "created_at", "valid_until", "data", "sha256"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "calibration_id": {"type": "string", "format": "uuid"},
+    "component_instance_id": {"type": "string", "format": "uuid"},
+    "kind": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "valid_until": {"type": "string", "format": "date-time"},
+    "data": {"type": "object"},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

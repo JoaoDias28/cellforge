@@ -8,7 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 import rclpy
-from cellforge_interfaces.action import RunJob
+from cellforge_interfaces.action import ExecuteFrozenJob, RunJob
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
@@ -17,6 +17,7 @@ from rclpy.task import Future
 
 from cellforge_job_gateway.core import (
     BundleResolver,
+    FrozenJob,
     GatewayError,
     JobRequest,
     JobResult,
@@ -48,7 +49,7 @@ class JobGatewayNode(Node):  # type: ignore[misc]
         self._resolver = BundleResolver(bundle_root, manifest_path)
         self._store = SqliteJobStore(Path(database_path))
         self._supervisor = ActionClient(
-            self, RunJob, supervisor_action, callback_group=callback_group
+            self, ExecuteFrozenJob, supervisor_action, callback_group=callback_group
         )
         self._server = ActionServer(
             self,
@@ -84,7 +85,7 @@ class JobGatewayNode(Node):  # type: ignore[misc]
             return self._result_message(decision.result)
 
         assert decision.frozen_job is not None
-        result = await self._forward(goal_handle, decision.frozen_job.request, trace_id)
+        result = await self._forward(goal_handle, decision.frozen_job)
         try:
             self._store.finish(request.idempotency_key, result)
         except GatewayError as error:
@@ -96,9 +97,9 @@ class JobGatewayNode(Node):  # type: ignore[misc]
         self._set_terminal_state(goal_handle, result)
         return self._result_message(result)
 
-    async def _forward(
-        self, public_goal_handle: Any, request: JobRequest, trace_id: str
-    ) -> JobResult:
+    async def _forward(self, public_goal_handle: Any, frozen: FrozenJob) -> JobResult:
+        request = frozen.request
+        trace_id = frozen.trace_id
         discovery_deadline = time.monotonic() + self._discovery_timeout
         while not self._supervisor.server_is_ready():
             if public_goal_handle.is_cancel_requested:
@@ -119,7 +120,7 @@ class JobGatewayNode(Node):  # type: ignore[misc]
                 )
             await self._yield_executor()
 
-        supervisor_goal = self._copy_goal(public_goal_handle.request)
+        supervisor_goal = self._frozen_goal(frozen, public_goal_handle.request.timeout)
         send_future = self._supervisor.send_goal_async(
             supervisor_goal,
             feedback_callback=lambda feedback: self._forward_feedback(public_goal_handle, feedback),
@@ -183,17 +184,26 @@ class JobGatewayNode(Node):  # type: ignore[misc]
             self.destroy_timer(timer)
 
     @staticmethod
-    def _copy_goal(source: Any) -> Any:
-        goal = RunJob.Goal()
-        goal.job_id = source.job_id
-        goal.cell_id = source.cell_id
-        goal.recipe_id = source.recipe_id
-        goal.recipe_version = source.recipe_version
-        goal.task_id = source.task_id
-        goal.input_payload_json = source.input_payload_json
-        goal.execution_mode = source.execution_mode
-        goal.idempotency_key = source.idempotency_key
-        goal.timeout = source.timeout
+    def _frozen_goal(frozen: FrozenJob, timeout: Any) -> Any:
+        request = frozen.request
+        goal = ExecuteFrozenJob.Goal()
+        goal.trace_id = frozen.trace_id
+        goal.job_id = request.job_id
+        goal.cell_id = request.cell_id
+        goal.bundle_id = frozen.bundle_id
+        goal.source_revision = frozen.source_revision
+        goal.recipe_id = request.recipe_id
+        goal.recipe_version = request.recipe_version
+        goal.recipe_sha256 = frozen.recipe_sha256
+        goal.recipe_yaml = frozen.recipe_yaml
+        goal.task_id = request.task_id
+        goal.task_sha256 = frozen.task_sha256
+        goal.input_payload_json = request.input_payload_json
+        goal.execution_mode = request.execution_mode
+        goal.idempotency_key = request.idempotency_key
+        goal.calibration_ids = list(frozen.calibration_ids)
+        goal.calibration_sha256s = list(frozen.calibration_sha256s)
+        goal.timeout = timeout
         return goal
 
     @staticmethod

@@ -25,7 +25,7 @@ def create_app(service: OperatorService, *, bundle_id: str = "") -> FastAPI:
 
     app = FastAPI(
         title="CellForge Local Operator API",
-        version="0.1.0",
+        version="0.2.0",
         docs_url=None,
         redoc_url=None,
         openapi_url="/api/v1/openapi.json",

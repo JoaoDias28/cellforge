@@ -38,10 +38,12 @@ config_schema: config.schema.json
 capabilities:
   - contract: vision.locate_object
     version: 1.0.0
+    definition: cellforge://capabilities/vision.locate_object/1.0.0
     endpoint: locate_object
     modes: [simulation, commissioning, production]
   - contract: vision.inspect_object
     version: 1.0.0
+    definition: cellforge://capabilities/vision.inspect_object/1.0.0
     endpoint: inspect_object
     modes: [simulation, commissioning, production]
 adapters:

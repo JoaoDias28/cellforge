@@ -104,6 +104,11 @@ class RosRuntimePort(Node):  # type: ignore[misc]
             recipe_id=active_job.recipe_id if active_job else "",
             recipe_version=active_job.recipe_version if active_job else 0,
             task_id=active_job.task_id if active_job else "",
+            source_revision=active_job.source_revision if active_job else "",
+            recipe_sha256=active_job.recipe_sha256 if active_job else "",
+            task_sha256=active_job.task_sha256 if active_job else "",
+            execution_mode=active_job.execution_mode if active_job else "",
+            calibration_ids=active_job.calibration_ids if active_job else (),
         )
         return RuntimeSnapshot(
             cell_id=str(state.cell_id),
@@ -143,9 +148,9 @@ class RosRuntimePort(Node):  # type: ignore[misc]
         with self._lock:
             self._latest_state = message
             self._state_received_monotonic = time.monotonic()
-            if not str(message.active_job_id):
-                self._active_job = None
-            elif self._active_job is None or self._active_job.job_id != str(message.active_job_id):
+            if str(message.active_job_id) and (
+                self._active_job is None or self._active_job.job_id != str(message.active_job_id)
+            ):
                 self._active_job = ActiveJob(
                     job_id=str(message.active_job_id),
                     trace_id=str(message.active_trace_id),
@@ -164,28 +169,33 @@ class RosRuntimePort(Node):  # type: ignore[misc]
             return
         event_type = str(message.event_type)
         with self._lock:
-            if event_type in {"job.completed", "job.rejected", "job.cancelled"}:
+            if event_type in {"job.completed", "job.rejected", "job.cancelled", "job.failed"}:
                 if self._active_job and self._active_job.job_id == str(message.job_id):
                     self._active_job = None
                 return
-            if event_type not in {"job.accepted", "job.started", "bt.node.entered"}:
+            if event_type not in {
+                "job.accepted",
+                "job.started",
+                "behavior_tree.node.entered",
+            }:
                 return
             previous = self._active_job
             self._active_job = ActiveJob(
                 job_id=str(message.job_id),
                 trace_id=str(message.trace_id),
-                recipe_id=str(payload.get("recipe_id", previous.recipe_id if previous else "")),
-                recipe_version=_safe_int(
-                    payload.get("recipe_version", previous.recipe_version if previous else 0)
-                ),
-                task_id=str(payload.get("task_id", previous.task_id if previous else "")),
-                execution_mode=str(
-                    payload.get("execution_mode", previous.execution_mode if previous else "")
-                ),
-                active_step=str(payload.get("node_id", previous.active_step if previous else "")),
+                recipe_id=str(getattr(message, "recipe_id", "")),
+                recipe_version=_safe_int(getattr(message, "recipe_version", 0)),
+                task_id=str(getattr(message, "task_id", "")),
+                execution_mode=str(getattr(message, "execution_mode", "")),
+                active_step=str(payload.get("node", previous.active_step if previous else "")),
                 progress=_safe_float(
                     payload.get("progress", previous.progress if previous else 0.0)
                 ),
+                bundle_id=str(getattr(message, "bundle_id", "")),
+                source_revision=str(getattr(message, "source_revision", "")),
+                recipe_sha256=str(getattr(message, "recipe_sha256", "")),
+                task_sha256=str(getattr(message, "task_sha256", "")),
+                calibration_ids=tuple(getattr(message, "calibration_ids", ())),
             )
 
     def _submit_blocking(
@@ -335,7 +345,9 @@ class RosRuntimePort(Node):  # type: ignore[misc]
         connection = sqlite3.connect(f"file:{self._trace_database}?mode=ro", uri=True)
         try:
             rows = connection.execute(
-                "SELECT sequence, job_id, event_type, severity, payload_json FROM events "
+                "SELECT sequence, job_id, event_type, severity, payload_json, bundle_id, "
+                "source_revision, recipe_id, recipe_version, recipe_sha256, task_id, task_sha256, "
+                "execution_mode, calibration_ids_json FROM events "
                 "WHERE trace_id = ? ORDER BY sequence",
                 (trace_id,),
             ).fetchall()
@@ -362,6 +374,15 @@ class RosRuntimePort(Node):  # type: ignore[misc]
             final_event_type=str(rows[-1][2]),
             final_severity=str(rows[-1][3]),
             fault_codes=tuple(sorted(fault_codes)),
+            bundle_id=str(rows[0][5]),
+            source_revision=str(rows[0][6]),
+            recipe_id=str(rows[0][7]),
+            recipe_version=int(rows[0][8]),
+            recipe_sha256=str(rows[0][9]),
+            task_id=str(rows[0][10]),
+            task_sha256=str(rows[0][11]),
+            execution_mode=str(rows[0][12]),
+            calibration_ids=tuple(json.loads(rows[0][13] or "[]")),
         )
 
 

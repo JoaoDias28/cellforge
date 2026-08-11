@@ -4,6 +4,7 @@
 #include <string>
 
 #include "cellforge_interfaces/action/execute_manipulation.hpp"
+#include "cellforge_interfaces/action/execute_frozen_job.hpp"
 #include "cellforge_interfaces/action/execute_process.hpp"
 #include "cellforge_interfaces/action/execute_skill.hpp"
 #include "cellforge_interfaces/action/inspect_object.hpp"
@@ -43,6 +44,7 @@ TEST(GeneratedCppTypes, ConstructsEveryGeneratedInterfaceType) {
   cellforge_interfaces::srv::SyncPlanningScene::Request scene_request;
   cellforge_interfaces::srv::ValidateRecipe::Request recipe_request;
   cellforge_interfaces::action::ExecuteProcess::Goal process_goal;
+  cellforge_interfaces::action::ExecuteFrozenJob::Goal frozen_job_goal;
   cellforge_interfaces::action::ExecuteManipulation::Goal manipulation_goal;
   cellforge_interfaces::action::ExecuteSkill::Goal skill_goal;
   cellforge_interfaces::action::InspectObject::Goal inspection_goal;
@@ -67,6 +69,7 @@ TEST(GeneratedCppTypes, ConstructsEveryGeneratedInterfaceType) {
   EXPECT_TRUE(scene_request.scene_revision.empty());
   EXPECT_TRUE(recipe_request.recipe_json.empty());
   EXPECT_EQ(process_goal.timeout.sec, 0);
+  EXPECT_TRUE(frozen_job_goal.trace_id.empty());
   EXPECT_EQ(manipulation_goal.timeout.sec, 0);
   EXPECT_EQ(skill_goal.timeout.sec, 0);
   EXPECT_EQ(inspection_goal.timeout.sec, 0);

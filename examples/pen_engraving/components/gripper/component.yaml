@@ -44,10 +44,12 @@ config_schema: config.schema.json
 capabilities:
   - contract: gripper.open
     version: 1.0.0
+    definition: cellforge://capabilities/gripper.open/1.0.0
     endpoint: open
     modes: [simulation, commissioning, production]
   - contract: gripper.close
     version: 1.0.0
+    definition: cellforge://capabilities/gripper.close/1.0.0
     endpoint: close
     modes: [simulation, commissioning, production]
 adapters:

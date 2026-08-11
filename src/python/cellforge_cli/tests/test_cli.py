@@ -118,16 +118,21 @@ def test_schema_list_is_deterministic_json(capsys: pytest.CaptureFixture[str]) -
     payload = json.loads(capsys.readouterr().out)
     schemas = payload["result"]["schemas"]
     assert payload["command"] == "schema.list"
-    assert len(schemas) == 5
+    assert len(schemas) == 10
     assert [(item["kind"], item["version"]) for item in schemas] == sorted(
         (item["kind"], item["version"]) for item in schemas
     )
     assert {item["filename"] for item in schemas} == {
         "cell.schema.json",
+        "calibration.schema.json",
+        "capability-contract.schema.json",
         "component.schema.json",
         "deployment-profile.schema.json",
+        "evidence.schema.json",
+        "fault-catalog.schema.json",
         "recipe.schema.json",
         "scenario.schema.json",
+        "skill.schema.json",
     }
 
 

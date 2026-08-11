@@ -26,6 +26,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/SetDiscreteOutput.srv"
   "srv/ValidateRecipe.srv"
   "action/ExecuteProcess.action"
+  "action/ExecuteFrozenJob.action"
   "action/ExecuteManipulation.action"
   "action/ExecuteSkill.action"
   "action/InspectObject.action"

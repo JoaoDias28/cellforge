@@ -4,7 +4,7 @@
 #include <behaviortree_cpp/tree_node.h>
 
 #include <atomic>
-#include <cellforge_interfaces/action/run_job.hpp>
+#include <cellforge_interfaces/action/execute_frozen_job.hpp>
 #include <cellforge_interfaces/msg/cell_state.hpp>
 #include <cellforge_interfaces/msg/job_event.hpp>
 #include <chrono>
@@ -23,20 +23,21 @@ namespace cellforge_supervisor {
 
 class SupervisorNode : public rclcpp::Node {
  public:
-  using RunJob = cellforge_interfaces::action::RunJob;
-  using GoalHandleRunJob = rclcpp_action::ServerGoalHandle<RunJob>;
+  using ExecuteFrozenJob = cellforge_interfaces::action::ExecuteFrozenJob;
+  using GoalHandleFrozenJob = rclcpp_action::ServerGoalHandle<ExecuteFrozenJob>;
 
   explicit SupervisorNode(const rclcpp::NodeOptions& options = rclcpp::NodeOptions());
   ~SupervisorNode() override;
 
  private:
   auto handleGoal(const rclcpp_action::GoalUUID& uuid,
-                  const std::shared_ptr<const RunJob::Goal>& goal) -> rclcpp_action::GoalResponse;
-  auto handleCancel(const std::shared_ptr<GoalHandleRunJob>& goal_handle)
+                  const std::shared_ptr<const ExecuteFrozenJob::Goal>& goal)
+      -> rclcpp_action::GoalResponse;
+  auto handleCancel(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle)
       -> rclcpp_action::CancelResponse;
-  void handleAccepted(const std::shared_ptr<GoalHandleRunJob>& goal_handle);
+  void handleAccepted(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle);
   void workerLoop(const std::stop_token& stop_token);
-  void executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
+  void executeGoal(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle,
                    const std::stop_token& stop_token);
   void finishGoalSlot();
 
@@ -49,7 +50,7 @@ class SupervisorNode : public rclcpp::Node {
   auto attachTransitionEvents(BT::Tree& tree, const std::string& job_id,
                               const std::string& trace_id)
       -> std::vector<BT::TreeNode::StatusChangeSubscriber>;
-  static void publishFeedback(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
+  static void publishFeedback(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle,
                               const std::string& state, const std::string& active_node,
                               const std::string& message);
 
@@ -68,10 +69,11 @@ class SupervisorNode : public rclcpp::Node {
   std::string state_{"IDLE"};
   std::mutex worker_mutex_;
   std::condition_variable_any worker_condition_;
-  std::shared_ptr<GoalHandleRunJob> pending_goal_handle_;
+  std::shared_ptr<GoalHandleFrozenJob> pending_goal_handle_;
+  std::shared_ptr<const ExecuteFrozenJob::Goal> current_identity_;
   std::jthread worker_;
 
-  rclcpp_action::Server<RunJob>::SharedPtr run_job_server_;
+  rclcpp_action::Server<ExecuteFrozenJob>::SharedPtr run_job_server_;
   rclcpp::Publisher<cellforge_interfaces::msg::CellState>::SharedPtr state_publisher_;
   rclcpp::Publisher<cellforge_interfaces::msg::JobEvent>::SharedPtr event_publisher_;
   rclcpp::Subscription<cellforge_interfaces::msg::CellState>::SharedPtr cell_state_subscription_;

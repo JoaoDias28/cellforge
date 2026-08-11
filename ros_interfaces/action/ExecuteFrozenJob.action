@@ -1,0 +1,29 @@
+# Private gateway-to-supervisor goal. Public callers use RunJob.
+string trace_id
+string job_id
+string cell_id
+string bundle_id
+string source_revision
+string recipe_id
+uint32 recipe_version
+string recipe_sha256
+string recipe_yaml
+string task_id
+string task_sha256
+string input_payload_json
+string execution_mode
+string idempotency_key
+string[] calibration_ids
+string[] calibration_sha256s
+builtin_interfaces/Duration timeout
+---
+bool success
+string result_code
+string result_message
+string output_payload_json
+string trace_id
+---
+string cell_state
+string active_node
+float32 progress
+string message

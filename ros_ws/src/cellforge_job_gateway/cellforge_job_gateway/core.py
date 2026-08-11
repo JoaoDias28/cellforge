@@ -91,8 +91,12 @@ class FrozenJob:
     request_hash: str
     trace_id: str
     bundle_id: str
+    source_revision: str
     recipe_sha256: str
+    recipe_yaml: str
     task_sha256: str
+    calibration_ids: tuple[str, ...]
+    calibration_sha256s: tuple[str, ...]
     recipe: JsonObject
 
     def to_document(self) -> JsonObject:
@@ -102,8 +106,12 @@ class FrozenJob:
             "request_hash": self.request_hash,
             "trace_id": self.trace_id,
             "bundle_id": self.bundle_id,
+            "source_revision": self.source_revision,
             "recipe_sha256": self.recipe_sha256,
+            "recipe_yaml": self.recipe_yaml,
             "task_sha256": self.task_sha256,
+            "calibration_ids": list(self.calibration_ids),
+            "calibration_sha256s": list(self.calibration_sha256s),
             "recipe": self.recipe,
         }
 
@@ -188,13 +196,20 @@ class BundleResolver:
         bundle_id = str(manifest["bundle_id"])
         recipe_sha256 = _sha256(recipe_bytes)
         task_sha256 = _sha256(task_bytes)
+        source_revision = str(manifest.get("source_revision", ""))
+        if re.fullmatch(r"[0-9a-f]{40}", source_revision) is None:
+            raise GatewayError("gateway.bundle.invalid", "Bundle source revision is invalid.")
+        calibration_ids, calibration_sha256s = self._calibration_identity()
         frozen_request_hash = _sha256(
             _canonical_bytes(
                 {
                     "request": request.canonical_document(),
                     "bundle_id": bundle_id,
+                    "source_revision": source_revision,
                     "recipe_sha256": recipe_sha256,
                     "task_sha256": task_sha256,
+                    "calibration_ids": calibration_ids,
+                    "calibration_sha256s": calibration_sha256s,
                 }
             )
         )
@@ -203,10 +218,48 @@ class BundleResolver:
             request_hash=frozen_request_hash,
             trace_id=trace_id,
             bundle_id=bundle_id,
+            source_revision=source_revision,
             recipe_sha256=recipe_sha256,
+            recipe_yaml=recipe_bytes.decode("utf-8"),
             task_sha256=task_sha256,
+            calibration_ids=calibration_ids,
+            calibration_sha256s=calibration_sha256s,
             recipe=recipe,
         )
+
+    def _calibration_identity(self) -> tuple[tuple[str, ...], tuple[str, ...]]:
+        references = self.manifest.get("calibrations", [])
+        files = self.manifest.get("files", [])
+        if not isinstance(references, list) or not isinstance(files, list):
+            raise GatewayError("gateway.bundle.invalid", "Bundle calibration inventory is invalid.")
+        digests = {item.get("path"): item.get("sha256") for item in files if isinstance(item, dict)}
+        ids: list[str] = []
+        hashes: list[str] = []
+        for reference in references:
+            if not isinstance(reference, str) or not reference:
+                raise GatewayError("gateway.calibration.invalid", "Calibration ID is invalid.")
+            frozen_path = f"calibration/{Path(reference).name}"
+            digest = digests.get(frozen_path)
+            if not isinstance(digest, str) or _SHA256.fullmatch(digest) is None:
+                raise GatewayError(
+                    "gateway.calibration.unavailable",
+                    "Frozen calibration content is missing from the bundle inventory.",
+                )
+            try:
+                content = self._contained_path(frozen_path).read_bytes()
+            except OSError:
+                raise GatewayError(
+                    "gateway.calibration.unavailable",
+                    "Frozen calibration content is unavailable.",
+                ) from None
+            if _sha256(content) != digest:
+                raise GatewayError(
+                    "gateway.calibration.digest_mismatch",
+                    "Frozen calibration content does not match the bundle inventory.",
+                )
+            ids.append(reference)
+            hashes.append(digest)
+        return tuple(ids), tuple(hashes)
 
     def _load_manifest(self) -> JsonObject:
         try:

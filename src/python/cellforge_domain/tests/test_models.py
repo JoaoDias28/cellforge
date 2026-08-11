@@ -77,6 +77,20 @@ def test_invalid_semantic_versions_are_rejected(invalid_version: str) -> None:
         ComponentType.model_validate(data)
 
 
+@pytest.mark.parametrize("definition", [None, "cellforge://capabilities/wrong.contract/1.0.0"])
+def test_capability_definition_must_match_contract_version(definition: str | None) -> None:
+    data = yaml.safe_load(
+        (EXAMPLE_ROOT / "components" / "robot" / "component.yaml").read_text(encoding="utf-8")
+    )
+    if definition is None:
+        del data["capabilities"][0]["definition"]
+    else:
+        data["capabilities"][0]["definition"] = definition
+
+    with pytest.raises(ValidationError):
+        ComponentType.model_validate(data)
+
+
 def test_missing_required_field_is_rejected() -> None:
     data = yaml.safe_load((EXAMPLE_ROOT / "cell.yaml").read_text(encoding="utf-8"))
     del data["components"][0]["component"]

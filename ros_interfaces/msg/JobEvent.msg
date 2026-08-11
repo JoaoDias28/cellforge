@@ -3,6 +3,15 @@ string trace_id
 string job_id
 string cell_id
 string bundle_id
+string source_revision
+string recipe_id
+uint32 recipe_version
+string recipe_sha256
+string task_id
+string task_sha256
+string execution_mode
+string[] calibration_ids
+string[] calibration_sha256s
 string component_instance_id
 string command_id
 uint64 sequence

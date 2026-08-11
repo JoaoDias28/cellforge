@@ -123,9 +123,40 @@ def test_simulation_accepts_and_freezes_tested_reference_recipe(tmp_path: Path) 
 
     assert frozen.recipe["recipe"]["status"] == "TESTED"
     assert frozen.bundle_id == resolver.manifest["bundle_id"]
+    assert frozen.source_revision == resolver.manifest["source_revision"]
     assert frozen.recipe_sha256 == resolver.manifest["recipes"][0]["sha256"]
+    assert _sha(frozen.recipe_yaml.encode()) == frozen.recipe_sha256
     assert frozen.task_sha256 == resolver.manifest["tasks"][0]["sha256"]
+    assert frozen.calibration_ids == ()
     assert frozen.to_document()["job"]["input_payload"] == {"text": "CELLFORGE"}
+
+
+def test_calibration_identity_is_verified_and_frozen(tmp_path: Path) -> None:
+    bundle = write_bundle(tmp_path / "bundle")
+    calibration = bundle / "calibration" / "tool.yaml"
+    calibration.parent.mkdir()
+    calibration.write_bytes(b"calibration: immutable\n")
+    manifest_path = bundle / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["calibrations"] = ["calibrations/tool.yaml"]
+    manifest["files"] = [
+        {
+            "path": "calibration/tool.yaml",
+            "sha256": _sha(calibration.read_bytes()),
+            "size": calibration.stat().st_size,
+        }
+    ]
+    del manifest["bundle_id"]
+    manifest["bundle_id"] = _sha(_canonical(manifest))
+    manifest_path.write_bytes(_canonical(manifest))
+
+    frozen = BundleResolver(bundle).freeze(request(), "trace")
+    assert frozen.calibration_ids == ("calibrations/tool.yaml",)
+    assert frozen.calibration_sha256s == (_sha(calibration.read_bytes()),)
+
+    calibration.write_bytes(b"tampered\n")
+    with pytest.raises(GatewayError, match="gateway.calibration.digest_mismatch"):
+        BundleResolver(bundle).freeze(request(), "trace")
 
 
 def test_unapproved_recipe_is_rejected_in_production(tmp_path: Path) -> None:

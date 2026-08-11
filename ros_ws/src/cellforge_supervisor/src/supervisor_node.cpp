@@ -7,9 +7,11 @@
 #include <builtin_interfaces/msg/duration.hpp>
 #include <chrono>
 #include <cstdlib>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <optional>
+#include <openssl/evp.h>
 #include <regex>
 #include <sstream>
 #include <utility>
@@ -45,6 +47,45 @@ auto isUuid(const std::string& value) -> bool {
   static const std::regex uuid_pattern(
       R"(^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$)");
   return std::regex_match(value, uuid_pattern);
+}
+
+auto isSha256(const std::string& value) -> bool {
+  static const std::regex pattern(R"(^[0-9a-f]{64}$)");
+  return std::regex_match(value, pattern);
+}
+
+auto isGitRevision(const std::string& value) -> bool {
+  static const std::regex pattern(R"(^[0-9a-f]{40}$)");
+  return std::regex_match(value, pattern);
+}
+
+auto sha256(const std::string& value) -> std::string {
+  auto context = std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)>(EVP_MD_CTX_new(),
+                                                                        EVP_MD_CTX_free);
+  if (!context || EVP_DigestInit_ex(context.get(), EVP_sha256(), nullptr) != 1 ||
+      EVP_DigestUpdate(context.get(), value.data(), value.size()) != 1) {
+    throw std::runtime_error("Could not initialize SHA-256 validation.");
+  }
+  unsigned char digest[EVP_MAX_MD_SIZE];
+  unsigned int length = 0;
+  if (EVP_DigestFinal_ex(context.get(), digest, &length) != 1) {
+    throw std::runtime_error("Could not finalize SHA-256 validation.");
+  }
+  static constexpr char hex[] = "0123456789abcdef";
+  std::string output(length * 2, '0');
+  for (unsigned int index = 0; index < length; ++index) {
+    output[index * 2] = hex[digest[index] >> 4U];
+    output[index * 2 + 1] = hex[digest[index] & 0x0FU];
+  }
+  return output;
+}
+
+auto readFile(const std::filesystem::path& path) -> std::string {
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream) {
+    throw TreeValidationError("supervisor.tree.unavailable", "Tree file is unavailable.");
+  }
+  return {std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>()};
 }
 
 auto jsonEscape(const std::string& value) -> std::string {
@@ -123,15 +164,16 @@ SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
       "/cell/state", rclcpp::QoS(kStateQueueDepth).reliable(),
       [this](const cellforge_interfaces::msg::CellState& message) { onCellState(message); });
 
-  run_job_server_ = rclcpp_action::create_server<RunJob>(
+  run_job_server_ = rclcpp_action::create_server<ExecuteFrozenJob>(
       this, action_name,
-      [this](const rclcpp_action::GoalUUID& uuid, const std::shared_ptr<const RunJob::Goal>& goal) {
+      [this](const rclcpp_action::GoalUUID& uuid,
+             const std::shared_ptr<const ExecuteFrozenJob::Goal>& goal) {
         return handleGoal(uuid, goal);
       },
-      [this](const std::shared_ptr<GoalHandleRunJob>& goal_handle) {
+      [this](const std::shared_ptr<GoalHandleFrozenJob>& goal_handle) {
         return handleCancel(goal_handle);
       },
-      [this](const std::shared_ptr<GoalHandleRunJob>& goal_handle) {
+      [this](const std::shared_ptr<GoalHandleFrozenJob>& goal_handle) {
         handleAccepted(goal_handle);
       });
 
@@ -154,15 +196,23 @@ SupervisorNode::~SupervisorNode() {
 // ROS warning macros dominate clang-tidy's expanded complexity; source-level validation is flat.
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 auto SupervisorNode::handleGoal(const rclcpp_action::GoalUUID& /*unused*/,
-                                const std::shared_ptr<const RunJob::Goal>& goal)
+                                const std::shared_ptr<const ExecuteFrozenJob::Goal>& goal)
     -> rclcpp_action::GoalResponse {
-  if (!goal || !isUuid(goal->job_id) || goal->cell_id.empty() || goal->task_id.empty() ||
-      goal->recipe_id.empty()) {
-    RCLCPP_WARN(get_logger(), "Rejected RunJob with missing or invalid immutable identity fields.");
+  if (!goal || !isUuid(goal->trace_id) || !isUuid(goal->job_id) || goal->cell_id.empty() ||
+      goal->task_id.empty() || goal->recipe_id.empty() || !isSha256(goal->bundle_id) ||
+      !isGitRevision(goal->source_revision) || !isSha256(goal->recipe_sha256) ||
+      !isSha256(goal->task_sha256) ||
+      goal->calibration_ids.size() != goal->calibration_sha256s.size() ||
+      !std::all_of(goal->calibration_sha256s.begin(), goal->calibration_sha256s.end(), isSha256)) {
+    RCLCPP_WARN(get_logger(), "Rejected frozen job with invalid immutable identity fields.");
     return rclcpp_action::GoalResponse::REJECT;
   }
   if (!cell_id_.empty() && goal->cell_id != cell_id_) {
     RCLCPP_WARN(get_logger(), "Rejected RunJob for a different cell ID.");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+  if (!bundle_id_.empty() && goal->bundle_id != bundle_id_) {
+    RCLCPP_WARN(get_logger(), "Rejected frozen job for a different active bundle.");
     return rclcpp_action::GoalResponse::REJECT;
   }
 
@@ -174,7 +224,7 @@ auto SupervisorNode::handleGoal(const rclcpp_action::GoalUUID& /*unused*/,
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
 
-auto SupervisorNode::handleCancel(const std::shared_ptr<GoalHandleRunJob>& /*unused*/)
+auto SupervisorNode::handleCancel(const std::shared_ptr<GoalHandleFrozenJob>& /*unused*/)
     -> rclcpp_action::CancelResponse {
   if (!job_active_.load()) {
     return rclcpp_action::CancelResponse::REJECT;
@@ -183,7 +233,7 @@ auto SupervisorNode::handleCancel(const std::shared_ptr<GoalHandleRunJob>& /*unu
   return rclcpp_action::CancelResponse::ACCEPT;
 }
 
-void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob>& goal_handle) {
+void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle) {
   cancel_requested_.store(false);
   {
     std::lock_guard lock(worker_mutex_);
@@ -194,7 +244,7 @@ void SupervisorNode::handleAccepted(const std::shared_ptr<GoalHandleRunJob>& goa
 
 void SupervisorNode::workerLoop(const std::stop_token& stop_token) {
   while (true) {
-    std::shared_ptr<GoalHandleRunJob> goal_handle;
+    std::shared_ptr<GoalHandleFrozenJob> goal_handle;
     {
       std::unique_lock lock(worker_mutex_);
       worker_condition_.wait(lock, stop_token,
@@ -208,7 +258,7 @@ void SupervisorNode::workerLoop(const std::stop_token& stop_token) {
   }
 }
 
-void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
+void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle,
                                  const std::stop_token& stop_token) {
   ScopeExit release_slot([this]() { finishGoalSlot(); });
   const auto release_goal_slot = [this, &release_slot]() {
@@ -216,8 +266,9 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
     release_slot.dismiss();
   };
   const auto goal = goal_handle->get_goal();
-  const auto trace_id = newUuid();
-  auto result = std::make_shared<RunJob::Result>();
+  const auto trace_id = goal->trace_id;
+  current_identity_ = goal;
+  auto result = std::make_shared<ExecuteFrozenJob::Result>();
   result->trace_id = trace_id;
   result->output_payload_json = "{}";
 
@@ -239,6 +290,12 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
   blackboard->set("recipe_id", goal->recipe_id);
   blackboard->set("recipe_version", goal->recipe_version);
   blackboard->set("task_id", goal->task_id);
+  blackboard->set("trace_id", goal->trace_id);
+  blackboard->set("bundle_id", goal->bundle_id);
+  blackboard->set("source_revision", goal->source_revision);
+  blackboard->set("recipe_sha256", goal->recipe_sha256);
+  blackboard->set("recipe_yaml", goal->recipe_yaml);
+  blackboard->set("task_sha256", goal->task_sha256);
   blackboard->set("input_payload_json", goal->input_payload_json);
   blackboard->set("execution_mode", goal->execution_mode);
   blackboard->set("idempotency_key", goal->idempotency_key);
@@ -248,6 +305,14 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
   std::optional<BT::Tree> tree;
   try {
     const auto tree_path = resolveTreePath(tree_root_, goal->task_id);
+    if (sha256(goal->recipe_yaml) != goal->recipe_sha256) {
+      throw TreeValidationError("supervisor.frozen.recipe_digest_mismatch",
+                                "Frozen recipe content does not match its digest.");
+    }
+    if (sha256(readFile(tree_path)) != goal->task_sha256) {
+      throw TreeValidationError("supervisor.frozen.task_digest_mismatch",
+                                "Resolved task content does not match its digest.");
+    }
     tree.emplace(createValidatedTreeFromFile(factory_, tree_path, blackboard));
   } catch (const TreeValidationError& error) {
     result->success = false;
@@ -362,6 +427,7 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleRunJob>& goal_h
 void SupervisorNode::finishGoalSlot() {
   cancel_requested_.store(false);
   job_active_.store(false);
+  current_identity_.reset();
 }
 
 void SupervisorNode::onCellState(const cellforge_interfaces::msg::CellState& message) {
@@ -386,7 +452,7 @@ void SupervisorNode::transitionState(const std::string& state, const std::string
   message.all_required_devices_ready = required_devices_ready_.load();
   message.active_job_id = state == "RUNNING" ? job_id : "";
   message.active_trace_id = state == "RUNNING" ? trace_id : "";
-  message.bundle_id = bundle_id_;
+  message.bundle_id = current_identity_ ? current_identity_->bundle_id : bundle_id_;
   state_publisher_->publish(message);
 
   if (!job_id.empty() && !trace_id.empty()) {
@@ -404,6 +470,18 @@ void SupervisorNode::publishEvent(const std::string& event_type, const std::stri
   event.job_id = job_id;
   event.cell_id = cell_id_;
   event.bundle_id = bundle_id_;
+  if (current_identity_) {
+    event.bundle_id = current_identity_->bundle_id;
+    event.source_revision = current_identity_->source_revision;
+    event.recipe_id = current_identity_->recipe_id;
+    event.recipe_version = current_identity_->recipe_version;
+    event.recipe_sha256 = current_identity_->recipe_sha256;
+    event.task_id = current_identity_->task_id;
+    event.task_sha256 = current_identity_->task_sha256;
+    event.execution_mode = current_identity_->execution_mode;
+    event.calibration_ids = current_identity_->calibration_ids;
+    event.calibration_sha256s = current_identity_->calibration_sha256s;
+  }
   event.command_id = command_id;
   event.sequence = 0;
   event.event_type = event_type;
@@ -436,10 +514,10 @@ auto SupervisorNode::attachTransitionEvents(BT::Tree& tree, const std::string& j
   return subscribers;
 }
 
-void SupervisorNode::publishFeedback(const std::shared_ptr<GoalHandleRunJob>& goal_handle,
+void SupervisorNode::publishFeedback(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle,
                                      const std::string& state, const std::string& active_node,
                                      const std::string& message) {
-  auto feedback = std::make_shared<RunJob::Feedback>();
+  auto feedback = std::make_shared<ExecuteFrozenJob::Feedback>();
   feedback->cell_state = state;
   feedback->active_node = active_node;
   feedback->progress = 0.0F;

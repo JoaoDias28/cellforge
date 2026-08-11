@@ -24,7 +24,7 @@ response from an older process is rejected and triggers rollback.
 1. job gateway receives a job with idempotency key;
 2. gateway verifies mode and exact recipe/tree references;
 3. gateway freezes input payload and creates trace ID;
-4. gateway durably records the frozen job, then the supervisor accepts the internal `RunJob` action;
+4. gateway durably records the frozen job, then submits the private `ExecuteFrozenJob` action;
 5. supervisor creates behavior-tree blackboard from frozen job and recipe;
 6. tree executes capability actions/services;
 7. cancellation propagates to active skills;
@@ -48,7 +48,8 @@ No behavior-tree node should perform blocking vendor SDK calls directly. Those b
 ### 3.1 Supervisor execution contract
 
 `cellforge_job_gateway` serves `/cell/run_job`, while `cellforge_supervisor` serves the internal
-`/cell/supervisor/run_job` endpoint and treats `RunJob.task_id` as an exact versioned
+`/cell/supervisor/run_job` endpoint using private `ExecuteFrozenJob`; public `RunJob` remains
+wire-compatible. The supervisor treats `ExecuteFrozenJob.task_id` as an exact versioned
 identifier beneath the active bundle's configured `tree_root`. Separators and traversal are
 rejected. The supervisor constructs the complete tree and rejects unknown node types, missing
 required ports, and unresolved external blackboard inputs before it enters `RUNNING` or sends a
@@ -77,6 +78,12 @@ supervisor submission. It verifies content digests, exact cell and mode compatib
 capabilities, and lifecycle policy. Simulation allows non-retired development recipes;
 commissioning requires `TESTED` or `APPROVED`; production requires `APPROVED`.
 
+The private goal carries the gateway-generated trace ID, bundle and source revision, exact
+recipe/task IDs and SHA-256 digests, canonical recipe YAML, execution mode, and calibration
+references. The supervisor verifies these values against its active configuration and resolved tree
+before constructing a tree or dispatching any capability. Identity mismatch is a deterministic
+standard-control refusal.
+
 Each accepted request is stored in a local SQLite database using its idempotency key and a canonical
 request hash. Matching completed retries replay the durable result; conflicting payloads are
 rejected. After restart, a nonterminal record is marked `OUTCOME_UNKNOWN` and is never automatically
@@ -100,6 +107,12 @@ cellforge_operator_api
 ```
 
 Vendor/process packages are separate and selected into bundles.
+
+`cellforge_supervisor` links the platform OpenSSL `libcrypto` implementation for EVP SHA-256
+verification. OpenSSL is Apache-2.0 licensed, maintained by the OpenSSL project, and supplied by
+the Ubuntu platform. It is required so the supervisor independently checks frozen recipe and tree
+bytes; it can be removed when the same verification moves to a shared, supported platform
+cryptography package without changing the frozen-job contract.
 
 ## 5. Device lifecycle
 

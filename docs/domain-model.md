@@ -64,7 +64,8 @@ A capability is a stable logical operation with a versioned contract. A componen
 
 Capability implementation metadata includes:
 
-- contract ID and version range;
+- contract ID, exact semantic version, and a matching
+  `cellforge://capabilities/<contract>/<version>` definition URI;
 - endpoint mapping;
 - supported modes;
 - limits;
@@ -86,6 +87,10 @@ Examples:
 - route reject.
 
 A skill declares required capabilities, parameters, preconditions, outputs, and failure codes.
+
+Canonical Draft 2020-12 schemas now cover capability contracts, skills, fault catalogs,
+calibration artifacts, and evidence records in addition to project documents. A component
+capability declaration is invalid unless its definition URI names the declared contract/version.
 
 ## 7. Cell project
 

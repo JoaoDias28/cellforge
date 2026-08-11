@@ -24,7 +24,7 @@ FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "validation"
 def test_registry_loads_every_canonical_schema_by_kind_and_version() -> None:
     registry = SchemaRegistry.from_directory(SCHEMA_ROOT)
 
-    assert len(registry) == len(tuple(SCHEMA_ROOT.glob("*.json"))) == 5
+    assert len(registry) == len(tuple(SCHEMA_ROOT.glob("*.json"))) == 10
     assert SchemaKey(SchemaDocumentKind.RECIPE, "0.1.0") in registry.keys
     assert (
         registry.get(SchemaDocumentKind.CELL, "0.1.0").path
@@ -105,5 +105,5 @@ def test_validation_command_succeeds_for_reference_examples(
 
     captured = capsys.readouterr()
     assert result == 0
-    assert "Validated 5 canonical schemas" in captured.out
+    assert "Validated 10 canonical schemas" in captured.out
     assert captured.err == ""

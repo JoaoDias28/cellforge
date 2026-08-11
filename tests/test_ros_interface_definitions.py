@@ -7,6 +7,7 @@ SOURCE_ROOT = REPOSITORY_ROOT / "ros_interfaces"
 PACKAGE_ROOT = REPOSITORY_ROOT / "ros_ws" / "src" / "cellforge_interfaces"
 INTERFACE_PATHS = (
     "action/ExecuteManipulation.action",
+    "action/ExecuteFrozenJob.action",
     "action/ExecuteProcess.action",
     "action/ExecuteSkill.action",
     "action/InspectObject.action",

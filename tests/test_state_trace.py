@@ -49,6 +49,15 @@ class FakeTraceEventStore(TraceEventStore):
             job_id=event.job_id,
             cell_id=event.cell_id,
             bundle_id=event.bundle_id,
+            source_revision=event.source_revision,
+            recipe_id=event.recipe_id,
+            recipe_version=event.recipe_version,
+            recipe_sha256=event.recipe_sha256,
+            task_id=event.task_id,
+            task_sha256=event.task_sha256,
+            execution_mode=event.execution_mode,
+            calibration_ids=event.calibration_ids,
+            calibration_sha256s=event.calibration_sha256s,
             component_instance_id=event.component_instance_id,
             command_id=event.command_id,
             sequence=self._sequence,
@@ -103,6 +112,13 @@ def make_event(
     job_id: str = UUID_2,
     cell_id: str = "cell-ref",
     bundle_id: str = "b" * 64,
+    source_revision: str = "a" * 40,
+    recipe_id: str = "pen-reference",
+    recipe_version: int = 1,
+    recipe_sha256: str = "c" * 64,
+    task_id: str = "engrave@1",
+    task_sha256: str = "d" * 64,
+    execution_mode: str = "simulation",
     component_instance_id: str = "robot-001",
     command_id: str = UUID_3,
     event_type: str = "device.state.changed",
@@ -114,6 +130,13 @@ def make_event(
         job_id=job_id,
         cell_id=cell_id,
         bundle_id=bundle_id,
+        source_revision=source_revision,
+        recipe_id=recipe_id,
+        recipe_version=recipe_version,
+        recipe_sha256=recipe_sha256,
+        task_id=task_id,
+        task_sha256=task_sha256,
+        execution_mode=execution_mode,
         component_instance_id=component_instance_id,
         command_id=command_id,
         sequence=0,
@@ -133,6 +156,9 @@ class TestTraceEventModel:
         row = event.to_row()
         restored = TraceEvent.from_row(row)
         assert restored.trace_id == event.trace_id
+        assert restored.source_revision == event.source_revision
+        assert restored.recipe_sha256 == event.recipe_sha256
+        assert restored.task_sha256 == event.task_sha256
         assert restored.job_id == event.job_id
         assert restored.sequence == event.sequence
         assert restored.payload == {"action": "close", "duration_ms": 150}
@@ -286,6 +312,8 @@ class TestSqliteTraceEventStore:
             legacy = store.query(limit=10)
             assert len(legacy) == 1
             assert legacy[0].bundle_id == ""
+            assert legacy[0].recipe_id == ""
+            assert legacy[0].recipe_version == 0
             store.record(make_event(bundle_id="c" * 64))
             assert store.query(limit=10)[1].bundle_id == "c" * 64
         finally:
@@ -1055,6 +1083,15 @@ class TestRecorderConversion:
         msg.job_id = job_id
         msg.cell_id = cell_id
         msg.bundle_id = bundle_id
+        msg.source_revision = "a" * 40
+        msg.recipe_id = "pen-reference"
+        msg.recipe_version = 1
+        msg.recipe_sha256 = "c" * 64
+        msg.task_id = "engrave@1"
+        msg.task_sha256 = "d" * 64
+        msg.execution_mode = "simulation"
+        msg.calibration_ids = ["calibration/tool.yaml"]
+        msg.calibration_sha256s = ["e" * 64]
         msg.component_instance_id = component_instance_id
         msg.command_id = command_id
         msg.event_type = event_type
@@ -1090,6 +1127,19 @@ class TestRecorderConversion:
 
         event = convert_job_event_to_trace_event(msg)
         assert event.bundle_id == "b" * 64
+
+    def test_conversion_preserves_complete_execution_identity(self) -> None:
+        msg = self._fake_message()
+        from cellforge_state_trace.trace_store import convert_job_event_to_trace_event
+
+        event = convert_job_event_to_trace_event(msg)
+        assert event.source_revision == "a" * 40
+        assert event.recipe_id == "pen-reference"
+        assert event.recipe_sha256 == "c" * 64
+        assert event.task_id == "engrave@1"
+        assert event.task_sha256 == "d" * 64
+        assert event.execution_mode == "simulation"
+        assert event.calibration_ids == ("calibration/tool.yaml",)
 
     def test_conversion_preserves_component_instance_id(self) -> None:
         msg = self._fake_message()
