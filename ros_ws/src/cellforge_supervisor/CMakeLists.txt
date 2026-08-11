@@ -32,7 +32,7 @@ ament_target_dependencies(cellforge_supervisor_core
   rclcpp_action
   std_msgs
 )
-target_link_libraries(cellforge_supervisor_core PUBLIC OpenSSL::Crypto)
+target_link_libraries(cellforge_supervisor_core OpenSSL::Crypto)
 
 add_library(cellforge_supervisor_bt_nodes SHARED src/plugin.cpp)
 target_compile_definitions(cellforge_supervisor_bt_nodes PRIVATE BT_PLUGIN_EXPORT)

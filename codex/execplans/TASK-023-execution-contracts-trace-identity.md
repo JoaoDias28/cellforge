@@ -114,3 +114,6 @@ Local Ruff and mypy gates pass. The full suite passes 328 tests, with the existi
 directory-symlink case skipped. All 22 example YAML documents validate against ten canonical and seven component
 configuration schemas. Docker/ROS is unavailable on this workstation, so Jazzy build, generated
 interface, C++ mismatch/cancellation, and ROS node integration checks remain assigned to hosted CI.
+The first hosted build exposed mixed keyword/plain `target_link_libraries` signatures after
+`ament_target_dependencies`; the OpenSSL link was changed to the matching plain signature before
+rerunning CI.
