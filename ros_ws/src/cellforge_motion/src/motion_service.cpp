@@ -257,8 +257,9 @@ auto MotionService::validate(const ManipulationRequest& request) -> std::string 
       !std::regex_match(request.tool_frame, kStableIdPattern)) {
     return "object_id and tool_frame must be stable identifiers";
   }
-  if (!validPose(request.object_pose) || !safePose(request.named_safe_pose)) {
-    return "object_pose and a declared named safe pose are required";
+  if ((request.operation == ManipulationOperation::PICK && !validPose(request.object_pose)) ||
+      !safePose(request.named_safe_pose)) {
+    return "pick object_pose and a declared named safe pose are required";
   }
   if (!validScaling(request.max_velocity_scaling) ||
       !validScaling(request.max_acceleration_scaling) || request.timeout <= 0ms) {

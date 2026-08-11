@@ -3,7 +3,7 @@
   "actions": [
     {
       "action_id": "acknowledge-laser-timeout",
-      "fault_codes": ["laser.timeout"],
+      "fault_codes": ["laser.process.timeout"],
       "kind": "acknowledge_fault",
       "label": "Acknowledge laser timeout",
       "instructions": "Verify the laser is no longer busy and acknowledge the timeout. Do not infer whether the process completed.",
@@ -12,7 +12,7 @@
     },
     {
       "action_id": "inspect-laser-after-timeout",
-      "fault_codes": ["laser.timeout"],
+      "fault_codes": ["laser.process.timeout"],
       "kind": "enter_maintenance",
       "label": "Enter maintenance for laser inspection",
       "instructions": "Use the independent local enabling procedure, isolate process energy as required, and inspect the laser interface.",

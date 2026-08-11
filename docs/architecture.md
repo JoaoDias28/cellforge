@@ -220,3 +220,15 @@ not import adapters, planner plugins, Python oracle code, vendor SDKs, or safety
 An uncertain process result is terminal to the current automatic sequence and requires explicit
 reconciliation. Cancellation is forwarded to active actions but remains standard control. Rated
 safety hardware independently enforces protective functions regardless of behavior-tree state.
+
+## 13. Task 025 integrated runtime boundary
+
+`cellforge_bringup` composes the bundle-selected L0 adapters, motion service, recovery coordinator,
+state/trace services, supervisor and frozen plugin, gateway, and loopback operator API. Launch reads
+only a verified immutable runtime graph from `manifest.json`; operator input cannot select graph
+names or executables. Domain instance IDs retain hyphens, while ROS graph tokens encode them with
+underscores (for example `laser-001` becomes `/device/laser_001/...`).
+
+L0 is a deterministic contract runtime, not physics. L2 is refused as unavailable until a genuine
+Isaac adapter exists. The coordinator validates semantic recovery against current state but has no
+safety authority and never treats a missing fixed recovery service as success.

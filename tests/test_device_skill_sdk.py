@@ -93,6 +93,21 @@ def test_state_publisher_is_canonical_monotonic_and_retains_uncertain_command() 
     assert [snapshot.revision for snapshot in emitted] == [1, 2]
 
 
+def test_state_heartbeat_refreshes_time_without_changing_semantic_state() -> None:
+    emitted: list[DeviceStateSnapshot] = []
+    publisher = CanonicalStatePublisher("component-008", emitted.append)
+    ready = publisher.transition(DeviceState.READY, details={"source": "test"})
+
+    heartbeat = publisher.heartbeat()
+
+    assert heartbeat.revision == ready.revision + 1
+    assert heartbeat.heartbeat_at >= ready.heartbeat_at
+    assert heartbeat.state is ready.state
+    assert heartbeat.ready is ready.ready
+    assert heartbeat.details == ready.details
+    assert emitted[-1] == heartbeat
+
+
 def test_not_ready_adapter_rejects_without_starting_operation() -> None:
     """Readiness is an explicit precondition, not an assumption based on process startup."""
 

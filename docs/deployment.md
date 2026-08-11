@@ -214,3 +214,15 @@ Production compilation cannot pass yet: the compiler deliberately emits
 `compiler.production-evidence-unverified` until evidence records can be verified rather than
 trusted as an unchecked caller assertion. Modeled safety connections remain metadata describing
 dependencies on independent rated hardware.
+
+## 8. Task 025 immutable runtime graph
+
+Simulation deployment profiles now declare fidelity, adapter configuration, and concrete
+package/executable identities. The compiler freezes a `runtime` manifest object containing the
+fixed topic/action/service map, required device IDs, tree root, cell/scene/config/recovery paths,
+and executable identities. All keys and inventories are sorted before canonical hashing, so the
+runtime graph contributes deterministically to the bundle ID.
+
+Bringup accepts only the supported L0 identity set and exact fixed endpoints. A requested fidelity
+that differs from the frozen profile, a tampered critical file, a path escaping the bundle, or the
+currently unavailable L2 runtime fails before launch.

@@ -140,9 +140,17 @@ class RosRuntimePort(Node):  # type: ignore[misc]
         principal: Principal,
         cancel_event: asyncio.Event,
     ) -> OperationResult:
-        return await asyncio.to_thread(
-            self._recovery_blocking, action, fault_id, principal, cancel_event
-        )
+        try:
+            return await asyncio.to_thread(
+                self._recovery_blocking, action, fault_id, principal, cancel_event
+            )
+        except Exception as error:
+            self.get_logger().error(f"Recovery dispatch failed: {error!r}")
+            return OperationResult(
+                False,
+                "operator.recovery.failure",
+                "The fixed local recovery dispatch failed.",
+            )
 
     def _on_cell_state(self, message: Any) -> None:
         with self._lock:
@@ -159,6 +167,8 @@ class RosRuntimePort(Node):  # type: ignore[misc]
                     task_id="",
                     execution_mode="",
                 )
+            elif not str(message.active_job_id) and str(message.state) != "RUNNING":
+                self._active_job = None
 
     def _on_job_event(self, message: Any) -> None:
         try:
@@ -294,7 +304,7 @@ class RosRuntimePort(Node):  # type: ignore[misc]
         principal: Principal,
         cancel_event: asyncio.Event,
     ) -> OperationResult:
-        if not self._wait_for_server(self._operator_action, cancel_event, 5.0):
+        if not self._wait_for_service(self._operator_action, cancel_event, 5.0):
             return OperationResult(
                 False,
                 "operator.recovery.unavailable",
@@ -313,7 +323,15 @@ class RosRuntimePort(Node):  # type: ignore[misc]
                 "The recovery request outcome is unknown.",
                 outcome_certain=False,
             )
-        response = future.result()
+        try:
+            response = future.result()
+        except Exception as error:
+            self.get_logger().error(f"Operator-action service failed: {error!r}")
+            return OperationResult(
+                False,
+                "operator.recovery.failure",
+                "The fixed local recovery service failed.",
+            )
         if response is None:
             return OperationResult(
                 False, "operator.recovery.failure", "The recovery service returned no result."
@@ -330,6 +348,14 @@ class RosRuntimePort(Node):  # type: ignore[misc]
         deadline = time.monotonic() + timeout_seconds
         while time.monotonic() < deadline and not cancel_event.is_set():
             if client.wait_for_server(timeout_sec=0.1):
+                return True
+        return False
+
+    @staticmethod
+    def _wait_for_service(client: Any, cancel_event: asyncio.Event, timeout_seconds: float) -> bool:
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline and not cancel_event.is_set():
+            if client.wait_for_service(timeout_sec=0.1):
                 return True
         return False
 

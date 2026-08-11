@@ -100,7 +100,24 @@ def test_manifest_freezes_exact_components_adapters_packages_recipes_and_tasks(
         item.path for item in report.manifest.files
     }
     assert "config/operator-recovery.json" in {item.path for item in report.manifest.files}
-    assert "cellforge_adapter_laser_sim" in report.manifest.native_packages
+    assert "cellforge_mock_adapters" in report.manifest.native_packages
+    assert report.manifest.runtime is not None
+    assert report.manifest.runtime.simulation_fidelity == "L0"
+    assert report.manifest.runtime.tree_root == "config/behavior-trees"
+    assert report.manifest.runtime.required_devices == (
+        "camera-001",
+        "fixture-001",
+        "gripper-001",
+        "laser-001",
+        "robot-001",
+        "safety-status-001",
+    )
+    assert report.manifest.runtime.endpoints["run_job"] == "/cell/run_job"
+    assert report.manifest.runtime.endpoints["capability.process.execute_cycle"] == (
+        "/device/laser_001/execute_cycle"
+    )
+    assert report.manifest.runtime.executables["adapter"].executable == "mock_device_node"
+    assert "config/adapters/runtime.json" in {item.path for item in report.manifest.files}
     assert report.manifest.evidence.status == "not-required"
 
 
@@ -267,6 +284,26 @@ def test_behavior_tree_plugin_manifest_identity_must_match_declaration(tmp_path:
     assert "compiler.behavior-tree-plugin-manifest-invalid" in {
         finding.code for finding in report.findings
     }
+
+
+def test_integrated_runtime_fails_closed_when_requested_fidelity_is_unavailable(
+    tmp_path: Path,
+) -> None:
+    project = _project_copy(tmp_path)
+    profile = project / "deployment-sim.yaml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace(
+            "simulation_fidelity: L0", "simulation_fidelity: L2"
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    report = _compile(project)
+
+    assert report.valid is False
+    assert report.manifest is None
+    assert "compiler.runtime.fidelity-unavailable" in {finding.code for finding in report.findings}
 
 
 def test_process_action_cannot_be_placed_under_automatic_retry(tmp_path: Path) -> None:

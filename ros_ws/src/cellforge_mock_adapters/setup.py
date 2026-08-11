@@ -22,6 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "mock_device_node = cellforge_mock_adapters.ros_node:main",
+            "mock_safety_status_node = cellforge_mock_adapters.ros_node:safety_main",
             "pen_headless_runner = cellforge_mock_adapters.headless:main",
         ],
     },

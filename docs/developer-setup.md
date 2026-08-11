@@ -98,3 +98,17 @@ directory removes this engineering-only integration without affecting the runtim
 Task 017 connection authoring can be checked without Kit using `make studio-connections-check`.
 The Isaac Sim 6/OpenUSD probe is documented in `docs/cell-studio.md`; it validates composition of a
 mechanically snapped prim and does not exercise or claim any hardware or functional-safety behavior.
+
+## Integrated L0 runtime
+
+After `make ros-build`, source `ros_ws/install/setup.bash` and launch a compiled bundle with:
+
+```bash
+ros2 launch cellforge_bringup integrated_runtime.launch.py \
+  bundle_root:=/absolute/path/to/bundle fidelity:=L0 \
+  local_state_root:=/var/lib/cellforge operator_auth:=/etc/cellforge/operator-auth.json
+```
+
+The launch is offline and loopback-only. For deterministic acceptance in a clean Jazzy environment,
+run `make integrated-runtime-check`. `launch_testing` is a ROS Jazzy test dependency, maintained by
+the ROS 2 project; removing the launch test removes that dependency without changing runtime code.

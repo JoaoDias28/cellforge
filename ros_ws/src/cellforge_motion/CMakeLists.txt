@@ -29,6 +29,14 @@ add_library(cellforge_motion_moveit SHARED
   src/moveit_planner.cpp
   src/mtc_task_builder.cpp
 )
+
+add_library(cellforge_motion_l0 SHARED src/l0_planner.cpp)
+target_include_directories(cellforge_motion_l0 PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(cellforge_motion_l0 cellforge_motion_core)
+ament_target_dependencies(cellforge_motion_l0 moveit_msgs)
 target_include_directories(cellforge_motion_moveit PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
@@ -62,11 +70,21 @@ target_link_libraries(cellforge_motion_service
 )
 ament_target_dependencies(cellforge_motion_service rclcpp)
 
+add_executable(cellforge_l0_motion_service src/l0_main.cpp)
+target_link_libraries(cellforge_l0_motion_service
+  cellforge_motion_core
+  cellforge_motion_l0
+  cellforge_motion_node
+)
+ament_target_dependencies(cellforge_l0_motion_service rclcpp)
+
 install(TARGETS
   cellforge_motion_core
   cellforge_motion_moveit
+  cellforge_motion_l0
   cellforge_motion_node
   cellforge_motion_service
+  cellforge_l0_motion_service
   EXPORT export_cellforge_motion
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -82,7 +100,7 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_motion_service test/test_motion_service.cpp)
   if(TARGET test_motion_service)
-    target_link_libraries(test_motion_service cellforge_motion_core)
+    target_link_libraries(test_motion_service cellforge_motion_core cellforge_motion_l0)
   endif()
 
   ament_clang_format(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-format")

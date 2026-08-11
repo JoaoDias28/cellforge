@@ -6,20 +6,21 @@ timing are selected purely by scenario configuration. Requires ROS 2 Jazzy with 
 built and sourced; no Isaac Sim or hardware is needed.
 """
 
+import json
 from pathlib import Path
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
-MOCK_CELL_NODES = [
-    "mock_robot",
-    "mock_gripper",
+REFERENCE_NODES = (
     "mock_fixture",
-    "mock_vision_locator",
+    "mock_gripper",
     "mock_inspection",
     "mock_laser",
-]
+    "mock_robot",
+    "mock_vision_locator",
+)
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -28,14 +29,32 @@ def generate_launch_description() -> LaunchDescription:
         / "config"
         / "mock_cell_scenarios.json"
     )
-    return LaunchDescription(
-        [
+    document = json.loads(scenario_file.read_text(encoding="utf-8"))
+    nodes = []
+    if tuple(sorted(document["nodes"])) != REFERENCE_NODES:
+        raise RuntimeError("Mock-cell scenario does not contain the exact reference node set.")
+    for node_name in REFERENCE_NODES:
+        scenario = document["nodes"][node_name]
+        nodes.append(
             Node(
                 package="cellforge_mock_adapters",
                 executable="mock_device_node",
                 name=node_name,
-                parameters=[{"scenario_file": str(scenario_file)}],
+                parameters=[
+                    {
+                        "scenario_file": str(scenario_file),
+                        "endpoint_root": (
+                            f"/device/{scenario['component_instance_id'].replace('-', '_')}"
+                        ),
+                    }
+                ],
             )
-            for node_name in MOCK_CELL_NODES
-        ]
+        )
+    nodes.append(
+        Node(
+            package="cellforge_mock_adapters",
+            executable="mock_safety_status_node",
+            parameters=[{"component_instance_id": "safety-status-001", "healthy": True}],
+        )
     )
+    return LaunchDescription(nodes)

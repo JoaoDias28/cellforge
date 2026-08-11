@@ -7,6 +7,7 @@
 #include <string>
 #include <thread>
 
+#include "cellforge_motion/l0_planner.hpp"
 #include "cellforge_motion/motion_service.hpp"
 
 namespace cellforge_motion {
@@ -186,6 +187,31 @@ TEST(MotionService, ManipulationReturnsStableStageEvidence) {
   const auto result = service->executeManipulation(manipulationRequest());
   EXPECT_TRUE(result.success);
   EXPECT_EQ(result.completed_stages.size(), 3U);
+}
+
+TEST(MotionService, LoadAndUnloadDoNotInventAnObjectPoseRequirement) {
+  auto planner = std::make_shared<FakePlanner>();
+  auto service = serviceWith(planner);
+  auto request = manipulationRequest();
+  request.operation = ManipulationOperation::LOAD;
+  request.object_pose = geometry_msgs::msg::PoseStamped();
+  EXPECT_TRUE(service->executeManipulation(request).success);
+  request.operation = ManipulationOperation::UNLOAD;
+  EXPECT_TRUE(service->executeManipulation(request).success);
+}
+
+TEST(L0Planner, ReportsContractFidelityAndHonorsCancellation) {
+  L0Planner planner;
+  const auto scene = planner.syncPlanningScene(sceneRequest());
+  EXPECT_TRUE(scene.success);
+  EXPECT_EQ(scene.applied_scene_revision, "scene-0001");
+  std::stop_source stopped;
+  stopped.request_stop();
+  const auto cancelled = planner.moveToPose(motionRequest(false), stopped.get_token());
+  EXPECT_EQ(cancelled.outcome, PlannerOutcome::EXECUTION_FAILED);
+  const auto completed = planner.executeManipulation(manipulationRequest(), {});
+  EXPECT_EQ(completed.outcome, PlannerOutcome::SUCCESS);
+  EXPECT_FALSE(completed.completed_stages.empty());
 }
 
 TEST(MotionService, InvalidSceneOwnershipFailsClosed) {

@@ -58,6 +58,7 @@
     },
     "runtime": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "native_packages": {
           "type": "array",
@@ -91,6 +92,25 @@
               "manifest": {
                 "type": "string"
               }
+            }
+          }
+        },
+        "simulation_fidelity": {
+          "enum": ["L0", "L1", "L2", "L3"]
+        },
+        "adapter_configuration": {
+          "type": "string",
+          "minLength": 1
+        },
+        "executables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["package", "executable"],
+            "properties": {
+              "package": {"type": "string"},
+              "executable": {"type": "string"}
             }
           }
         }
