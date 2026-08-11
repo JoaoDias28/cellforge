@@ -152,6 +152,23 @@ The local operator interface provides:
 
 It does not expose raw arbitrary ROS calls.
 
+### 9.1 Task 022 local API contract
+
+The loopback API exposes versioned status, active-job, faults, immutable bundle/recipe identity,
+trace-summary, submit, cancel, and approved-recovery routes plus a same-origin minimal page. It uses
+only local ROS state/action/service contracts and local SQLite files, so loss of the platform server
+does not remove cell operation.
+
+Viewer, operator, maintainer, and administrator roles are authenticated from token digests in
+protected local configuration. Job mutation requires operator. Each recovery entry declares its
+minimum role; maintenance always requires maintainer or administrator. Denied and invalid attempts
+are audited as well as successful, failed, timed-out, and cancelled operations.
+
+Recovery entries contain no executable or ROS endpoint. The fixed `/cell/operator_action` service
+must independently check current fault/state and returns outcome certainty. Service unavailability
+is an explicit failure, not a simulated success. Displayed safety health is standard-control
+readiness information only.
+
 ## 10. Task 019 motion service contract
 
 `cellforge_motion` serves `/skills/move_to_pose`, `/skills/execute_manipulation`, and

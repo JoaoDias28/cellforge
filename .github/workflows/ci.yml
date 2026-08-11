@@ -36,6 +36,8 @@ jobs:
         run: make pen-physical-sim-check
       - name: Run Task 021 bundle-agent checks
         run: make bundle-agent-check
+      - name: Run Task 022 local operator API checks
+        run: make operator-api-check
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

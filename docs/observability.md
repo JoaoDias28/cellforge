@@ -35,6 +35,15 @@ candidate, previous, and final active IDs, including failed-health rollback outc
 
 Local cell storage is authoritative during outages. Structured events use an append-only local database or durable journal. Selected ROS topics use rosbag2 with MCAP. Attachments are referenced by content hash.
 
+### 3.1 Operator audit journal
+
+Task 022 stores an append-only local SQLite sequence for each operator mutation. Records contain a
+request ID, principal ID and role, semantic action, resource ID, outcome, stable code, sanitized
+details, and UTC timestamp. `REQUESTED` is committed before runtime dispatch; `COMPLETED`, `DENIED`,
+`FAILED`, `TIMED_OUT`, or `CANCELLED` is committed before response where an outcome is available.
+Raw bearer tokens and job input payloads are never audit fields. The journal remains authoritative
+when the platform server is offline and may be synchronized later without changing local operation.
+
 ## 4. Metrics
 
 Initial metrics:

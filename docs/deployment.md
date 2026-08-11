@@ -165,6 +165,18 @@ Example reference document (the strings on the right are local identifiers, not 
 }
 ```
 
+### 5.1 Operator credentials and recovery catalog
+
+Operator bearer-token digests are separately provisioned in `/etc/cellforge/operator-auth.json`;
+raw tokens and token digests are not bundle files or audit fields. The runtime audit journal lives
+under `/var/lib/cellforge`. The API binds only to a numeric loopback address.
+
+`config/operator-recovery.json` is immutable bundle content validated before runtime startup. It
+contains stable IDs, applicable fault codes, semantic action kinds, instructions, minimum roles,
+and optional confirmation text. Dynamic ROS names, executables, commands, or vendor protocol data
+are forbidden. Activating a bundle therefore activates an exact reviewable recovery catalog without
+granting any software path around rated safety hardware.
+
 ## 6. Upgrade policy
 
 - schema upgrades require migration tools and round-trip tests;
@@ -180,6 +192,7 @@ manifest freezes:
 
 - source revision, cell ID, target profile, and execution mode;
 - exact component type/version and instance IDs;
+- the optional fixed-path approved operator recovery catalog as `config/operator-recovery.json`;
 - the selected adapter package, entrypoint, and minimum version per instance;
 - sorted native packages, containers, external prerequisites, recipes, and task references;
 - SHA-256 and byte size for every required source/configuration file;

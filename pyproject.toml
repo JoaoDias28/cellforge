@@ -7,12 +7,15 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+  "fastapi>=0.100,<1",
+  "httpx>=0.27,<1",
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
   "pyyaml>=6,<7",
   "ruff>=0.12,<1",
   "types-jsonschema>=4.25,<5",
   "types-pyyaml>=6.0.12,<7",
+  "uvicorn>=0.23,<1",
 ]
 
 [tool.uv]
@@ -50,6 +53,7 @@ module = [
     "ament_index_python", "ament_index_python.*",
     "builtin_interfaces", "builtin_interfaces.*",
     "cellforge_interfaces", "cellforge_interfaces.*",
+    "cellforge_operator_api", "cellforge_operator_api.*",
     "cellforge_simulation", "cellforge_simulation.*",
     "geometry_msgs", "geometry_msgs.*",
     "std_msgs", "std_msgs.*",

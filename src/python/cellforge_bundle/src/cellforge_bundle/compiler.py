@@ -38,6 +38,7 @@ from cellforge_domain.example_validation import validate_example_tree
 from cellforge_bundle.models import CompilationReport, CompilerStage, StageResult, StageStatus
 
 _GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
+_OPERATOR_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _USD_PRIM = re.compile(r'\b(?:def|over|class)\s+\w+\s+"([^"\\]+)"')
 _STAGE_ORDER = tuple(CompilerStage)
 
@@ -248,6 +249,7 @@ def compile_project(
         inventory,
     )
     _freeze_calibrations(project_root, cell_path, cell, state, inventory)
+    _freeze_operator_recovery(project_root, state, inventory)
 
     state.attempt(CompilerStage.EVIDENCE)
     if mode == ExecutionMode.PRODUCTION:
@@ -688,6 +690,102 @@ def _freeze_calibrations(
         )
         if source is not None:
             inventory.add(f"calibration/{source.name}", source, CompilerStage.TARGET)
+
+
+def _freeze_operator_recovery(
+    project_root: Path,
+    state: _CompilerState,
+    inventory: _FileInventory,
+) -> None:
+    source = project_root / "operator" / "operator-recovery.json"
+    if not source.exists():
+        return
+    content = _read_bytes(
+        source,
+        state,
+        CompilerStage.SCHEMA,
+        "compiler.operator-recovery-unreadable",
+    )
+    if content is None:
+        return
+    try:
+        document: object = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        document = None
+    if not _valid_operator_recovery_document(document):
+        state.add(
+            CompilerStage.SCHEMA,
+            _finding(
+                "compiler.operator-recovery-invalid",
+                f"{source}#",
+                "Operator recovery catalog is invalid or contains non-semantic control fields.",
+            ),
+        )
+        return
+    inventory.add("config/operator-recovery.json", source, CompilerStage.SCHEMA)
+
+
+def _valid_operator_recovery_document(document: object) -> bool:
+    if not isinstance(document, dict) or set(document) != {"schema_version", "actions"}:
+        return False
+    if document.get("schema_version") != "0.1.0":
+        return False
+    actions = document.get("actions")
+    if not isinstance(actions, list):
+        return False
+    seen: set[str] = set()
+    allowed_fields = {
+        "action_id",
+        "fault_codes",
+        "kind",
+        "label",
+        "instructions",
+        "required_role",
+        "confirmation",
+    }
+    for action in actions:
+        if not isinstance(action, dict) or not set(action) <= allowed_fields:
+            return False
+        if not allowed_fields - {"confirmation"} <= set(action):
+            return False
+        action_id = action.get("action_id")
+        fault_codes = action.get("fault_codes")
+        kind = action.get("kind")
+        required_role = action.get("required_role")
+        if (
+            not isinstance(action_id, str)
+            or _OPERATOR_ID.fullmatch(action_id) is None
+            or action_id in seen
+        ):
+            return False
+        if (
+            not isinstance(fault_codes, list)
+            or not fault_codes
+            or not all(
+                isinstance(code, str) and _OPERATOR_ID.fullmatch(code) for code in fault_codes
+            )
+            or len(set(fault_codes)) != len(fault_codes)
+        ):
+            return False
+        if kind not in {
+            "acknowledge_fault",
+            "request_supervisor_recovery",
+            "enter_maintenance",
+        }:
+            return False
+        if required_role not in {"operator", "maintainer", "administrator"}:
+            return False
+        if kind == "enter_maintenance" and required_role == "operator":
+            return False
+        if not all(
+            isinstance(action.get(field), str) and bool(str(action[field]).strip())
+            for field in ("label", "instructions")
+        ):
+            return False
+        if "confirmation" in action and not isinstance(action["confirmation"], str):
+            return False
+        seen.add(action_id)
+    return True
 
 
 def _add_schema_files(inventory: _FileInventory, schemas: SchemaRegistry) -> None:

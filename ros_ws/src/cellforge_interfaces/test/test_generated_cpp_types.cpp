@@ -20,6 +20,7 @@
 #include "cellforge_interfaces/srv/finalize_simulation.hpp"
 #include "cellforge_interfaces/srv/get_device_state.hpp"
 #include "cellforge_interfaces/srv/inject_simulation_fault.hpp"
+#include "cellforge_interfaces/srv/request_operator_action.hpp"
 #include "cellforge_interfaces/srv/register_simulation_adapter.hpp"
 #include "cellforge_interfaces/srv/set_discrete_output.hpp"
 #include "cellforge_interfaces/srv/sync_planning_scene.hpp"
@@ -36,6 +37,7 @@ TEST(GeneratedCppTypes, ConstructsEveryGeneratedInterfaceType) {
   cellforge_interfaces::srv::ControlSimulation::Request control_simulation;
   cellforge_interfaces::srv::FinalizeSimulation::Request finalize_simulation;
   cellforge_interfaces::srv::InjectSimulationFault::Request inject_fault;
+  cellforge_interfaces::srv::RequestOperatorAction::Request operator_action;
   cellforge_interfaces::srv::RegisterSimulationAdapter::Request register_adapter;
   cellforge_interfaces::srv::SetDiscreteOutput::Request output_request;
   cellforge_interfaces::srv::SyncPlanningScene::Request scene_request;
@@ -59,6 +61,7 @@ TEST(GeneratedCppTypes, ConstructsEveryGeneratedInterfaceType) {
   EXPECT_TRUE(control_simulation.command.empty());
   EXPECT_TRUE(finalize_simulation.evidence_path.empty());
   EXPECT_TRUE(inject_fault.fault_code.empty());
+  EXPECT_TRUE(operator_action.action_id.empty());
   EXPECT_TRUE(register_adapter.component_instance_id.empty());
   EXPECT_FALSE(output_request.value);
   EXPECT_TRUE(scene_request.scene_revision.empty());

@@ -1,7 +1,7 @@
 # cellforge_interfaces
 
 `cellforge_interfaces` is the vendor-neutral ROS 2 Jazzy contract package shared by CellForge
-runtime nodes. It generates five messages, nine short services, and seven actions from the
+runtime nodes. It generates five messages, ten short services, and seven actions from the
 definitions in this package.
 
 ## Source definitions
@@ -29,6 +29,9 @@ vendor/protocol-specific term appears in an interface definition.
   inject test faults, and finalize evidence. They cannot command physical outputs or implement a
   functional-safety response; simulated devices retain the same canonical capability contracts as
   their hardware counterparts.
+- `RequestOperatorAction` carries one already-approved semantic action ID, kind, fault context, and
+  principal to the fixed local runtime service. It contains no ROS graph name or arbitrary command;
+  the service must revalidate current state and role context and may explicitly refuse the action.
 - `MoveToPose` and `ExecuteManipulation` expose planner-neutral plan-only or plan-and-execute
   motion. `SyncPlanningScene` binds the derived MoveIt scene to canonical `cell.yaml` and USD
   digests plus immutable instance IDs. None of these interfaces names a planner plugin or provides

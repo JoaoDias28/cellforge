@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/schemas/operator-recovery.schema.json",
+  "title": "CellForge approved operator recovery catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "actions"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action_id", "fault_codes", "kind", "label", "instructions", "required_role"],
+        "properties": {
+          "action_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"},
+          "fault_codes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$"}
+          },
+          "kind": {"enum": ["acknowledge_fault", "request_supervisor_recovery", "enter_maintenance"]},
+          "label": {"type": "string", "minLength": 1},
+          "instructions": {"type": "string", "minLength": 1},
+          "required_role": {"enum": ["operator", "maintainer", "administrator"]},
+          "confirmation": {"type": "string"}
+        }
+      }
+    }
+  }
+}

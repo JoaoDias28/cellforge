@@ -36,7 +36,7 @@ def test_all_reference_yaml_and_cross_file_references_validate() -> None:
     report = validate_example_tree(EXAMPLE_ROOT, SchemaRegistry.from_directory(SCHEMA_ROOT))
 
     assert report.documents_checked == len(tuple(EXAMPLE_ROOT.rglob("*.yaml")))
-    assert report.auxiliary_schemas_checked == 6
+    assert report.auxiliary_schemas_checked == 7
     assert report.findings == ()
 
 

@@ -63,6 +63,20 @@ the runtime as the least-privilege `cellforge` account with `NoNewPrivileges`, a
 view, and only CellForge state/log paths writable. These are security and standard-control measures,
 not functional-safety enforcement.
 
+### 4.2 Local operator authorization
+
+Task 022 authenticates local bearer tokens against SHA-256 digests in protected cell-local
+configuration. Viewer is read-only; operator may submit/cancel jobs and perform explicitly
+operator-approved acknowledgement actions; maintainer is required for maintenance entry;
+administrator remains subject to the same immutable action catalog and runtime state checks.
+
+All mutation attempts are durably audited before dispatch, including invalid credentials, invalid
+input, and insufficient roles. Tokens and submitted job payloads are excluded from audit details.
+The service refuses dispatch when the requested-event audit write fails. HTTP and recovery payloads
+cannot name ROS endpoints or arbitrary commands, and the server rejects non-loopback bind addresses.
+No role or endpoint can disable an interlock, reset rated safety logic, or substitute for local
+presence/enabling required by the safety design.
+
 ## 5. Supply chain
 
 Every imported component package records:
