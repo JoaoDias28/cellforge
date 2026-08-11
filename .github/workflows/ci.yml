@@ -32,6 +32,8 @@ jobs:
         run: make studio-simulation-check
       - name: Run Task 019 motion service contract checks
         run: make motion-service-check
+      - name: Run Task 020 deterministic physical-simulation checks
+        run: make pen-physical-sim-check
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

@@ -4,7 +4,7 @@ ROS_SETUP ?= /opt/ros/$(ROS_DISTRO)/setup.bash
 ROS_WORKSPACE ?= ros_ws
 COLCON ?= colcon
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
@@ -50,6 +50,11 @@ motion-service-check:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen pytest tests/test_motion_service_package.py tests/test_ros_interface_definitions.py
 	$(UV) run --frozen python scripts/verify_motion_service.py
+
+pen-physical-sim-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest tests/test_pen_physical_sim.py
+	$(UV) run --frozen python scripts/verify_pen_physical_sim.py
 
 ros-build:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --symlink-install --event-handlers console_direct+'

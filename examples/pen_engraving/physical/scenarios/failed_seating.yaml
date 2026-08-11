@@ -1,0 +1,26 @@
+schema_version: 0.1.0
+scenario:
+  id: pen-physical-failed-seating
+  name: L2 fixture seating failure
+  seed: 3001
+  timeout_seconds: 60
+simulation: {requested_fidelity: L2}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: CELLFORGE}
+initial_state: {product_present: true, safety_healthy: true, laser_ready: true}
+randomization:
+  product_x_mm: {distribution: uniform, min: -1.0, max: 1.0}
+  product_y_mm: {distribution: uniform, min: -1.0, max: 1.0}
+  product_yaw_deg: {distribution: uniform, min: -3.0, max: 3.0}
+faults:
+  - at: after_load
+    target: fixture-001
+    fault: fixture.sensor.seating_failed
+    parameters: {}
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [fixture.seating.false]
+  forbidden_events: [process.command.completed, safety.bypass]
+  max_cycle_seconds: 45

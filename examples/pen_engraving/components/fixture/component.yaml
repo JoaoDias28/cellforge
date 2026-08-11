@@ -59,6 +59,7 @@ adapters:
     minimum_version: 0.1.0
     fidelity: L2
   hardware: null
+fault_catalog: docs/faults.md
 support:
   level: simulated
   simulation_level: L2

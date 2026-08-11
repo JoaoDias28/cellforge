@@ -330,11 +330,16 @@ class ScenarioAssertions(DomainModel):
     max_cycle_seconds: PositiveSeconds | None = None
 
 
+class ScenarioSimulation(DomainModel):
+    requested_fidelity: SimulationLevel = SimulationLevel.L0
+
+
 class Scenario(DomainModel):
     """A deterministic simulation scenario with optional fault injection."""
 
     schema_version: SemanticVersion
     scenario: ScenarioIdentity
+    simulation: ScenarioSimulation = Field(default_factory=ScenarioSimulation)
     job: JsonObject
     initial_state: JsonObject
     randomization: JsonObject = Field(default_factory=dict)

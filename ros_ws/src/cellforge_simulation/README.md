@@ -4,6 +4,11 @@ Task 018 provides a pure deterministic simulation lifecycle and evidence service
 and Isaac Sim 6 adapters. The ROS node exposes `/simulation/configure`, `/simulation/control`,
 `/simulation/register_adapter`, `/simulation/inject_fault`, and `/simulation/finalize`.
 
+Task 020 adds the ROS/Kit-free `physical` cycle model and the thin `pen_physics_backend` Isaac Sim
+6 adapter. The former is deterministic CPU evidence; the latter is the only implementation here
+that may report actual OpenUSD/PhysX execution. Both preserve the Task 019 planner-neutral motion
+contract and never implement production control or functional-safety enforcement.
+
 The canonical operational graph is always loaded from the selected project's `cell.yaml`; its
 referenced USD file remains the canonical spatial scene. Both content hashes are frozen into every
 evidence report. Simulated devices self-register immutable component instance IDs, canonical
