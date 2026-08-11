@@ -70,6 +70,29 @@
           "items": {
             "type": "string"
           }
+        },
+        "behavior_tree_plugins": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "package",
+              "library",
+              "manifest"
+            ],
+            "properties": {
+              "package": {
+                "type": "string"
+              },
+              "library": {
+                "type": "string"
+              },
+              "manifest": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },

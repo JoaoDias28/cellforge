@@ -56,6 +56,7 @@ class SupervisorNode : public rclcpp::Node {
 
   BT::BehaviorTreeFactory factory_;
   std::filesystem::path tree_root_;
+  std::filesystem::path bundle_manifest_path_;
   std::string cell_id_;
   std::string bundle_id_;
   static constexpr std::chrono::milliseconds kDefaultJobTimeout{300000};

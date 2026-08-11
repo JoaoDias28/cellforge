@@ -46,7 +46,7 @@ A node refuses to start on an invalid scenario (fail-fast).
 
 ## Headless pen scenario runner
 
-Task 013 adds a deterministic L0 executor for the canonical pen behavior-tree XML. It implements
+Task 013 adds a deterministic L0 oracle for the canonical pen behavior-tree XML. It implements
 the initial pen conditions/actions against these pure mock adapters and requires neither ROS
 runtime discovery nor Isaac Sim:
 
@@ -64,8 +64,10 @@ scenario with that seed. UUIDv5 trace and command identities are seed-derived, s
 the complete normalized event sequence. `--write-golden` is an explicit maintenance operation for
 reviewed behavior changes, not a normal test option.
 
-This runner is test infrastructure. BehaviorTree.CPP remains the production supervisor, and L0
-evidence does not prove physics, mark quality, hardware behavior, or functional safety.
+Task 024 retains this runner only as an offline deterministic regression oracle. Production pen
+execution uses `cellforge_pen_bt_nodes` through the BehaviorTree.CPP supervisor; no production
+package imports this Python module. L0 evidence does not prove physics, mark quality, hardware
+behavior, or functional safety.
 
 ## Dependencies
 

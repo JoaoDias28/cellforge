@@ -12,6 +12,8 @@ from cellforge_domain.loading import load_document
 from cellforge_domain.models import (
     Adapter,
     AdapterMode,
+    BehaviorTreePluginDeclaration,
+    BundleBehaviorTreePluginReference,
     BundleCapabilityReference,
     BundleComponentReference,
     BundleEvidenceSummary,
@@ -90,6 +92,8 @@ from cellforge_domain.serialization import to_canonical_json
 __all__ = [
     "Adapter",
     "AdapterMode",
+    "BehaviorTreePluginDeclaration",
+    "BundleBehaviorTreePluginReference",
     "BundleCapabilityReference",
     "BundleComponentReference",
     "BundleEvidenceSummary",

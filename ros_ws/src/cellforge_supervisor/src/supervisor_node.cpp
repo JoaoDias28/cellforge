@@ -18,6 +18,7 @@
 #include <string_view>
 #include <utility>
 
+#include "cellforge_supervisor/bundle_plugin_loader.hpp"
 #include "cellforge_supervisor/supervisor_nodes.hpp"
 #include "cellforge_supervisor/tree_validation.hpp"
 
@@ -153,12 +154,19 @@ SupervisorNode::SupervisorNode(const rclcpp::NodeOptions& options)
   const auto* active_bundle = std::getenv("CELLFORGE_BUNDLE_ID");
   bundle_id_ =
       declare_parameter<std::string>("bundle_id", active_bundle == nullptr ? "" : active_bundle);
+  const auto* active_manifest = std::getenv("CELLFORGE_MANIFEST");
+  bundle_manifest_path_ = declare_parameter<std::string>(
+      "bundle_manifest_path", active_manifest == nullptr ? "" : active_manifest);
   const auto action_name =
       declare_parameter<std::string>("action_name", "/cell/supervisor/run_job");
   default_job_timeout_ = std::chrono::milliseconds(
       declare_parameter<std::int64_t>("default_job_timeout_ms", kDefaultJobTimeout.count()));
 
   registerSupervisorNodes(factory_);
+  if (!bundle_manifest_path_.empty()) {
+    const auto plugins = loadBundleDeclaredPlugins(factory_, bundle_manifest_path_, bundle_id_);
+    RCLCPP_INFO(get_logger(), "Loaded %zu immutable behavior-tree plugin(s).", plugins.size());
+  }
 
   state_publisher_ = create_publisher<cellforge_interfaces::msg::CellState>(
       "/cell/supervisor_state", rclcpp::QoS(kStateQueueDepth).reliable());
@@ -262,6 +270,8 @@ void SupervisorNode::workerLoop(const std::stop_token& stop_token) {
   }
 }
 
+// Job orchestration is intentionally linear; splitting it would obscure the one terminal-result
+// path. NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleFrozenJob>& goal_handle,
                                  const std::stop_token& stop_token) {
   ScopeExit release_slot([this]() { finishGoalSlot(); });
@@ -404,10 +414,33 @@ void SupervisorNode::executeGoal(const std::shared_ptr<GoalHandleFrozenJob>& goa
       return;
     }
     if (tree_status == BT::NodeStatus::FAILURE) {
+      bool process_outcome_unknown = false;
+      std::string leaf_code;
+      std::string leaf_message;
+      try {
+        process_outcome_unknown = blackboard->get<bool>("process_outcome_unknown");
+      } catch (const std::exception&) {
+        process_outcome_unknown = false;
+      }
+      try {
+        leaf_code = blackboard->get<std::string>("last_result_code");
+        leaf_message = blackboard->get<std::string>("last_result_message");
+      } catch (const std::exception&) {
+        leaf_code.clear();
+        leaf_message.clear();
+      }
       result->success = false;
-      result->result_code = "supervisor.job.tree_failed";
-      result->result_message = "Behavior tree returned FAILURE.";
-      publishEvent("job.failed", goal->job_id, trace_id, R"({"code":"supervisor.job.tree_failed"})",
+      if (process_outcome_unknown) {
+        result->result_code = "supervisor.job.outcome_unknown";
+      } else {
+        result->result_code = leaf_code.empty() ? "supervisor.job.tree_failed" : leaf_code;
+      }
+      result->result_message =
+          leaf_message.empty() ? "Behavior tree returned FAILURE." : leaf_message;
+      const auto* const event_type = process_outcome_unknown ? "job.outcome_unknown" : "job.failed";
+      publishEvent(event_type, goal->job_id, trace_id,
+                   R"({"code":")" + jsonEscape(result->result_code) + R"(","outcome_certain":)" +
+                       (process_outcome_unknown ? "false" : "true") + "}",
                    {}, "ERROR");
       transitionState("RECOVERABLE_FAULT", goal->job_id, trace_id);
       release_goal_slot();

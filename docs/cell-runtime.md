@@ -66,6 +66,20 @@ BehaviorTree.CPP retry/timeout decorators compose those actions in XML. Halting 
 cancellation to every active wrapper; cancellation is a request and does not invent certainty about
 the physical outcome.
 
+Task 024 extends this contract with immutable bundle-declared plugins. The active bundle manifest
+lists package, library, frozen node-manifest path, and node-manifest SHA-256. The supervisor accepts
+only packages also declared as native runtime packages, verifies containment/digest/identity, finds
+the library beneath that package's ROS prefix, and checks loaded registrations against the reviewed
+node manifest. The compiler uses the same manifest to reject unknown node types, unknown or missing
+ports, invalid or unresolved blackboard mappings, duplicate declarations, undeclared packages, and
+automatic retry around `ExecuteProcess`.
+
+`cellforge_pen_bt_nodes` implements every leaf in the one canonical pen XML. It uses typed
+`LocateObject`, `ExecuteManipulation`, `MoveToPose`, `ExecuteSkill`, `ExecuteProcess`, and
+`InspectObject` clients with steady deadlines and halt-to-cancel behavior. Stable leaf failures are
+returned by the supervisor. Uncertain processing emits `job.outcome_unknown` and cannot continue to
+inspection or automatic retry. The Python Task 013 runner is only the deterministic L0 trace oracle.
+
 The supervisor publishes its standard-control state on `/cell/supervisor_state` and emits job,
 state, and behavior-node transitions on `/events/job` for Task 010's durable recorder.
 Readiness refusal is not a safety-rated protective function, and the supervisor offers no interlock
@@ -102,6 +116,7 @@ cellforge_trace
 cellforge_device_sdk
 cellforge_skill_sdk
 cellforge_motion
+cellforge_pen_bt_nodes
 cellforge_vision_core
 cellforge_operator_api
 ```

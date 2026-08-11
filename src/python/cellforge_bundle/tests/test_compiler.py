@@ -93,6 +93,12 @@ def test_manifest_freezes_exact_components_adapters_packages_recipes_and_tasks(
     assert report.manifest.recipes[0].sha256 is not None
     assert report.manifest.tasks[0].id == "pen_engraving"
     assert report.manifest.tasks[0].sha256 is not None
+    assert report.manifest.behavior_tree_plugins[0].package == "cellforge_pen_bt_nodes"
+    assert report.manifest.behavior_tree_plugins[0].library == "cellforge_pen_bt_nodes"
+    assert report.manifest.behavior_tree_plugins[0].manifest_sha256
+    assert "config/behavior-tree-plugins/cellforge_pen_bt_nodes.json" in {
+        item.path for item in report.manifest.files
+    }
     assert "config/operator-recovery.json" in {item.path for item in report.manifest.files}
     assert "cellforge_adapter_laser_sim" in report.manifest.native_packages
     assert report.manifest.evidence.status == "not-required"
@@ -190,6 +196,100 @@ def test_missing_behavior_tree_is_a_failure_not_a_silent_success(tmp_path: Path)
         stage for stage in report.stages if stage.stage == "behavior-tree-validation"
     )
     assert behavior_stage.status == "failed"
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "expected_code"),
+    [
+        ("<LocateProduct ", "<UnknownPenNode ", "compiler.behavior-tree-node-unknown"),
+        (" object_type=", ' unexpected="x" object_type=', "compiler.behavior-tree-port-unknown"),
+        (
+            ' object_type="pen"',
+            "",
+            "compiler.behavior-tree-port-missing",
+        ),
+        (
+            ' output_pose="{product_pose}"',
+            ' output_pose="product_pose"',
+            "compiler.behavior-tree-mapping-invalid",
+        ),
+        (
+            ' pose="{product_pose}"',
+            ' pose="{missing_pose}"',
+            "compiler.behavior-tree-mapping-unresolved",
+        ),
+    ],
+)
+def test_behavior_tree_contract_failures_are_compile_time_errors(
+    tmp_path: Path, old: str, new: str, expected_code: str
+) -> None:
+    project = _project_copy(tmp_path)
+    tree = project / "behavior_tree.xml"
+    tree.write_text(
+        tree.read_text(encoding="utf-8").replace(old, new, 1),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    report = _compile(project)
+
+    assert report.valid is False
+    assert expected_code in {finding.code for finding in report.findings}
+
+
+def test_behavior_tree_plugin_package_must_be_immutable_and_declared(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    profile = project / "deployment-sim.yaml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8").replace("    - cellforge_pen_bt_nodes\n", "", 1),
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    report = _compile(project)
+
+    assert report.valid is False
+    assert "compiler.behavior-tree-plugin-package-undeclared" in {
+        finding.code for finding in report.findings
+    }
+
+
+def test_behavior_tree_plugin_manifest_identity_must_match_declaration(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    manifest = project / "behavior_tree_plugins" / "cellforge_pen_bt_nodes.json"
+    document = json.loads(manifest.read_text(encoding="utf-8"))
+    document["plugin"]["package"] = "untrusted_nodes"
+    manifest.write_text(json.dumps(document), encoding="utf-8", newline="\n")
+
+    report = _compile(project)
+
+    assert report.valid is False
+    assert "compiler.behavior-tree-plugin-manifest-invalid" in {
+        finding.code for finding in report.findings
+    }
+
+
+def test_process_action_cannot_be_placed_under_automatic_retry(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    tree = project / "behavior_tree.xml"
+    source = tree.read_text(encoding="utf-8")
+    source = source.replace(
+        "      <ExecuteProcess\n",
+        '      <RetryUntilSuccessful num_attempts="2">\n        <ExecuteProcess\n',
+    )
+    source = source.replace(
+        '        recipe_version="{recipe_version}"/>\n',
+        '        recipe_version="{recipe_version}"/>\n      </RetryUntilSuccessful>\n',
+        1,
+    )
+    tree.write_text(source, encoding="utf-8", newline="\n")
+
+    report = _compile(project)
+
+    assert report.valid is False
+    assert "compiler.behavior-tree-process-retry-forbidden" in {
+        finding.code for finding in report.findings
+    }
 
 
 def test_invalid_source_revision_is_rejected(tmp_path: Path) -> None:

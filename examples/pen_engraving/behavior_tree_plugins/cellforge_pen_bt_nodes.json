@@ -1,0 +1,135 @@
+{
+  "schema_version": "0.1.0",
+  "plugin": {
+    "package": "cellforge_pen_bt_nodes",
+    "library": "cellforge_pen_bt_nodes"
+  },
+  "nodes": [
+    {
+      "type": "CheckRequiredDevicesReady",
+      "category": "condition",
+      "ports": [
+        {"name": "ready", "direction": "input", "type": "bool", "required": true}
+      ]
+    },
+    {
+      "type": "CheckSafetyHealthy",
+      "category": "condition",
+      "ports": [
+        {"name": "healthy", "direction": "input", "type": "bool", "required": true}
+      ]
+    },
+    {
+      "type": "ExecuteProcess",
+      "category": "action",
+      "ports": [
+        {"name": "program", "direction": "input", "type": "string", "required": true},
+        {"name": "variable_data", "direction": "input", "type": "json", "required": true},
+        {"name": "recipe_id", "direction": "input", "type": "string", "required": true},
+        {"name": "recipe_version", "direction": "input", "type": "uint32", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/laser-001/execute_cycle"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 15000}
+      ]
+    },
+    {
+      "type": "InspectProduct",
+      "category": "action",
+      "ports": [
+        {"name": "profile", "direction": "input", "type": "string", "required": true},
+        {"name": "expected", "direction": "input", "type": "json", "required": true},
+        {"name": "measurements", "direction": "output", "type": "json", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/camera-001/inspect_object"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 5000}
+      ]
+    },
+    {
+      "type": "LoadFixture",
+      "category": "action",
+      "ports": [
+        {"name": "fixture", "direction": "input", "type": "string", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/skills/execute_manipulation"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 20000}
+      ]
+    },
+    {
+      "type": "LocateProduct",
+      "category": "action",
+      "ports": [
+        {"name": "object_type", "direction": "input", "type": "string", "required": true},
+        {"name": "profile", "direction": "input", "type": "string", "required": true},
+        {"name": "output_pose", "direction": "output", "type": "geometry_msgs/PoseStamped", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/camera-001/locate_object"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 3000}
+      ]
+    },
+    {
+      "type": "MoveRobotToProcessSafePose",
+      "category": "action",
+      "ports": [
+        {"name": "pose", "direction": "input", "type": "string", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/skills/move_to_pose"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 20000}
+      ]
+    },
+    {
+      "type": "PickProduct",
+      "category": "action",
+      "ports": [
+        {"name": "pose", "direction": "input", "type": "geometry_msgs/PoseStamped", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/skills/execute_manipulation"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 20000}
+      ]
+    },
+    {
+      "type": "RecordProductionResult",
+      "category": "transformation",
+      "ports": []
+    },
+    {
+      "type": "RouteByInspection",
+      "category": "condition",
+      "ports": [
+        {"name": "inspection", "direction": "input", "type": "json", "required": true}
+      ]
+    },
+    {
+      "type": "SelectProcessProgram",
+      "category": "action",
+      "ports": [
+        {"name": "program", "direction": "input", "type": "string", "required": true},
+        {"name": "variable_data", "direction": "input", "type": "json", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/laser-001/select_program"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 4000}
+      ]
+    },
+    {
+      "type": "UnloadProduct",
+      "category": "action",
+      "ports": [
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/skills/execute_manipulation"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 20000}
+      ]
+    },
+    {
+      "type": "ValidateFrozenJob",
+      "category": "condition",
+      "ports": [
+        {"name": "job_id", "direction": "input", "type": "string", "required": true},
+        {"name": "cell_id", "direction": "input", "type": "string", "required": true},
+        {"name": "recipe_id", "direction": "input", "type": "string", "required": true},
+        {"name": "recipe_version", "direction": "input", "type": "uint32", "required": true},
+        {"name": "input_payload_json", "direction": "input", "type": "json", "required": true},
+        {"name": "execution_mode", "direction": "input", "type": "string", "required": true}
+      ]
+    },
+    {
+      "type": "VerifyFixture",
+      "category": "action",
+      "ports": [
+        {"name": "fixture", "direction": "input", "type": "string", "required": true},
+        {"name": "action_name", "direction": "input", "type": "string", "required": false, "default": "/device/fixture-001/verify_seated"},
+        {"name": "timeout_ms", "direction": "input", "type": "int64", "required": false, "default": 4000}
+      ]
+    }
+  ]
+}

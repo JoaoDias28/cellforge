@@ -9,6 +9,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 from cellforge_domain import (
+    BundleBehaviorTreePluginReference,
     BundleCapabilityReference,
     BundleComponentReference,
     BundleEvidenceSummary,
@@ -41,6 +42,43 @@ _GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
 _OPERATOR_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 _USD_PRIM = re.compile(r'\b(?:def|over|class)\s+\w+\s+"([^"\\]+)"')
 _STAGE_ORDER = tuple(CompilerStage)
+_BLACKBOARD_POINTER = re.compile(r"^\{([A-Za-z_][A-Za-z0-9_.-]*)\}$")
+_SEEDED_BLACKBOARD_KEYS = {
+    "bundle_id",
+    "cell_id",
+    "cell_ready",
+    "execution_mode",
+    "idempotency_key",
+    "input_payload_json",
+    "job_id",
+    "recipe_id",
+    "recipe_sha256",
+    "recipe_version",
+    "source_revision",
+    "task_id",
+    "task_sha256",
+    "trace_id",
+}
+_CONTROL_NODES = {"Sequence", "Fallback", "RetryUntilSuccessful", "Timeout", "SubTree"}
+
+
+@dataclass(frozen=True, slots=True)
+class _NodePortSpec:
+    name: str
+    direction: str
+    required: bool
+
+
+@dataclass(frozen=True, slots=True)
+class _NodeSpec:
+    node_type: str
+    ports: dict[str, _NodePortSpec]
+
+
+@dataclass(frozen=True, slots=True)
+class _LoadedPlugin:
+    reference: BundleBehaviorTreePluginReference
+    nodes: dict[str, _NodeSpec]
 
 
 @dataclass(slots=True)
@@ -230,7 +268,8 @@ def compile_project(
     if scene_path is not None:
         inventory.add(f"assets/{scene_path.name}", scene_path, CompilerStage.SPATIAL)
 
-    tasks = _freeze_tasks(project_root, cell_path, cell, state, inventory)
+    plugins = _freeze_behavior_tree_plugins(project_root, profile, state, inventory)
+    tasks = _freeze_tasks(project_root, cell_path, cell, plugins, state, inventory)
     recipes = _freeze_recipes(
         project_root,
         cell_path,
@@ -295,6 +334,7 @@ def compile_project(
         components=components,
         recipes=recipes,
         tasks=tasks,
+        behavior_tree_plugins=tuple(item.reference for item in plugins),
         calibrations=tuple(sorted(cell.calibrations)),
         native_packages=native_packages,
         containers=tuple(sorted(profile.runtime.containers)),
@@ -445,6 +485,7 @@ def _freeze_tasks(
     project_root: Path,
     cell_path: Path,
     cell: CellProject,
+    plugins: tuple[_LoadedPlugin, ...],
     state: _CompilerState,
     inventory: _FileInventory,
 ) -> tuple[BundleTaskReference, ...]:
@@ -462,7 +503,7 @@ def _freeze_tasks(
         if source is None:
             continue
         if source not in parsed:
-            parsed[source] = _parse_behavior_tree(source, state)
+            parsed[source] = _parse_behavior_tree(source, plugins, state)
         if parsed[source] is None:
             continue
         content = _read_bytes(
@@ -479,7 +520,11 @@ def _freeze_tasks(
     return tuple(frozen)
 
 
-def _parse_behavior_tree(source: Path, state: _CompilerState) -> tuple[str, set[str]] | None:
+def _parse_behavior_tree(
+    source: Path,
+    plugins: tuple[_LoadedPlugin, ...],
+    state: _CompilerState,
+) -> tuple[str, set[str]] | None:
     try:
         root = ElementTree.parse(source).getroot()
     except (OSError, ElementTree.ParseError):
@@ -507,7 +552,282 @@ def _parse_behavior_tree(source: Path, state: _CompilerState) -> tuple[str, set[
                 f"Main behavior tree '{main_tree}' is not declared in the XML document.",
             ),
         )
+    _validate_behavior_tree_contract(source, root, plugins, state)
     return main_tree, tree_ids
+
+
+def _freeze_behavior_tree_plugins(
+    project_root: Path,
+    profile: DeploymentProfile | None,
+    state: _CompilerState,
+    inventory: _FileInventory,
+) -> tuple[_LoadedPlugin, ...]:
+    state.attempt(CompilerStage.BEHAVIOR_TREE)
+    if profile is None:
+        return ()
+    declared_packages = set(profile.runtime.native_packages)
+    loaded: list[_LoadedPlugin] = []
+    known_nodes: set[str] = set()
+    for index, declaration in enumerate(profile.runtime.behavior_tree_plugins):
+        where = f"deployment-profile.yaml#/runtime/behavior_tree_plugins/{index}"
+        if declaration.package not in declared_packages:
+            state.add(
+                CompilerStage.BEHAVIOR_TREE,
+                _finding(
+                    "compiler.behavior-tree-plugin-package-undeclared",
+                    f"{where}/package",
+                    (
+                        f"Behavior-tree plugin package '{declaration.package}' is not a "
+                        "native package."
+                    ),
+                ),
+            )
+        source = _project_reference(
+            project_root,
+            declaration.manifest,
+            state,
+            CompilerStage.BEHAVIOR_TREE,
+            f"{where}/manifest",
+        )
+        if source is None:
+            continue
+        parsed = _load_node_manifest(source, declaration.package, declaration.library, state)
+        if parsed is None:
+            continue
+        duplicates = known_nodes.intersection(parsed)
+        for node_type in sorted(duplicates):
+            state.add(
+                CompilerStage.BEHAVIOR_TREE,
+                _finding(
+                    "compiler.behavior-tree-node-duplicate",
+                    f"{source}#/nodes",
+                    f"Node type '{node_type}' is declared by more than one plugin.",
+                ),
+            )
+        known_nodes.update(parsed)
+        content = _read_bytes(
+            source,
+            state,
+            CompilerStage.BEHAVIOR_TREE,
+            "compiler.behavior-tree-plugin-manifest-unreadable",
+        )
+        if content is None:
+            continue
+        bundle_path = f"config/behavior-tree-plugins/{declaration.package}.json"
+        inventory.add(bundle_path, source, CompilerStage.BEHAVIOR_TREE)
+        loaded.append(
+            _LoadedPlugin(
+                reference=BundleBehaviorTreePluginReference(
+                    package=declaration.package,
+                    library=declaration.library,
+                    manifest_path=bundle_path,
+                    manifest_sha256=_sha256(content),
+                ),
+                nodes=parsed,
+            )
+        )
+    return tuple(sorted(loaded, key=lambda item: item.reference.package))
+
+
+def _load_node_manifest(
+    source: Path,
+    expected_package: str,
+    expected_library: str,
+    state: _CompilerState,
+) -> dict[str, _NodeSpec] | None:
+    try:
+        document: object = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        document = None
+    if not isinstance(document, dict):
+        state.add(
+            CompilerStage.BEHAVIOR_TREE,
+            _finding(
+                "compiler.behavior-tree-plugin-manifest-invalid",
+                f"{source}#",
+                "Behavior-tree node manifest must be a JSON object.",
+            ),
+        )
+        return None
+    plugin = document.get("plugin")
+    nodes = document.get("nodes")
+    if (
+        document.get("schema_version") != "0.1.0"
+        or not isinstance(plugin, dict)
+        or plugin.get("package") != expected_package
+        or plugin.get("library") != expected_library
+        or not isinstance(nodes, list)
+    ):
+        state.add(
+            CompilerStage.BEHAVIOR_TREE,
+            _finding(
+                "compiler.behavior-tree-plugin-manifest-invalid",
+                f"{source}#",
+                "Manifest version, package, library, or nodes do not match the declaration.",
+            ),
+        )
+        return None
+    parsed: dict[str, _NodeSpec] = {}
+    for index, raw_node in enumerate(nodes):
+        if not isinstance(raw_node, dict) or not isinstance(raw_node.get("type"), str):
+            _invalid_node_manifest(source, index, state)
+            return None
+        node_type = raw_node["type"]
+        raw_ports = raw_node.get("ports")
+        if not node_type or node_type in parsed or not isinstance(raw_ports, list):
+            _invalid_node_manifest(source, index, state)
+            return None
+        ports: dict[str, _NodePortSpec] = {}
+        for port_index, raw_port in enumerate(raw_ports):
+            if not isinstance(raw_port, dict):
+                _invalid_node_manifest(source, index, state, port_index)
+                return None
+            name = raw_port.get("name")
+            direction = raw_port.get("direction")
+            required = raw_port.get("required")
+            if (
+                not isinstance(name, str)
+                or not name
+                or name in ports
+                or direction not in {"input", "output", "inout"}
+                or not isinstance(required, bool)
+                or not isinstance(raw_port.get("type"), str)
+            ):
+                _invalid_node_manifest(source, index, state, port_index)
+                return None
+            ports[name] = _NodePortSpec(name=name, direction=direction, required=required)
+        parsed[node_type] = _NodeSpec(node_type=node_type, ports=ports)
+    return parsed
+
+
+def _invalid_node_manifest(
+    source: Path,
+    node_index: int,
+    state: _CompilerState,
+    port_index: int | None = None,
+) -> None:
+    suffix = f"/nodes/{node_index}"
+    if port_index is not None:
+        suffix += f"/ports/{port_index}"
+    state.add(
+        CompilerStage.BEHAVIOR_TREE,
+        _finding(
+            "compiler.behavior-tree-plugin-manifest-invalid",
+            f"{source}#{suffix}",
+            "Node and port declarations must be unique, typed, and structurally valid.",
+        ),
+    )
+    return None
+
+
+def _validate_behavior_tree_contract(
+    source: Path,
+    root: ElementTree.Element,
+    plugins: tuple[_LoadedPlugin, ...],
+    state: _CompilerState,
+) -> None:
+    node_specs = {node_type: spec for plugin in plugins for node_type, spec in plugin.nodes.items()}
+    produced: set[str] = set()
+    for element in root.iter():
+        spec = node_specs.get(element.tag)
+        if spec is None:
+            continue
+        for name, value in element.attrib.items():
+            port = spec.ports.get(name)
+            match = _BLACKBOARD_POINTER.fullmatch(value)
+            if port is not None and port.direction in {"output", "inout"} and match:
+                produced.add(match.group(1))
+    available = _SEEDED_BLACKBOARD_KEYS | produced
+    _validate_process_retry_policy(source, root, state)
+    for element in root.iter():
+        if element.tag in {"root", "BehaviorTree"}:
+            continue
+        if element.tag in _CONTROL_NODES:
+            continue
+        spec = node_specs.get(element.tag)
+        if spec is None:
+            state.add(
+                CompilerStage.BEHAVIOR_TREE,
+                _finding(
+                    "compiler.behavior-tree-node-unknown",
+                    f"{source}#/{element.tag}",
+                    f"Node type '{element.tag}' is not declared by an immutable plugin.",
+                ),
+            )
+            continue
+        for attribute in sorted(set(element.attrib) - set(spec.ports) - {"name"}):
+            state.add(
+                CompilerStage.BEHAVIOR_TREE,
+                _finding(
+                    "compiler.behavior-tree-port-unknown",
+                    f"{source}#/{element.tag}/@{attribute}",
+                    f"Node '{element.tag}' has unknown port '{attribute}'.",
+                ),
+            )
+        for port in spec.ports.values():
+            if port.required and port.name not in element.attrib:
+                state.add(
+                    CompilerStage.BEHAVIOR_TREE,
+                    _finding(
+                        "compiler.behavior-tree-port-missing",
+                        f"{source}#/{element.tag}",
+                        f"Node '{element.tag}' is missing required port '{port.name}'.",
+                    ),
+                )
+        for name, value in element.attrib.items():
+            port = spec.ports.get(name)
+            if port is None:
+                continue
+            match = _BLACKBOARD_POINTER.fullmatch(value)
+            looks_mapped = value.startswith("{") or value.endswith("}")
+            if port.direction in {"output", "inout"} and match is None:
+                state.add(
+                    CompilerStage.BEHAVIOR_TREE,
+                    _finding(
+                        "compiler.behavior-tree-mapping-invalid",
+                        f"{source}#/{element.tag}/@{name}",
+                        f"Output port '{name}' must map to one blackboard key.",
+                    ),
+                )
+            elif looks_mapped and match is None:
+                state.add(
+                    CompilerStage.BEHAVIOR_TREE,
+                    _finding(
+                        "compiler.behavior-tree-mapping-invalid",
+                        f"{source}#/{element.tag}/@{name}",
+                        f"Port '{name}' has an invalid blackboard mapping.",
+                    ),
+                )
+            elif match and port.direction in {"input", "inout"} and match.group(1) not in available:
+                state.add(
+                    CompilerStage.BEHAVIOR_TREE,
+                    _finding(
+                        "compiler.behavior-tree-mapping-unresolved",
+                        f"{source}#/{element.tag}/@{name}",
+                        f"Input port '{name}' maps unresolved blackboard key '{match.group(1)}'.",
+                    ),
+                )
+
+
+def _validate_process_retry_policy(
+    source: Path,
+    element: ElementTree.Element,
+    state: _CompilerState,
+    *,
+    retry_ancestor: bool = False,
+) -> None:
+    under_retry = retry_ancestor or element.tag == "RetryUntilSuccessful"
+    if element.tag == "ExecuteProcess" and retry_ancestor:
+        state.add(
+            CompilerStage.BEHAVIOR_TREE,
+            _finding(
+                "compiler.behavior-tree-process-retry-forbidden",
+                f"{source}#/ExecuteProcess",
+                "ExecuteProcess cannot be nested beneath automatic retry.",
+            ),
+        )
+    for child in element:
+        _validate_process_retry_policy(source, child, state, retry_ancestor=under_retry)
 
 
 def _freeze_recipes(

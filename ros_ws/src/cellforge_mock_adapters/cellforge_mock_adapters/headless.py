@@ -1,6 +1,6 @@
-"""Deterministic L0 executor for the canonical pen behavior tree.
+"""Deterministic L0 regression oracle for the canonical pen behavior tree.
 
-This module is test infrastructure, not the production supervisor.  It executes the deliberately
+This module is an offline oracle, not a runtime executor or production supervisor. It executes the
 small XML subset used by the reference pen tree and sends every device operation through the same
 Task 008/009 adapter contracts used by ROS mock nodes.  It models sequencing and fault behavior;
 it does not model physics, process quality, or functional safety.
