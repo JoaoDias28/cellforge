@@ -25,6 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--state-root", type=Path, default=Path("/var/lib/cellforge"))
     parser.add_argument("--secret-store", type=Path, default=Path("/etc/cellforge/secrets"))
     parser.add_argument("--target-facts", type=Path, default=Path("/etc/cellforge/target.json"))
+    parser.add_argument("--trusted-keys", type=Path, default=Path("/etc/cellforge/trusted-keys"))
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     install = subparsers.add_parser("install", help="verify, install, and activate a bundle")
@@ -51,6 +52,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         state_root=options.state_root,
         secret_store=options.secret_store,
         target_facts=options.target_facts,
+        trusted_keys=options.trusted_keys,
     )
     try:
         if options.command == "install-systemd":
@@ -61,7 +63,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 print(path)
             return 0
         if options.command == "verify":
-            bundle = verify_bundle(options.bundle)
+            bundle = verify_bundle(
+                options.bundle, trusted_keys=options.trusted_keys, require_signature=True
+            )
             preflight_target(bundle, paths.target_facts)
             print(f"verified bundle {bundle.bundle_id}")
             return 0

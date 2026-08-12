@@ -172,3 +172,13 @@ trace persistence, fresh heartbeats/restart readiness, and operation with no pla
 
 Pure loader/compiler tests separately cover canonical bundle identity, tampering, path containment,
 runtime-graph determinism, package/entrypoint validation, and fail-closed L2 selection.
+
+## 9. Task 026 signed assembly acceptance
+
+`make bundle-assembly-check` assembles the reference compiler output twice with one external
+ephemeral Ed25519 test key and compares every file byte-for-byte. It verifies the assembled release
+against a separately provisioned public-key directory, rejects a checksum-repaired but invalid
+signature, and installs two assembled releases through the real bundle-agent flow. The latter test
+forces candidate health failure and verifies that the former release and its generated environment
+are restored. These checks are deterministic unit/integration evidence, not a real systemd or
+hardware qualification.

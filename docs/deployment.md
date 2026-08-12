@@ -56,6 +56,28 @@ A bundle build must be:
 - traceable to test evidence;
 - explicit about external prerequisites not included.
 
+### 3.1 Task 026 signed assembly
+
+`cellforge build` remains the backward-compatible manifest-only compiler command. `cellforge bundle
+assemble` compiles that manifest, materializes every frozen compiler input, and adds the fixed agent,
+launch, evidence, and runtime-entrypoint files. It writes a sorted full `checksums.txt` inventory and
+a detached `signature.json`. The signature uses Ed25519 over a domain-separated exact bundle ID and
+canonical digest inventory for every other release file; the checksum inventory then also binds the
+signature file itself. Consequently, changing any frozen input, launch/agent/runtime file, or
+evidence summary is rejected even if an attacker recomputes `checksums.txt`.
+
+The private PEM key is supplied from local protected storage and is rejected if it is copied into a
+bundle. The cell agent requires a matching raw 32-byte public key at
+`/etc/cellforge/trusted-keys/<sha256-public-key>.pub`; unknown, malformed, absent, or invalid
+signatures fail before target preflight, release copying, service stop, or activation. Target facts
+also declare `runtime_entrypoints` as `package:executable` strings, so a frozen runtime cannot start
+merely because its package name is present.
+
+Assembly uses `cryptography` for Ed25519. It is Apache-2.0/BSD-licensed, actively maintained by the
+PyCA project, and selected to avoid custom cryptographic code. It can be removed if the target OS
+provides an audited, stable Ed25519 signing/verification API with equivalent key isolation and test
+coverage.
+
 ## 4. Activation
 
 Recommended filesystem layout:

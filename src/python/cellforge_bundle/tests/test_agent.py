@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -22,6 +23,15 @@ from cellforge_bundle.agent import (
     verify_bundle,
 )
 from cellforge_bundle.agent_cli import main
+from cellforge_bundle.assembly import signature_payload
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+_TEST_PRIVATE_KEY = Ed25519PrivateKey.generate()
+_TEST_PUBLIC_KEY = _TEST_PRIVATE_KEY.public_key().public_bytes(
+    serialization.Encoding.Raw, serialization.PublicFormat.Raw
+)
+_TEST_KEY_ID = hashlib.sha256(_TEST_PUBLIC_KEY).hexdigest()
 
 
 def _canonical(value: object) -> bytes:
@@ -119,7 +129,21 @@ def _make_bundle(
     bundle_id = _digest(_canonical(hash_input))
     manifest["bundle_id"] = bundle_id
     (root / "manifest.json").write_bytes(_canonical(manifest))
-    checksum_files = {**files, "manifest.json": _canonical(manifest)}
+    signature = _canonical(
+        {
+            "algorithm": "Ed25519",
+            "bundle_id": bundle_id,
+            "key_id": _TEST_KEY_ID,
+            "schema_version": "0.1.0",
+            "signature": base64.b64encode(
+                _TEST_PRIVATE_KEY.sign(
+                    signature_payload(bundle_id, {**files, "manifest.json": _canonical(manifest)})
+                )
+            ).decode(),
+        }
+    )
+    (root / "signature.json").write_bytes(signature)
+    checksum_files = {**files, "manifest.json": _canonical(manifest), "signature.json": signature}
     (root / "checksums.txt").write_text(
         "".join(
             f"{_digest(content)}  {relative}\n"
@@ -210,8 +234,11 @@ def _agent(tmp_path: Path) -> tuple[BundleAgent, MemoryActivation, FakeServices,
         state_root=tmp_path / "state",
         secret_store=tmp_path / "secrets",
         target_facts=tmp_path / "target.json",
+        trusted_keys=tmp_path / "trusted-keys",
     )
     _write_target_facts(paths.target_facts)
+    paths.trusted_keys.mkdir(parents=True)
+    (paths.trusted_keys / f"{_TEST_KEY_ID}.pub").write_bytes(_TEST_PUBLIC_KEY)
     activation = MemoryActivation()
     services = FakeServices()
     health = ExactHealth()

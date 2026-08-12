@@ -7,7 +7,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from cellforge_bundle import ManifestWriteError, compile_project, write_manifest
+from cellforge_bundle import (
+    AssemblyError,
+    ManifestWriteError,
+    assemble_bundle,
+    compile_project,
+    write_manifest,
+)
 from cellforge_domain import (
     ExecutionMode,
     FindingSeverity,
@@ -94,6 +100,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     build.add_argument("--output", type=Path, help="create manifest JSON without overwriting")
 
+    bundle = commands.add_parser("bundle", help="assemble an installable signed runtime bundle")
+    bundle_commands = bundle.add_subparsers(dest="bundle_command", required=True)
+    assemble = bundle_commands.add_parser(
+        "assemble", help="materialize and sign a release directory"
+    )
+    assemble.add_argument("project", type=Path)
+    assemble.add_argument("--target", required=True, help="exact target profile ID")
+    assemble.add_argument(
+        "--mode",
+        required=True,
+        choices=tuple(mode.value for mode in ExecutionMode),
+        help="execution mode to resolve",
+    )
+    assemble.add_argument("--source-revision", required=True, help="exact source Git revision")
+    assemble.add_argument("--output", required=True, type=Path, help="new release directory")
+    assemble.add_argument(
+        "--signing-key", required=True, type=Path, help="external Ed25519 PEM private key"
+    )
+
     schema = commands.add_parser("schema", help="work with canonical schemas")
     schema_commands = schema.add_subparsers(dest="schema_command", required=True)
     schema_commands.add_parser("list", help="list schema kinds and versions")
@@ -131,7 +156,7 @@ def _dispatch(arguments: argparse.Namespace) -> CommandResult:
 
     try:
         schema_directory: Path | CommandResult = resources.schema_directory
-        if command in {"validate", "inspect", "build"}:
+        if command in {"validate", "inspect", "build", "bundle"}:
             schema_directory = _verified_project_schemas(
                 command, Path(arguments.project), resources.schema_directory
             )
@@ -160,6 +185,16 @@ def _dispatch(arguments: argparse.Namespace) -> CommandResult:
             mode=ExecutionMode(str(arguments.mode)),
             source_revision=str(arguments.source_revision),
             output=Path(arguments.output) if arguments.output is not None else None,
+        )
+    if command == "bundle":
+        return _assemble(
+            Path(arguments.project),
+            schema_directory,
+            target=str(arguments.target),
+            mode=ExecutionMode(str(arguments.mode)),
+            source_revision=str(arguments.source_revision),
+            output=Path(arguments.output),
+            signing_key=Path(arguments.signing_key),
         )
     if command == "schema":
         return _schema_list(registry)
@@ -323,6 +358,54 @@ def _build(
         exit_code=ExitCode.SUCCESS,
         message=f"Compiled immutable manifest {report.manifest.bundle_id}.",
         data=data,
+    )
+
+
+def _assemble(
+    project: Path,
+    schemas: Path,
+    *,
+    target: str,
+    mode: ExecutionMode,
+    source_revision: str,
+    output: Path,
+    signing_key: Path,
+) -> CommandResult:
+    try:
+        assembled = assemble_bundle(
+            project,
+            schemas,
+            target_profile=target,
+            mode=mode,
+            source_revision=source_revision,
+            output=output,
+            signing_key=signing_key,
+        )
+    except AssemblyError as error:
+        finding = ValidationFinding(
+            code="cli.bundle-assemble-failed",
+            severity=FindingSeverity.ERROR,
+            path=f"{output.resolve()}#",
+            message=str(error),
+        )
+        return CommandResult(
+            command="bundle.assemble",
+            exit_code=ExitCode.OPERATION_FAILED,
+            message=str(error),
+            data={"path": str(project.resolve()), "target_profile": target},
+            findings=(finding,),
+        )
+    return CommandResult(
+        command="bundle.assemble",
+        exit_code=ExitCode.SUCCESS,
+        message=f"Assembled signed bundle {assembled.bundle_id}.",
+        data={
+            "bundle_id": assembled.bundle_id,
+            "key_id": assembled.key_id,
+            "output": str(assembled.output),
+            "path": str(project.resolve()),
+            "target_profile": target,
+        },
     )
 
 
