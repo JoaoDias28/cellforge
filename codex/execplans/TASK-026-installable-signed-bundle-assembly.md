@@ -34,7 +34,8 @@ Derived release content can create an identity cycle, so the canonical Task 006 
 - [x] 2026-08-12 — define assembly inputs and signing contract.
 - [x] 2026-08-12 — implement assembler, CLI, and agent verification.
 - [x] 2026-08-12 — add acceptance coverage and documentation.
-- [ ] 2026-08-12 — complete validation, commit, PR, merge, and main synchronization.
+- [x] 2026-08-12 — implementation committed as `1f63969` after final host validation.
+- [ ] 2026-08-12 — push, ready PR, hosted CI, merge, and main synchronization blocked by invalid GitHub CLI token.
 
 ## Decisions
 - 2026-08-12 — retain Task 006 manifest-only build as a backward-compatible path; assembly is an explicit CLI operation.
@@ -48,4 +49,6 @@ target facts, and retains its existing staged health/rollback behavior. The mani
 path is unchanged. Host-equivalent lint, strict typing, the full pytest suite (348 passed, one
 Windows symlink-permission skip), example validation, and focused assembly acceptance passed.
 Literal Make is unavailable on the Windows host; Docker Desktop's Linux engine is stopped, so local
-Jazzy ROS build/test evidence remains unavailable pending hosted CI.
+Jazzy ROS build/test evidence remains unavailable pending hosted CI. `gh auth status` reports the
+active GitHub token for `JoaoDias28` is invalid, so the branch cannot be pushed or published until
+the account is re-authenticated.
