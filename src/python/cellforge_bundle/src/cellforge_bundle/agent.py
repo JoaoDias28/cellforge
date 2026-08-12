@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import importlib
 import json
@@ -21,6 +22,10 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 
 import yaml
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+from cellforge_bundle.assembly import signature_payload
 
 JsonObject = dict[str, Any]
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -38,6 +43,13 @@ _SENSITIVE_KEYS = (
     "token",
 )
 _PRIVATE_KEY_MARKER = b"-----BEGIN PRIVATE KEY-----"
+_ASSEMBLY_DERIVED_FILES = {
+    "config/agent.json",
+    "config/launch.json",
+    "evidence-summary.json",
+    "scripts/start-runtime",
+    "signature.json",
+}
 
 
 class AgentError(Exception):
@@ -57,6 +69,7 @@ class AgentPaths:
     state_root: Path = Path("/var/lib/cellforge")
     secret_store: Path = Path("/etc/cellforge/secrets")
     target_facts: Path = Path("/etc/cellforge/target.json")
+    trusted_keys: Path = Path("/etc/cellforge/trusted-keys")
 
     @property
     def releases(self) -> Path:
@@ -256,7 +269,12 @@ class LoopbackHealthChecker:
             time.sleep(configuration.interval_seconds)
 
 
-def verify_bundle(bundle_root: str | Path) -> VerifiedBundle:
+def verify_bundle(
+    bundle_root: str | Path,
+    *,
+    trusted_keys: str | Path | None = None,
+    require_signature: bool = False,
+) -> VerifiedBundle:
     """Validate bundle layout, content address, inventory, and secret boundary."""
 
     root = Path(bundle_root).resolve()
@@ -337,14 +355,23 @@ def verify_bundle(bundle_root: str | Path) -> VerifiedBundle:
                 "agent.bundle.manifest_file_mismatch",
                 f"Manifest digest or size mismatch for '{relative}'.",
             )
-    expected_manifest_paths = set(regular_files) - {"checksums.txt", "manifest.json"}
-    if seen != expected_manifest_paths:
+    derived_files = _ASSEMBLY_DERIVED_FILES if "signature.json" in regular_files else set()
+    required_manifest_paths = (
+        set(regular_files) - {"checksums.txt", "manifest.json"} - derived_files
+    )
+    if not required_manifest_paths <= seen:
         raise AgentError(
             "agent.bundle.manifest_inventory",
             "Manifest inventory must bind every bundle content file.",
         )
 
     _reject_bundled_secrets(regular_files)
+    _verify_signature(
+        regular_files,
+        bundle_id,
+        Path(trusted_keys) if trusted_keys is not None else None,
+        require_signature=require_signature,
+    )
     target_profile = _read_yaml(root / "config" / "target-profile.yaml")
     agent_config = _read_json(root / "config" / "agent.json", "agent.bundle.config_invalid")
     systemd_unit, health = _agent_configuration(agent_config)
@@ -358,6 +385,63 @@ def verify_bundle(bundle_root: str | Path) -> VerifiedBundle:
         health=health,
         secret_references=secret_references,
     )
+
+
+def _verify_signature(
+    regular_files: Mapping[str, bytes],
+    bundle_id: str,
+    trusted_keys: Path | None,
+    *,
+    require_signature: bool,
+) -> None:
+    raw = regular_files.get("signature.json")
+    if raw is None:
+        if require_signature:
+            raise AgentError("agent.signature.missing", "Bundle signature is required.")
+        return
+    if trusted_keys is None:
+        if not require_signature:
+            return
+        raise AgentError(
+            "agent.signature.trust_unavailable", "Trusted public keys are unavailable."
+        )
+    try:
+        document: object = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        document = None
+    if not isinstance(document, dict) or set(document) != {
+        "algorithm",
+        "bundle_id",
+        "key_id",
+        "schema_version",
+        "signature",
+    }:
+        raise AgentError("agent.signature.invalid", "Bundle signature document is invalid.")
+    key_id = document.get("key_id")
+    encoded = document.get("signature")
+    if (
+        document.get("schema_version") != "0.1.0"
+        or document.get("algorithm") != "Ed25519"
+        or document.get("bundle_id") != bundle_id
+        or not isinstance(key_id, str)
+        or _SHA256.fullmatch(key_id) is None
+        or not isinstance(encoded, str)
+    ):
+        raise AgentError("agent.signature.invalid", "Bundle signature metadata is invalid.")
+    try:
+        signature = base64.b64decode(encoded, validate=True)
+        public = (trusted_keys / f"{key_id}.pub").read_bytes()
+        verifier = Ed25519PublicKey.from_public_bytes(public)
+        signed_files = {
+            relative: content
+            for relative, content in regular_files.items()
+            if relative not in {"checksums.txt", "signature.json"}
+        }
+        verifier.verify(signature, signature_payload(bundle_id, signed_files))
+    except (OSError, ValueError, InvalidSignature):
+        raise AgentError(
+            "agent.signature.invalid", "Bundle signature is not trusted or is invalid."
+        ) from None
 
 
 def preflight_target(bundle: VerifiedBundle, target_facts_path: str | Path) -> None:
@@ -425,6 +509,41 @@ def preflight_target(bundle: VerifiedBundle, target_facts_path: str | Path) -> N
         raise AgentError(
             "agent.target.prerequisites_missing", "Required external prerequisites are unavailable."
         )
+    _preflight_runtime_entrypoints(bundle.manifest, facts)
+
+
+def _preflight_runtime_entrypoints(manifest: JsonObject, facts: JsonObject) -> None:
+    """Require locally asserted executable availability for every frozen runtime role."""
+
+    runtime = manifest.get("runtime")
+    if runtime is None:
+        return
+    if not isinstance(runtime, dict) or not isinstance(runtime.get("executables"), dict):
+        raise AgentError(
+            "agent.bundle.entrypoints_invalid",
+            "Bundle runtime executable declarations are invalid.",
+        )
+    configured = runtime["executables"]
+    expected: set[str] = set()
+    for value in configured.values():
+        if not isinstance(value, dict):
+            raise AgentError(
+                "agent.bundle.entrypoints_invalid",
+                "Bundle runtime executable declarations are invalid.",
+            )
+        package = value.get("package")
+        executable = value.get("executable")
+        if not isinstance(package, str) or not isinstance(executable, str):
+            raise AgentError(
+                "agent.bundle.entrypoints_invalid",
+                "Bundle runtime executable declarations are invalid.",
+            )
+        expected.add(f"{package}:{executable}")
+    available = _string_set(facts.get("runtime_entrypoints"), "target runtime entrypoints")
+    if not expected <= available:
+        raise AgentError(
+            "agent.target.entrypoints_missing", "Required runtime entrypoints are unavailable."
+        )
 
 
 class BundleAgent:
@@ -448,10 +567,10 @@ class BundleAgent:
             return self._install(bundle_root)
 
     def _install(self, bundle_root: str | Path) -> AgentStatus:
-        candidate = verify_bundle(bundle_root)
+        candidate = self._verify_signed_bundle(bundle_root)
         preflight_target(candidate, self.paths.target_facts)
         release = self._install_release(candidate)
-        candidate = verify_bundle(release)
+        candidate = self._verify_signed_bundle(release)
         previous_id = self.activation.current_bundle_id()
         previous = self._verified_release(previous_id) if previous_id else None
         stopped_unit = previous.systemd_unit if previous is not None else candidate.systemd_unit
@@ -587,7 +706,7 @@ class BundleAgent:
         self.paths.releases.mkdir(parents=True, exist_ok=True)
         destination = self.paths.releases / bundle.bundle_id
         if destination.exists():
-            existing = verify_bundle(destination)
+            existing = self._verify_signed_bundle(destination)
             if existing.bundle_id != bundle.bundle_id:
                 raise AgentError("agent.release.conflict", "Existing release is inconsistent.")
             _make_release_read_only(destination)
@@ -595,7 +714,7 @@ class BundleAgent:
         staging = self.paths.releases / f".staging-{bundle.bundle_id}-{time.time_ns()}"
         try:
             shutil.copytree(bundle.root, staging, symlinks=False)
-            staged = verify_bundle(staging)
+            staged = self._verify_signed_bundle(staging)
             if staged.bundle_id != bundle.bundle_id:
                 raise AgentError(
                     "agent.release.copy_mismatch", "Staged release changed during copy."
@@ -693,10 +812,17 @@ class BundleAgent:
     def _verified_release(self, bundle_id: str | None) -> VerifiedBundle:
         if bundle_id is None or _SHA256.fullmatch(bundle_id) is None:
             raise AgentError("agent.release.invalid", "Release ID is invalid.")
-        verified = verify_bundle(self.paths.releases / bundle_id)
+        verified = self._verify_signed_bundle(self.paths.releases / bundle_id)
         if verified.bundle_id != bundle_id:
             raise AgentError("agent.release.invalid", "Release path and bundle ID differ.")
         return verified
+
+    def _verify_signed_bundle(self, bundle_root: str | Path) -> VerifiedBundle:
+        return verify_bundle(
+            bundle_root,
+            trusted_keys=self.paths.trusted_keys,
+            require_signature=True,
+        )
 
     def _write_state(self, result: str, *, active_bundle_id: str | None, error: str | None) -> None:
         previous = self._read_state().get("active_bundle_id")

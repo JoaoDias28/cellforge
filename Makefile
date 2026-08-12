@@ -4,7 +4,7 @@ ROS_SETUP ?= /opt/ros/$(ROS_DISTRO)/setup.bash
 ROS_WORKSPACE ?= ros_ws
 COLCON ?= colcon
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check operator-api-check integrated-runtime-check ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
@@ -60,6 +60,10 @@ bundle-agent-check:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen pytest src/python/cellforge_bundle/tests/test_agent.py tests/test_state_trace.py
 	$(UV) run --frozen python scripts/verify_bundle_agent.py
+
+bundle-assembly-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest src/python/cellforge_bundle/tests/test_assembly.py src/python/cellforge_bundle/tests/test_agent.py
 
 operator-api-check:
 	$(UV) sync --locked --all-packages

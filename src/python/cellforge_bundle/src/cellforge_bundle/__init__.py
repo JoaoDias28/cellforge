@@ -9,6 +9,7 @@ from cellforge_bundle.agent import (
     preflight_target,
     verify_bundle,
 )
+from cellforge_bundle.assembly import AssemblyError, AssemblyResult, assemble_bundle
 from cellforge_bundle.compiler import compile_project
 from cellforge_bundle.models import CompilationReport, CompilerStage, StageResult, StageStatus
 from cellforge_bundle.output import ManifestWriteError, write_manifest
@@ -18,6 +19,8 @@ __all__ = [
     "AgentPaths",
     "AgentStatus",
     "BundleAgent",
+    "AssemblyError",
+    "AssemblyResult",
     "CompilationReport",
     "CompilerStage",
     "ManifestWriteError",
@@ -25,6 +28,7 @@ __all__ = [
     "StageStatus",
     "VerifiedBundle",
     "compile_project",
+    "assemble_bundle",
     "preflight_target",
     "verify_bundle",
     "write_manifest",
