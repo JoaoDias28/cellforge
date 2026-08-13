@@ -38,7 +38,7 @@ not require ROS or Isaac Sim and do not authorize physical execution.
 Follow the official ROS 2 Jazzy installation instructions for Ubuntu 24.04 and install colcon:
 
 ```bash
-sudo apt install ros-jazzy-ros-base python3-colcon-common-extensions
+sudo apt install ros-jazzy-ros-base python3-colcon-common-extensions nlohmann-json3-dev
 make ros-build
 make ros-test
 ```
