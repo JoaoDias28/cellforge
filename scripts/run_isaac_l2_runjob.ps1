@@ -10,6 +10,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if (-not $AcceptanceScenario) {
+    throw "Task 027 RunJob acceptance requires one explicit scenario per isolated runtime. Use scripts/run_isaac_l2_runjob_matrix.ps1 for the complete matrix."
+}
 $repository = Split-Path -Parent $PSScriptRoot
 $scenario = Join-Path $ProjectRoot "scenarios\nominal.yaml"
 $report = Join-Path $WorkingRoot "isaac-l2-runjob-report.json"

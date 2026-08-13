@@ -60,3 +60,21 @@ The required L2 acceptance remains unavailable: this workstation exposes an RTX 
 `C:\\isaacsim\\VERSION` is `5.1.0-rc.19` and there is no supported Isaac Sim 6 installation or
 configured GPU runner. This blocks task qualification, publication, and merge; CPU/mock output is
 not substituted for L2 evidence.
+
+### Qualification update — 2026-08-13
+
+The former availability statement is superseded. Qualification ran on Isaac Sim
+`6.0.1-rc.7+release.42383.32955d8d.gl` with an NVIDIA GeForce RTX 4080. The GPU probe generated
+`actual_physx_executed: true`, 100/100 successful seeded runs, zero failures, and all three PhysX
+fault scenarios. The canonical `/cell/run_job` acceptance passed nominal, dropped-pen,
+failed-seating, and collision scenarios through live Kit-hosted adapters and ROS runtime services.
+Each scenario uses a fresh real runtime because declared fault scenarios correctly end in
+`RECOVERABLE_FAULT`; event evidence is runtime/adapter-originated.
+
+Ruff formatting/lint and strict mypy passed. The full Python suite passed 358 tests with one
+Windows symlink-privilege skip; 18 focused L2 tests and canonical example validation passed. The
+CPU 100-seed report passed but remains non-L2 contract evidence. The Windows ROS build passed for
+11 packages; the final ROS suite passed 110 tests with zero errors, failures, or skips. `make` is
+unavailable on this host, so its exact command bodies were run with `uv` and the documented Windows
+ROS scripts. No L0/CPU evidence was relabeled as L2. Laser/process and safety limitations remain
+unchanged: no beam/material or mark-quality claim, and modeled safety is read-only/non-rated.

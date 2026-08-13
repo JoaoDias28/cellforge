@@ -84,7 +84,7 @@ auto MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_token sto
   if (isaac_l2_direct_) {
     const auto started = std::chrono::steady_clock::now();
     try {
-      auto task = task_builder_.buildMove(request, planning_scene_);
+      auto task = task_builder_.buildMove(request, planning_scene_, false);
       task->init();
       if (!task->plan(1) || task->solutions().empty()) {
         return {PlannerOutcome::PLANNING_FAILED, "MTC found no move-to-pose solution."};
@@ -98,8 +98,7 @@ auto MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_token sto
       }
       auto adapter_result = executeInIsaac(
           request.command_id,
-          "{\"mode\":\"move_to_pose\",\"named_pose\":\"" + escapeJson(request.named_pose) +
-              "\"}",
+          "{\"mode\":\"move_to_pose\",\"named_pose\":\"" + escapeJson(request.named_pose) + "\"}",
           request.timeout, stop_token);
       adapter_result.planning_time_seconds = result.planning_time_seconds;
       adapter_result.completed_stages = result.completed_stages;
@@ -180,7 +179,7 @@ auto MoveItPlanner::executeManipulation(const ManipulationRequest& request,
     return {PlannerOutcome::EXECUTION_FAILED, "Request cancelled before MTC planning."};
   }
   try {
-    auto task = task_builder_.build(request, planning_scene_);
+    auto task = task_builder_.build(request, planning_scene_, !isaac_l2_direct_);
     task->init();
     if (!task->plan(1) || task->solutions().empty()) {
       return {PlannerOutcome::PLANNING_FAILED,

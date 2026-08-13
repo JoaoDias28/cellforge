@@ -11,7 +11,7 @@ for path in os.environ.get("CELLFORGE_PYTHONPATH", "").split(os.pathsep):
     if path and path not in sys.path:
         sys.path.insert(0, path)
 
-from cellforge_simulation.l2_ros_node import run_in_existing_kit
+from cellforge_simulation.l2_ros_node import run_in_existing_kit  # noqa: E402
 
 app = omni.kit.app.get_app()
 

@@ -12,6 +12,7 @@ from uuid import uuid4
 import rclpy
 import yaml
 from cellforge_interfaces.action import RunJob
+from cellforge_interfaces.msg import CellState
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -25,13 +26,18 @@ class AcceptanceClient(Node):  # type: ignore[misc]
         self.run_job = ActionClient(self, RunJob, "/cell/run_job")
         self.configure = self.create_publisher(String, "/simulation/l2/configure", 10)
         self.events: list[dict[str, Any]] = []
+        self.cell_state: CellState | None = None
         self.create_subscription(String, "/simulation/l2/events", self._event, 100)
+        self.create_subscription(CellState, "/cell/state", self._cell_state, 10)
         self._cancel_requested = False
 
     def _event(self, message: String) -> None:
         value = json.loads(message.data)
         if isinstance(value, dict):
             self.events.append(value)
+
+    def _cell_state(self, message: CellState) -> None:
+        self.cell_state = message
 
     def configure_scenario(self, scenario: dict[str, Any], timeout: float = 60.0) -> None:
         scenario_id = str(scenario["scenario"]["id"])
@@ -49,6 +55,32 @@ class AcceptanceClient(Node):  # type: ignore[misc]
             ):
                 return
         raise RuntimeError(f"Isaac adapter did not configure scenario '{scenario_id}'")
+
+    def wait_for_ready(self, timeout: float = 15.0) -> None:
+        """Wait for the aggregated runtime state required by the real supervisor."""
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            rclpy.spin_once(self, timeout_sec=0.1)
+            state = self.cell_state
+            if (
+                state is not None
+                and state.state == "READY"
+                and state.safety_healthy
+                and state.all_required_devices_ready
+            ):
+                return
+        detail = "no /cell/state received"
+        if self.cell_state is not None:
+            healthy = self.cell_state.safety_healthy
+            devices_ready = self.cell_state.all_required_devices_ready
+            detail = (
+                f"state={self.cell_state.state!r}, safety_healthy={healthy}, "
+                f"all_required_devices_ready={devices_ready}"
+            )
+        raise RuntimeError(
+            f"L2 runtime did not become READY after scenario configuration: {detail}"
+        )
 
     def submit(self, scenario: dict[str, Any], *, cancel: bool = False) -> dict[str, Any]:
         if not self.run_job.wait_for_server(timeout_sec=30.0):
@@ -142,10 +174,14 @@ def main() -> int:
             scenario_id = str(scenario["scenario"]["id"])
             baseline = len(node.events)
             node.configure_scenario(scenario)
-            ready_deadline = time.monotonic() + 1.0
-            while time.monotonic() < ready_deadline:
-                rclpy.spin_once(node, timeout_sec=0.1)
+            node.wait_for_ready()
             result = node.submit(scenario, cancel=scenario_id == "pen-operator-cancel")
+            # The action result and the adapter-event publisher are separate ROS channels. Drain
+            # the subscriber queue before evaluating evidence so a real adapter event published
+            # with the terminal action result cannot be mistaken for missing evidence.
+            evidence_deadline = time.monotonic() + 1.0
+            while time.monotonic() < evidence_deadline:
+                rclpy.spin_once(node, timeout_sec=0.1)
             adapter_events = node.events[baseline:]
             observed = {
                 str(value)
@@ -172,7 +208,8 @@ def main() -> int:
             missing = required - observed
             if missing:
                 raise RuntimeError(
-                    f"Scenario '{scenario_id}' is missing adapter evidence {sorted(missing)}"
+                    f"Scenario '{scenario_id}' is missing adapter evidence {sorted(missing)}; "
+                    f"observed={sorted(observed)}; result={result['result_code']}"
                 )
             expected_success = scenario.get("assertions", {}).get("final_status") == "SUCCESS"
             if result["success"] is not expected_success:

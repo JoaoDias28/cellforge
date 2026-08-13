@@ -11,8 +11,8 @@ auto main(int argc, char** argv) -> int {
       "motion_planner_backend",
       rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true));
   const auto isaac_l2_direct = backend_node->get_parameter_or("isaac_l2_direct", false);
-  auto planner =
-      std::make_shared<cellforge_motion::MoveItPlanner>(backend_node, "manipulator", isaac_l2_direct);
+  auto planner = std::make_shared<cellforge_motion::MoveItPlanner>(backend_node, "manipulator",
+                                                                   isaac_l2_direct);
   auto service = std::make_shared<cellforge_motion::MotionService>(planner);
   auto motion_node = std::make_shared<cellforge_motion::MotionNode>(service);
   rclcpp::executors::MultiThreadedExecutor executor;

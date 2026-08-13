@@ -82,6 +82,15 @@ class IsaacPenPhysicsBackend:
         ).Set(object_id)
         return path
 
+    def reset_runtime_products(self) -> None:
+        """Remove prior scenario products before configuring the next isolated L2 run."""
+
+        self._attached.clear()
+        self._rigid_prims.clear()
+        self._stage.RemovePrim(self._Sdf.Path("/World/SpawnedProducts"))
+        if self._world is not None:
+            self._world.reset()
+
     def set_pen_pose(self, pen_path: str, pose: PenPose) -> None:
         prim = self._stage.GetPrimAtPath(pen_path)
         if not prim.IsValid():

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import asyncio
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +17,7 @@ from geometry_msgs.msg import PoseStamped
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.node import Node
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState  # type: ignore[import-not-found]
 from std_msgs.msg import String
 
 from cellforge_simulation.l2_runtime import IsaacL2Runtime, L2Event, L2Outcome
@@ -214,6 +213,7 @@ class IsaacL2AdapterNode(Node):  # type: ignore[misc]
                         "events": [event.as_json() for event in self._runtime.events],
                     }
                 )
+            self._backend.reset_runtime_products()
             self._runtime = IsaacL2Runtime(self._backend, scenario, event_sink=self._publish_event)
             self.get_logger().info(f"Configured L2 scenario '{self._runtime.scenario_id}'.")
         except (ValueError, TypeError) as error:
