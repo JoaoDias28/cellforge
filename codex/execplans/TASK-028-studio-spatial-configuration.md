@@ -84,9 +84,10 @@ project schemas. Reverting the Task 028 commit removes the new editor without a 
   creation/import/binding, paired validation, and staged artifact persistence.
 - [x] 2026-08-13 — Integrate undoable commands and thin Studio controls; add deterministic,
   application, lifecycle-contract, and OpenUSD probe coverage.
-- [ ] 2026-08-13 — Commit and attempt publication after final diff inspection. Deterministic checks
-  pass; the supported Isaac Sim 6 acceptance probe timed out without output and does not qualify
-  the real UI workflow.
+- [x] 2026-08-13 — Committed the scoped implementation as `bd6ae66` after staged diff checks.
+- [ ] 2026-08-13 — Publication and merge blocked: the supported Isaac Sim 6 acceptance probe timed
+  out without output, and prerequisite Task 027 remains unqualified/unpublished for the same
+  platform reason. Do not open a PR or begin Task 029.
 
 ## Decisions
 - 2026-08-13 — Use a pure application service and existing paired-source validator rather than
@@ -114,3 +115,7 @@ run also reports pre-existing Task 027 formatting/lint issues in ROS sources and
 `sensor_msgs.msg` type stub. Isaac Sim 6.0.1-rc.7 is installed, but its required Task 028 headless
 Kit/OpenUSD command timed out after 184 seconds without output; its process was stopped. This is a
 failed/unavailable real workflow acceptance, not a passing qualification.
+
+The implementation is committed locally as `bd6ae66 task(028): add studio spatial configuration`.
+It was not pushed and no PR was opened because neither the Task 028 real Kit acceptance nor Task
+027 prerequisite qualification is complete.
