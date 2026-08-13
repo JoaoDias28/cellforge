@@ -42,7 +42,7 @@ Isaac Kit/ROS APIs vary by version; the runner must require Isaac Sim 6 and reje
 - [x] 2026-08-12 — Established the Python baseline and inspected existing runtime boundaries.
 - [x] 2026-08-13 — Implemented L2 runtime composition, canonical bundle selection, Kit-hosted ROS adapters, MoveIt/MTC handoff, RunJob acceptance coverage for nominal/drop/seating/collision, and GPU-only seeded evidence runner.
 - [ ] 2026-08-13 — Execute supported Isaac Sim 6 GPU acceptance and replayable evidence (blocked: no Isaac Sim 6 runner; skipped at user request).
-- [ ] 2026-08-12 — Commit, publish, review, merge, and fast-forward `main`.
+- [ ] 2026-08-13 — Created local commit `6417e11`; publication, review, and merge remain blocked pending the required Isaac Sim 6/GPU acceptance and the user's request not to run checks.
 
 ## Decisions
 - 2026-08-12 — Treat Isaac Sim 6 execution as a non-negotiable acceptance requirement: neither the installed 5.1 release metadata nor the CPU physical model can qualify Task 027.
