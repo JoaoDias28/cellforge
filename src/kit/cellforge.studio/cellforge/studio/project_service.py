@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -35,11 +36,13 @@ from cellforge.studio.application import (
     ConnectionBrowserResult,
     ConnectionEditResult,
     ProjectContents,
+    SpatialEditResult,
     ValidationItem,
 )
 from cellforge.studio.component_service import ComponentPlacementService
 from cellforge.studio.connection_service import ConnectionAuthoringService
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
+from cellforge.studio.spatial_configuration import SpatialConfigurationService
 
 RECOVERY_FILE = ".cellforge-save-recovery.json"
 
@@ -71,6 +74,7 @@ class ProjectCommandService:
         replace_file: Callable[[str | Path, str | Path], None] = os.replace,
         component_service: ComponentPlacementService | None = None,
         connection_service: ConnectionAuthoringService | None = None,
+        spatial_service: SpatialConfigurationService | None = None,
     ) -> None:
         self._canonical_schemas = canonical_schema_directory.resolve()
         self._replace_file = replace_file
@@ -78,6 +82,7 @@ class ProjectCommandService:
         self._connections = connection_service or ConnectionAuthoringService(
             self._canonical_schemas
         )
+        self._spatial = spatial_service or SpatialConfigurationService(self._canonical_schemas)
 
     def create(self, project_path: Path) -> BackendResult:
         """Explicitly create a starter project and return its validated buffers."""
@@ -193,11 +198,15 @@ class ProjectCommandService:
             return BackendResult(project=None, validation=tuple(findings))
 
         self._resolve_recovery(root)
+        artifacts = _artifact_candidates(root, contents.artifacts)
+        if isinstance(artifacts, BackendResult):
+            return artifacts
         self._transactional_replace(
             root,
             {
                 cell_path: contents.cell_yaml.encode("utf-8"),
                 scene_path: contents.scene_usda.encode("utf-8"),
+                **artifacts,
             },
         )
         summary = _summary_from_model(root, cell_model)
@@ -312,6 +321,83 @@ class ProjectCommandService:
             to_port=to_port,
         )
 
+    def set_component_transform(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        matrix: tuple[float, ...],
+    ) -> SpatialEditResult:
+        """Return an in-memory validated component transform edit."""
+
+        return self._spatial.set_transform(
+            project_path, contents, instance_id=instance_id, matrix=matrix
+        )
+
+    def set_component_configuration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        configuration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Return an in-memory schema-backed component configuration edit."""
+
+        return self._spatial.set_component_configuration(
+            project_path, contents, instance_id=instance_id, configuration=configuration
+        )
+
+    def set_component_variants(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        variants: Mapping[str, str],
+    ) -> SpatialEditResult:
+        """Return an in-memory declared variant selection edit."""
+
+        return self._spatial.set_component_variants(
+            project_path, contents, instance_id=instance_id, variants=variants
+        )
+
+    def create_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        kind: str,
+        valid_until: str,
+        data: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Create a staged calibration after parsing its explicit validity deadline."""
+
+        try:
+            deadline = datetime.fromisoformat(valid_until.replace("Z", "+00:00"))
+        except ValueError:
+            return SpatialEditResult(
+                contents=None,
+                validation=(
+                    ValidationItem(
+                        code="studio.calibration-valid-until-invalid",
+                        severity="error",
+                        path=f"{project_path.resolve() / 'calibration'}#",
+                        message="Calibration valid-until must be an ISO-8601 timestamp.",
+                    ),
+                ),
+            )
+        return self._spatial.create_calibration(
+            project_path,
+            contents,
+            instance_id=instance_id,
+            kind=kind,
+            valid_until=deadline,
+            data=data,
+        )
+
     def _registry_for(self, project_path: Path) -> SchemaRegistry:
         directory = resolve_project_schema_directory(project_path, self._canonical_schemas)
         return SchemaRegistry.from_directory(directory)
@@ -374,29 +460,42 @@ class ProjectCommandService:
                 ),
             )
         return _OpenedCandidate(
-            contents=ProjectContents(cell_yaml=cell_text, scene_usda=scene_text),
+            contents=ProjectContents(
+                cell_yaml=cell_text,
+                scene_usda=scene_text,
+                artifacts=_read_calibration_artifacts(root, raw),
+            ),
             cell_data=raw,
             scene_path=scene_path,
         )
 
     def _transactional_replace(self, root: Path, candidates: Mapping[Path, bytes]) -> None:
         journal_path = root / RECOVERY_FILE
-        originals = {path: path.read_bytes() for path in candidates}
+        originals: dict[Path, bytes | None] = {
+            path: path.read_bytes() if path.exists() else None for path in candidates
+        }
+        journal_files: dict[str, dict[str, str | None]] = {}
+        for path, content in candidates.items():
+            original = originals[path]
+            journal_files[path.relative_to(root).as_posix()] = {
+                "before": base64.b64encode(original).decode("ascii")
+                if isinstance(original, bytes)
+                else None,
+                "candidate_sha256": hashlib.sha256(content).hexdigest(),
+            }
         journal = {
             "version": 1,
-            "files": {
-                path.relative_to(root).as_posix(): {
-                    "before": base64.b64encode(originals[path]).decode("ascii"),
-                    "candidate_sha256": hashlib.sha256(content).hexdigest(),
-                }
-                for path, content in candidates.items()
-            },
+            "files": journal_files,
         }
         temporary: list[Path] = []
+        created_directories: list[Path] = []
         try:
             _write_temporary(journal_path, _json_bytes(journal), temporary, os.replace)
             prepared: dict[Path, Path] = {}
             for target, content in candidates.items():
+                if not target.parent.exists():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    created_directories.append(target.parent)
                 prepared[target] = _prepare_temporary(target, content, temporary)
             for target, source in prepared.items():
                 self._replace_file(source, target)
@@ -404,8 +503,11 @@ class ProjectCommandService:
             journal_path.unlink(missing_ok=True)
         except Exception as error:
             try:
-                for target, content in originals.items():
-                    _write_temporary(target, content, temporary, os.replace)
+                for target, original_content in originals.items():
+                    if original_content is None:
+                        target.unlink(missing_ok=True)
+                    else:
+                        _write_temporary(target, original_content, temporary, os.replace)
                 journal_path.unlink(missing_ok=True)
             except Exception as rollback_error:
                 raise ProjectSaveError(
@@ -417,6 +519,11 @@ class ProjectCommandService:
         finally:
             for path in temporary:
                 path.unlink(missing_ok=True)
+            for directory in reversed(created_directories):
+                try:
+                    directory.rmdir()
+                except OSError:
+                    pass
 
     def _validate_candidate_tree(
         self,
@@ -447,6 +554,19 @@ class ProjectCommandService:
                     ),
                 )
             staged_scene.write_text(contents.scene_usda, encoding="utf-8", newline="\n")
+            for relative, content in contents.artifacts.items():
+                target = (staged / relative).resolve()
+                if not target.is_relative_to(staged):
+                    return (
+                        ValidationItem(
+                            code="studio.artifact-path-invalid",
+                            severity="error",
+                            path=f"{root}#",
+                            message="Staged artifact paths must remain inside the project.",
+                        ),
+                    )
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
             report = validate_project(staged, self._registry_for(staged))
             staged_prefix = str(staged.resolve())
             root_prefix = str(root.resolve())
@@ -469,7 +589,7 @@ class ProjectCommandService:
             files = journal["files"]
             if not isinstance(files, Mapping):
                 raise ValueError
-            candidates_complete = len(files) == 2
+            candidates_complete = bool(files)
             for relative, metadata in files.items():
                 if not isinstance(relative, str) or not isinstance(metadata, Mapping):
                     raise ValueError
@@ -492,9 +612,13 @@ class ProjectCommandService:
                 target = (root / relative).resolve()
                 if not target.is_relative_to(root):
                     raise ValueError
-                before = base64.b64decode(str(metadata["before"]), validate=True)
-                temporary: list[Path] = []
-                _write_temporary(target, before, temporary, os.replace)
+                before = metadata["before"]
+                if before is None:
+                    target.unlink(missing_ok=True)
+                else:
+                    decoded = base64.b64decode(str(before), validate=True)
+                    temporary: list[Path] = []
+                    _write_temporary(target, decoded, temporary, os.replace)
             journal_path.unlink()
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
             raise ProjectSaveError(
@@ -638,3 +762,51 @@ def _json_bytes(value: Mapping[str, Any]) -> bytes:
     return (
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n"
     ).encode("utf-8")
+
+
+def _artifact_candidates(
+    root: Path, artifacts: Mapping[str, bytes]
+) -> dict[Path, bytes] | BackendResult:
+    """Resolve only project-contained staged immutable artifact paths."""
+
+    candidates: dict[Path, bytes] = {}
+    for relative, content in artifacts.items():
+        target = (root / relative).resolve()
+        if (
+            Path(relative).is_absolute()
+            or not target.is_relative_to(root)
+            or not isinstance(content, bytes)
+        ):
+            return BackendResult(
+                project=None,
+                validation=(
+                    ValidationItem(
+                        code="studio.artifact-path-invalid",
+                        severity="error",
+                        path=f"{root}#",
+                        message="Staged artifact paths and content must remain inside the project.",
+                    ),
+                ),
+            )
+        candidates[target] = content
+    return candidates
+
+
+def _read_calibration_artifacts(root: Path, cell: Mapping[str, Any]) -> dict[str, bytes]:
+    """Load existing declared immutable calibration bytes into reopened working state."""
+
+    artifacts: dict[str, bytes] = {}
+    paths = cell.get("calibrations", [])
+    if not isinstance(paths, list):
+        return artifacts
+    for relative in paths:
+        if not isinstance(relative, str):
+            continue
+        path = (root / relative).resolve()
+        try:
+            if not path.is_relative_to(root) or not path.is_file():
+                continue
+            artifacts[relative] = path.read_bytes()
+        except OSError:
+            continue
+    return artifacts

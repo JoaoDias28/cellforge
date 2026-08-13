@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
@@ -68,6 +68,7 @@ class ProjectContents:
 
     cell_yaml: str
     scene_usda: str
+    artifacts: Mapping[str, bytes] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +193,15 @@ class ConnectionEditResult:
     preview: MechanicalSnapPreview | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class SpatialEditResult:
+    """Result of an undoable spatial/configuration/calibration paired edit."""
+
+    contents: ProjectContents | None
+    validation: tuple[ValidationItem, ...] = ()
+    calibration_path: str | None = None
+
+
 class ProjectBackend(Protocol):
     """Project commands implemented outside UI callbacks."""
 
@@ -262,6 +272,48 @@ class ProjectBackend(Protocol):
         to_port: str,
     ) -> ConnectionEditResult:
         """Create a validated logical or paired mechanical connection edit."""
+
+    def set_component_transform(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        matrix: tuple[float, ...],
+    ) -> SpatialEditResult:
+        """Edit one component transform in the paired in-memory sources."""
+
+    def set_component_configuration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        configuration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Edit one schema-validated instance configuration in memory."""
+
+    def set_component_variants(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        variants: Mapping[str, str],
+    ) -> SpatialEditResult:
+        """Edit one component's declared variant selections in memory."""
+
+    def create_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        kind: str,
+        valid_until: str,
+        data: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Stage and bind one immutable calibration artifact in memory."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -702,6 +754,59 @@ class StudioApplication:
         )
         return self._snapshot
 
+    def set_component_transform(
+        self, instance_id: str, matrix: tuple[float, ...]
+    ) -> StudioSnapshot:
+        """Apply a validated spatial transform as a whole-pair undoable edit."""
+
+        return self._spatial_edit(
+            "Spatial transform",
+            lambda backend, path, contents: backend.set_component_transform(
+                path, contents, instance_id=instance_id, matrix=matrix
+            ),
+        )
+
+    def set_component_configuration(
+        self, instance_id: str, configuration: Mapping[str, object]
+    ) -> StudioSnapshot:
+        """Apply a schema-backed component configuration edit."""
+
+        return self._spatial_edit(
+            "Component configuration",
+            lambda backend, path, contents: backend.set_component_configuration(
+                path, contents, instance_id=instance_id, configuration=configuration
+            ),
+        )
+
+    def set_component_variants(
+        self, instance_id: str, variants: Mapping[str, str]
+    ) -> StudioSnapshot:
+        """Apply declared component variant selections without direct YAML editing."""
+
+        return self._spatial_edit(
+            "Component variants",
+            lambda backend, path, contents: backend.set_component_variants(
+                path, contents, instance_id=instance_id, variants=variants
+            ),
+        )
+
+    def create_calibration(
+        self, instance_id: str, kind: str, valid_until: str, data: Mapping[str, object]
+    ) -> StudioSnapshot:
+        """Create and bind an immutable calibration, staged until explicit save."""
+
+        return self._spatial_edit(
+            "Calibration creation",
+            lambda backend, path, contents: backend.create_calibration(
+                path,
+                contents,
+                instance_id=instance_id,
+                kind=kind,
+                valid_until=valid_until,
+                data=data,
+            ),
+        )
+
     def undo(self) -> StudioSnapshot:
         """Undo one complete paired-buffer placement/removal edit."""
 
@@ -891,6 +996,38 @@ class StudioApplication:
         self._undo_stack.append(self._edit_state(contents, project))
         self._undo_stack = self._undo_stack[-100:]
         self._redo_stack.clear()
+
+    def _spatial_edit(
+        self,
+        operation: str,
+        command: Callable[[ProjectBackend, Path, ProjectContents], SpatialEditResult],
+    ) -> StudioSnapshot:
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project(
+                "Cannot edit spatial configuration without a valid project."
+            )
+        try:
+            result = command(self._backend, Path(project.path), contents)
+        except Exception as error:
+            return self._operation_failure(operation, error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected(operation, result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        self._snapshot = replace(
+            self._snapshot,
+            detail=f"{operation} updated paired sources in memory; save explicitly to persist.",
+            validation=(),
+            dirty=self._working_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(LogLevel.INFO, f"{operation} updated paired sources in memory."),
+        )
+        return self._snapshot
 
     def _edit_state(self, contents: ProjectContents, project: ProjectView) -> _EditState:
         return _EditState(

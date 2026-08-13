@@ -1,5 +1,7 @@
 """Isaac Sim 6 / Omniverse Kit UI adapter for the Cell Studio shell."""
 
+import json
+
 import omni.ext
 import omni.ui as ui
 
@@ -32,6 +34,15 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._support_filter_model = ui.SimpleStringModel("")
         self._simulation_filter_model = ui.SimpleStringModel("")
         self._remove_instance_model = ui.SimpleStringModel("")
+        self._spatial_instance_model = ui.SimpleStringModel("")
+        self._transform_model = ui.SimpleStringModel(
+            "[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]"
+        )
+        self._configuration_model = ui.SimpleStringModel("{}")
+        self._variants_model = ui.SimpleStringModel("{}")
+        self._calibration_kind_model = ui.SimpleStringModel("camera.intrinsics")
+        self._calibration_valid_until_model = ui.SimpleStringModel("2030-01-01T00:00:00Z")
+        self._calibration_data_model = ui.SimpleStringModel("{}")
         self._connection_id_model = ui.SimpleStringModel("")
         self._connection_kind_model = ui.SimpleStringModel("software")
         self._from_component_model = ui.SimpleStringModel("")
@@ -147,6 +158,65 @@ class CellForgeStudioExtension(omni.ext.IExt):
         )
         self._render_all()
 
+    def _on_set_transform(self) -> None:
+        if self._application is None:
+            return
+        try:
+            matrix = tuple(float(value) for value in json.loads(self._transform_model.as_string))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            matrix = ()
+        self._application.set_component_transform(self._spatial_instance_model.as_string, matrix)
+        self._render_all()
+
+    def _on_set_configuration(self) -> None:
+        if self._application is None:
+            return
+        try:
+            configuration = json.loads(self._configuration_model.as_string)
+        except json.JSONDecodeError:
+            return
+        if not isinstance(configuration, dict):
+            return
+        self._application.set_component_configuration(
+            self._spatial_instance_model.as_string,
+            configuration,
+        )
+        self._render_all()
+
+    def _on_set_variants(self) -> None:
+        if self._application is None:
+            return
+        try:
+            variants = json.loads(self._variants_model.as_string)
+        except json.JSONDecodeError:
+            return
+        if not isinstance(variants, dict) or not all(
+            isinstance(value, str) for value in variants.values()
+        ):
+            return
+        self._application.set_component_variants(
+            self._spatial_instance_model.as_string,
+            variants,
+        )
+        self._render_all()
+
+    def _on_create_calibration(self) -> None:
+        if self._application is None:
+            return
+        try:
+            data = json.loads(self._calibration_data_model.as_string)
+        except json.JSONDecodeError:
+            return
+        if not isinstance(data, dict):
+            return
+        self._application.create_calibration(
+            self._spatial_instance_model.as_string,
+            self._calibration_kind_model.as_string,
+            self._calibration_valid_until_model.as_string,
+            data,
+        )
+        self._render_all()
+
     def _on_undo(self) -> None:
         if self._application is not None:
             self._application.undo()
@@ -250,6 +320,31 @@ class CellForgeStudioExtension(omni.ext.IExt):
                     ui.Label(f"Tasks: {project.task_count}")
                     ui.Label(f"Recipes: {project.recipe_count}")
                     ui.Label(f"Scenarios: {project.scenario_count}")
+                    ui.Separator(height=8)
+                    ui.Label("Spatial configuration", style={"font_size": 16})
+                    ui.Label("Selected component instance ID")
+                    ui.StringField(model=self._spatial_instance_model)
+                    ui.Label("4x4 transform JSON (viewport selection)")
+                    ui.StringField(model=self._transform_model)
+                    ui.Button(
+                        "Apply transform and visualize frames/collision",
+                        clicked_fn=self._on_set_transform,
+                    )
+                    ui.Label("Configuration JSON")
+                    ui.StringField(model=self._configuration_model)
+                    ui.Button(
+                        "Apply schema-backed configuration", clicked_fn=self._on_set_configuration
+                    )
+                    ui.Label("Variant selections JSON")
+                    ui.StringField(model=self._variants_model)
+                    ui.Button("Apply variants", clicked_fn=self._on_set_variants)
+                    ui.Label("Calibration kind / valid until / data JSON")
+                    ui.StringField(model=self._calibration_kind_model)
+                    ui.StringField(model=self._calibration_valid_until_model)
+                    ui.StringField(model=self._calibration_data_model)
+                    ui.Button(
+                        "Create immutable calibration", clicked_fn=self._on_create_calibration
+                    )
 
     def _render_component_panel(self) -> None:
         snapshot = self._application.snapshot

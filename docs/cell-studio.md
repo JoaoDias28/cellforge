@@ -368,3 +368,36 @@ make studio-simulation-check
 
 The Isaac Sim 6 headless command is documented in `docs/simulation.md`. L0 control evidence does not
 claim physics, perception, process quality, hardware validation, or functional-safety enforcement.
+
+## 12. Spatial configuration and calibration
+
+Task 028 adds a viewport-neutral spatial configuration service behind Studio controls. An engineer
+selects an immutable component instance ID, can inspect its declared frames and collision asset, and
+can apply a finite non-singular 4x4 transform to its USD Xform. Configuration and variants are
+edited only through the component JSON schema and declared manifest variant sets. The service
+validates the candidate `cell.yaml` and USDA pair before returning an in-memory edit; **Save**
+remains the transactional persistence boundary and undo/redo restores the complete pair.
+
+Calibration creation/import stages a canonical JSON artifact under `calibration/`, validates the
+canonical schema, checks its immutable digest and expiry, and requires a matching immutable
+component instance ID. The artifact path is bound in both the cell and the component's
+`calibration_refs` in the same candidate. It remains engineering data only and has no safety
+authority.
+
+The deterministic acceptance check is:
+
+```bash
+make studio-spatial-configuration-check
+```
+
+The supported Isaac Sim 6 headless interaction/OpenUSD check is:
+
+```bash
+./isaac-sim.sh --no-window \
+  --ext-folder /absolute/path/to/cellforge/src/kit \
+  --enable cellforge.studio \
+  --exec /absolute/path/to/cellforge/scripts/verify_kit_spatial_configuration.py
+```
+
+The deterministic check validates contracts but does not substitute for the actual Kit viewport and
+OpenUSD interaction check.
