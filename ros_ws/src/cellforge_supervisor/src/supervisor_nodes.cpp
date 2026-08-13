@@ -15,6 +15,7 @@ namespace {
 constexpr std::int64_t kDefaultSkillTimeoutMilliseconds = 30000;
 constexpr std::int64_t kMillisecondsPerSecond = 1000;
 constexpr std::int64_t kNanosecondsPerMillisecond = 1000000;
+constexpr auto kAutoCommandId = "__cellforge_auto_command_id__";
 constexpr std::size_t kUuidByteCount = 16;
 constexpr std::size_t kUuidVersionIndex = 6;
 constexpr std::size_t kUuidVariantIndex = 8;
@@ -50,7 +51,7 @@ auto ExecuteSkillAction::providedPorts() -> BT::PortsList {
       BT::InputPort<std::string>("skill_id"),
       BT::InputPort<std::string>("input_payload_json", std::string("{}"), ""),
       BT::InputPort<std::string>("execution_mode"),
-      BT::InputPort<std::string>("command_id", std::string(""), ""),
+      BT::InputPort<std::string>("command_id", std::string(kAutoCommandId), ""),
       BT::InputPort<std::int64_t>("timeout_ms", kDefaultSkillTimeoutMilliseconds, ""),
       BT::OutputPort<std::string>("resolved_command_id"),
       BT::OutputPort<std::string>("result_code"),
@@ -73,8 +74,7 @@ auto ExecuteSkillAction::onStart() -> BT::NodeStatus {
   const auto mode_input = getInput("execution_mode", execution_mode);
   const auto command_input = getInput("command_id", command_id);
   const auto timeout_input = getInput("timeout_ms", timeout_ms);
-  if (!action_input || !skill_input || !payload_input || !mode_input || !command_input ||
-      !timeout_input) {
+  if (!action_input || !skill_input || !payload_input || !mode_input || !timeout_input) {
     return fail("supervisor.capability.invalid_ports", "ExecuteSkill input resolution failed.");
   }
   if (action_name.empty() || skill_id.empty() || execution_mode.empty() || timeout_ms <= 0) {
@@ -83,6 +83,9 @@ auto ExecuteSkillAction::onStart() -> BT::NodeStatus {
   }
   if (command_id.empty()) {
     command_id = newUuid();
+  }
+  if (!command_input || command_id == kAutoCommandId) {
+    command_id.clear();
   }
   (void)setOutput("resolved_command_id", command_id);
 
@@ -212,8 +215,8 @@ void ExecuteSkillAction::requestCancellation(const std::shared_ptr<AsyncState>& 
   }
 }
 
-auto ExecuteSkillAction::fail(const std::string& code,
-                              const std::string& message) -> BT::NodeStatus {
+auto ExecuteSkillAction::fail(const std::string& code, const std::string& message)
+    -> BT::NodeStatus {
   (void)setOutput("result_code", code);
   (void)setOutput("result_message", message);
   (void)setOutput("output_payload_json", "{}");

@@ -1,0 +1,46 @@
+schema_version: 0.1.0
+profile:
+  id: pen-isaac-l2-win64
+  name: Pen Isaac Sim 6 L2 GPU workstation
+platform:
+  arch: amd64
+  os: windows-11
+  ros_distribution: jazzy
+  gpu:
+    required: true
+runtime:
+  simulation_fidelity: L2
+  adapter_configuration: runtime/l2-adapters.json
+  native_packages:
+    - cellforge_bringup
+    - cellforge_interfaces
+    - cellforge_supervisor
+    - cellforge_pen_bt_nodes
+    - cellforge_job_gateway
+    - cellforge_motion
+    - cellforge_state_trace
+    - cellforge_operator_api
+    - cellforge_simulation
+  executables:
+    adapter: {package: cellforge_simulation, executable: isaac_l2_adapter}
+    coordinator: {package: cellforge_bringup, executable: runtime_coordinator}
+    gateway: {package: cellforge_job_gateway, executable: job_gateway}
+    motion_l0: {package: cellforge_motion, executable: cellforge_l0_motion_service}
+    motion_l2: {package: cellforge_motion, executable: cellforge_motion_service}
+    operator: {package: cellforge_operator_api, executable: operator_api}
+    safety_status: {package: cellforge_simulation, executable: isaac_l2_adapter}
+    state: {package: cellforge_state_trace, executable: state_aggregator}
+    supervisor: {package: cellforge_supervisor, executable: cellforge_supervisor_node}
+    trace: {package: cellforge_state_trace, executable: durable_event_recorder}
+  behavior_tree_plugins:
+    - package: cellforge_pen_bt_nodes
+      library: cellforge_pen_bt_nodes
+      manifest: behavior_tree_plugins/cellforge_pen_bt_nodes.json
+  containers: []
+network:
+  ros_domain_id: 42
+modes: [simulation]
+external_prerequisites:
+  - NVIDIA Isaac Sim 6.0.1 with accepted EULA
+  - NVIDIA RTX GPU and compatible driver
+  - ROS 2 Jazzy Windows Pixi workspace from IsaacSim-ros_workspaces

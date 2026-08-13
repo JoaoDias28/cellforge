@@ -9,14 +9,11 @@
 namespace cellforge_supervisor {
 namespace {
 
-BT::BehaviorTreeFactory makeFactory() {
-  BT::BehaviorTreeFactory factory;
-  registerSupervisorNodes(factory);
-  return factory;
-}
+void configureFactory(BT::BehaviorTreeFactory& factory) { registerSupervisorNodes(factory); }
 
 TEST(TreeValidation, ValidatesAndTicksKnownCondition) {
-  auto factory = makeFactory();
+  BT::BehaviorTreeFactory factory;
+  configureFactory(factory);
   auto blackboard = BT::Blackboard::create();
   blackboard->set("cell_ready", true);
   const std::string xml = R"(
@@ -31,7 +28,8 @@ TEST(TreeValidation, ValidatesAndTicksKnownCondition) {
 }
 
 TEST(TreeValidation, RejectsUnknownNodeBeforeTick) {
-  auto factory = makeFactory();
+  BT::BehaviorTreeFactory factory;
+  configureFactory(factory);
   const std::string xml = R"(
     <root BTCPP_format="4">
       <BehaviorTree ID="Main"><UnknownCapability/></BehaviorTree>
@@ -46,7 +44,8 @@ TEST(TreeValidation, RejectsUnknownNodeBeforeTick) {
 }
 
 TEST(TreeValidation, RejectsMissingRequiredPortBeforeTick) {
-  auto factory = makeFactory();
+  BT::BehaviorTreeFactory factory;
+  configureFactory(factory);
   const std::string xml = R"(
     <root BTCPP_format="4">
       <BehaviorTree ID="Main"><CellReady/></BehaviorTree>
@@ -61,7 +60,8 @@ TEST(TreeValidation, RejectsMissingRequiredPortBeforeTick) {
 }
 
 TEST(TreeValidation, RejectsMissingBlackboardInputBeforeTick) {
-  auto factory = makeFactory();
+  BT::BehaviorTreeFactory factory;
+  configureFactory(factory);
   const std::string xml = R"(
     <root BTCPP_format="4">
       <BehaviorTree ID="Main"><CellReady cell_ready="{not_seeded}"/></BehaviorTree>

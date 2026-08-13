@@ -18,8 +18,8 @@ class TreeValidationError : public std::runtime_error {
   std::string code_;
 };
 
-auto resolveTreePath(const std::filesystem::path& tree_root,
-                     const std::string& task_id) -> std::filesystem::path;
+auto resolveTreePath(const std::filesystem::path& tree_root, const std::string& task_id)
+    -> std::filesystem::path;
 
 auto createValidatedTreeFromText(BT::BehaviorTreeFactory& factory, const std::string& xml,
                                  const BT::Blackboard::Ptr& blackboard) -> BT::Tree;

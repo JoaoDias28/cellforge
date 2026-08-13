@@ -73,6 +73,17 @@ _RUNTIME_EXECUTABLE_ROLES = {
     "supervisor",
     "trace",
 }
+_FIDELITY_RANK = {"L0": 0, "L1": 1, "L2": 2, "L3": 3}
+_FIDELITY_ADAPTER_EXECUTABLES = {
+    "L0": {
+        "adapter": ("cellforge_mock_adapters", "mock_device_node"),
+        "safety_status": ("cellforge_mock_adapters", "mock_safety_status_node"),
+    },
+    "L2": {
+        "adapter": ("cellforge_simulation", "isaac_l2_adapter"),
+        "safety_status": ("cellforge_simulation", "isaac_l2_adapter"),
+    },
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -441,6 +452,23 @@ def _freeze_runtime_graph(
                     f"Runtime package '{executable.package}' is not a declared native package.",
                 ),
             )
+    expected_adapters = _FIDELITY_ADAPTER_EXECUTABLES.get(fidelity.value)
+    if expected_adapters is not None:
+        actual_adapters = {
+            role: (runtime.executables[role].package, runtime.executables[role].executable)
+            for role in expected_adapters
+            if role in runtime.executables
+        }
+        if actual_adapters != expected_adapters:
+            state.add(
+                CompilerStage.TARGET,
+                _finding(
+                    "compiler.runtime.fidelity-unavailable",
+                    f"{where}/executables",
+                    "Runtime adapter executables do not provide genuine "
+                    f"{fidelity.value} fidelity.",
+                ),
+            )
     resolved_by_instance = {item.instance_id: item for item in resolution.components}
     unavailable: list[str] = []
     for component in components:
@@ -451,7 +479,11 @@ def _freeze_runtime_graph(
             else component_registry.get(resolved.component, resolved.version)
         )
         adapter = None if package is None else package.manifest.adapters.simulation
-        if adapter is None or adapter.fidelity != fidelity:
+        adapter_fidelity = None if adapter is None else adapter.fidelity
+        if (
+            adapter_fidelity is None
+            or _FIDELITY_RANK[adapter_fidelity.value] < _FIDELITY_RANK[fidelity.value]
+        ):
             unavailable.append(component.instance_id)
     unavailable.sort()
     if unavailable:

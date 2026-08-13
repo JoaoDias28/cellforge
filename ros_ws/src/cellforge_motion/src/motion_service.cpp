@@ -147,10 +147,11 @@ auto MotionService::sceneRevision() const -> std::string {
   return scene_revision_;
 }
 
-auto MotionService::run(
-    const std::string& command_id, const std::string& trace_id, bool plan_only,
-    std::chrono::milliseconds timeout, const CancellationRequested& cancellation_requested,
-    const std::function<PlannerResult(std::stop_token)>& callable) -> MotionResult {
+auto MotionService::run(const std::string& command_id, const std::string& trace_id, bool plan_only,
+                        std::chrono::milliseconds timeout,
+                        const CancellationRequested& cancellation_requested,
+                        const std::function<PlannerResult(std::stop_token)>& callable)
+    -> MotionResult {
   std::promise<PlannerResult> promise;
   auto future = promise.get_future();
   std::jthread worker([&promise, &callable](std::stop_token token) {
@@ -204,8 +205,8 @@ auto MotionService::run(
 }
 
 auto MotionService::mapResult(const std::string& command_id, const std::string& trace_id,
-                              bool plan_only,
-                              const PlannerResult& planner_result) const -> MotionResult {
+                              bool plan_only, const PlannerResult& planner_result) const
+    -> MotionResult {
   const auto [code, fallback] = mappedCode(planner_result.outcome, plan_only);
   MotionResult result;
   result.success = planner_result.outcome == PlannerOutcome::SUCCESS;

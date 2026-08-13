@@ -1,0 +1,2 @@
+# Unified vendor patches retain their source indentation and intentional whitespace context.
+third_party/patches/*.patch whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab

@@ -10,7 +10,9 @@ auto main(int argc, char** argv) -> int {
   auto backend_node = std::make_shared<rclcpp::Node>(
       "motion_planner_backend",
       rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true));
-  auto planner = std::make_shared<cellforge_motion::MoveItPlanner>(backend_node);
+  const auto isaac_l2_direct = backend_node->get_parameter_or("isaac_l2_direct", false);
+  auto planner =
+      std::make_shared<cellforge_motion::MoveItPlanner>(backend_node, "manipulator", isaac_l2_direct);
   auto service = std::make_shared<cellforge_motion::MotionService>(planner);
   auto motion_node = std::make_shared<cellforge_motion::MotionNode>(service);
   rclcpp::executors::MultiThreadedExecutor executor;

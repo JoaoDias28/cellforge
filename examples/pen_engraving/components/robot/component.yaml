@@ -49,13 +49,13 @@ capabilities:
     modes: [simulation, commissioning, production]
 adapters:
   simulation:
-    package: cellforge_mock_adapters
-    entrypoint: mock_device_node
+    package: cellforge_simulation
+    entrypoint: isaac_l2_adapter
     minimum_version: 0.1.0
-    fidelity: L0
+    fidelity: L2
   hardware: null
 fault_catalog: docs/faults.md
 support:
   level: simulated
-  simulation_level: L0
+  simulation_level: L2
   owner: automation-platform

@@ -7,6 +7,9 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(WIN32)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(ament_index_cpp REQUIRED)
@@ -14,7 +17,6 @@ find_package(behaviortree_cpp REQUIRED)
 find_package(cellforge_interfaces REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(nlohmann_json_schema_validator_vendor REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(std_msgs REQUIRED)
@@ -55,10 +57,13 @@ ament_target_dependencies(cellforge_supervisor_node
 install(TARGETS
   cellforge_supervisor_core
   cellforge_supervisor_bt_nodes
-  cellforge_supervisor_node
   EXPORT export_cellforge_supervisor
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+install(TARGETS
+  cellforge_supervisor_node
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include)
@@ -87,7 +92,12 @@ if(BUILD_TESTING)
   endif()
 
   ament_clang_format(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-format")
-  ament_clang_tidy(${CMAKE_BINARY_DIR})
+  if(WIN32)
+    ament_clang_tidy(${CMAKE_BINARY_DIR}
+      CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-tidy-windows")
+  else()
+    ament_clang_tidy(${CMAKE_BINARY_DIR})
+  endif()
 endif()
 
 ament_export_targets(export_cellforge_supervisor HAS_LIBRARY_TARGET)
@@ -96,7 +106,6 @@ ament_export_dependencies(
   behaviortree_cpp
   cellforge_interfaces
   nlohmann_json
-  nlohmann_json_schema_validator_vendor
   OpenSSL
   rclcpp
   rclcpp_action

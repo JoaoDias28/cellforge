@@ -32,8 +32,8 @@ class MotionService {
   static auto validate(const ManipulationRequest& request) -> std::string;
   static auto validate(const SceneSyncRequest& request) -> std::string;
   static auto evidence(const MotionResult& result, bool plan_only) -> std::string;
-  static auto sceneEvidence(const SceneSyncRequest& request, bool success,
-                            const std::string& code) -> std::string;
+  static auto sceneEvidence(const SceneSyncRequest& request, bool success, const std::string& code)
+      -> std::string;
 
   std::shared_ptr<MotionPlanner> planner_;
   mutable std::mutex mutex_;

@@ -1,0 +1,23 @@
+schema_version: 0.1.0
+scenario:
+  id: pen-physical-collision
+  name: L2 PhysX collision refusal
+  seed: 4001
+  timeout_seconds: 60
+simulation: {requested_fidelity: L2}
+job:
+  recipe_id: pen-aluminium-reference
+  recipe_version: 1
+  input_payload: {engraving_text: COLLISION}
+initial_state: {product_present: true, safety_healthy: true, laser_ready: true}
+randomization: {}
+faults:
+  - at: before_pick
+    target: robot-001
+    fault: motion.plan.collision
+    parameters: {}
+assertions:
+  final_status: RECOVERABLE_FAULT
+  required_events: [motion.plan.collision, job.failed]
+  forbidden_events: [process.command.completed, job.completed]
+  max_cycle_seconds: 45

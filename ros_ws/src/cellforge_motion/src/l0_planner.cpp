@@ -13,13 +13,13 @@ constexpr double kContractPlanningSeconds = 0.025;
 constexpr auto kContractTickDuration = 5ms;
 }  // namespace
 
-auto L0Planner::moveToPose(const MotionRequest& /*request*/,
-                           std::stop_token stop_token) -> PlannerResult {
+auto L0Planner::moveToPose(const MotionRequest& /*request*/, std::stop_token stop_token)
+    -> PlannerResult {
   return complete(stop_token, {"contract_plan", "contract_execute"});
 }
 
-auto L0Planner::executeManipulation(const ManipulationRequest& request,
-                                    std::stop_token stop_token) -> PlannerResult {
+auto L0Planner::executeManipulation(const ManipulationRequest& request, std::stop_token stop_token)
+    -> PlannerResult {
   std::vector<std::string> stages{"current_state", "approach", "operate", "retreat"};
   if (request.operation == ManipulationOperation::LOAD) {
     stages[2] = "load";
@@ -42,8 +42,8 @@ auto L0Planner::syncPlanningScene(const SceneSyncRequest& request) -> SceneSyncR
 
 void L0Planner::cancelActiveRequest() { cancelled_.store(true); }
 
-auto L0Planner::complete(const std::stop_token& stop_token,
-                         std::vector<std::string> stages) -> PlannerResult {
+auto L0Planner::complete(const std::stop_token& stop_token, std::vector<std::string> stages)
+    -> PlannerResult {
   cancelled_.store(false);
   for (int tick = 0; tick < kContractTicks; ++tick) {
     if (stop_token.stop_requested() || cancelled_.load()) {

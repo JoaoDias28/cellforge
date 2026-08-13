@@ -9,10 +9,10 @@ namespace cellforge_motion {
 class MotionPlanner {
  public:
   virtual ~MotionPlanner() = default;
-  virtual auto moveToPose(const MotionRequest& request,
-                          std::stop_token stop_token) -> PlannerResult = 0;
-  virtual auto executeManipulation(const ManipulationRequest& request,
-                                   std::stop_token stop_token) -> PlannerResult = 0;
+  virtual auto moveToPose(const MotionRequest& request, std::stop_token stop_token)
+      -> PlannerResult = 0;
+  virtual auto executeManipulation(const ManipulationRequest& request, std::stop_token stop_token)
+      -> PlannerResult = 0;
   virtual auto syncPlanningScene(const SceneSyncRequest& request) -> SceneSyncResult = 0;
   virtual void cancelActiveRequest() = 0;
 };

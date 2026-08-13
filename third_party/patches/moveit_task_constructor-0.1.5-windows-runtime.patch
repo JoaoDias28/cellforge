@@ -1,0 +1,33 @@
+diff --git a/core/src/CMakeLists.txt b/core/src/CMakeLists.txt
+--- a/core/src/CMakeLists.txt
++++ b/core/src/CMakeLists.txt
+@@ -58,4 +58,5 @@ install(TARGETS ${PROJECT_NAME}
+ install(TARGETS ${PROJECT_NAME}
+         EXPORT ${PROJECT_NAME}Targets
+         ARCHIVE DESTINATION lib
+-        LIBRARY DESTINATION lib)
++        LIBRARY DESTINATION lib
++        RUNTIME DESTINATION bin)
+diff --git a/rviz_marker_tools/CMakeLists.txt b/rviz_marker_tools/CMakeLists.txt
+--- a/rviz_marker_tools/CMakeLists.txt
++++ b/rviz_marker_tools/CMakeLists.txt
+@@ -45,7 +45,8 @@ install(DIRECTORY include/ DESTINATION include)
+ install(TARGETS ${PROJECT_NAME}
+         EXPORT ${PROJECT_NAME}Targets
+         ARCHIVE DESTINATION lib
+-        LIBRARY DESTINATION lib)
++        LIBRARY DESTINATION lib
++        RUNTIME DESTINATION bin)
+
+ ament_export_targets(${PROJECT_NAME}Targets HAS_LIBRARY_TARGET)
+ ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
+diff --git a/core/src/stages/CMakeLists.txt b/core/src/stages/CMakeLists.txt
+--- a/core/src/stages/CMakeLists.txt
++++ b/core/src/stages/CMakeLists.txt
+@@ -63,4 +63,5 @@ install(TARGETS ${PROJECT_NAME}_stages ${PROJECT_NAME}_stage_plugins
+ install(TARGETS ${PROJECT_NAME}_stages ${PROJECT_NAME}_stage_plugins
+         EXPORT ${PROJECT_NAME}Targets
+         ARCHIVE DESTINATION lib
+-        LIBRARY DESTINATION lib)
++        LIBRARY DESTINATION lib
++        RUNTIME DESTINATION bin)

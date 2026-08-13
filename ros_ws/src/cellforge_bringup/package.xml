@@ -13,6 +13,7 @@
   <exec_depend>cellforge_motion</exec_depend>
   <exec_depend>cellforge_operator_api</exec_depend>
   <exec_depend>cellforge_pen_bt_nodes</exec_depend>
+  <exec_depend>cellforge_simulation</exec_depend>
   <exec_depend>cellforge_state_trace</exec_depend>
   <exec_depend>cellforge_supervisor</exec_depend>
   <exec_depend>launch</exec_depend>

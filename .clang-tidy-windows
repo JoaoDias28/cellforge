@@ -1,0 +1,12 @@
+---
+Checks: >-
+  -*,
+  bugprone-*,-bugprone-exception-escape,
+  clang-analyzer-*,-clang-analyzer-core.StackAddressEscape,
+  modernize-*,-modernize-use-trailing-return-type,
+  performance-*,
+  readability-*
+WarningsAsErrors: ''
+HeaderFilterRegex: '^(src|ros_ws)/'
+FormatStyle: file
+...

@@ -38,6 +38,7 @@ from cellforge.studio.application import (
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
 
 _PRIM_DEFINITION = re.compile(r'\b(?:def|over|class)\s+\w+\s+"([^"]+)"')
+_SIMULATION_LEVEL_RANK = {level.value: index for index, level in enumerate(SimulationLevel)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +92,8 @@ class ComponentPlacementService:
                 continue
             if (
                 filters.simulation_level
-                and manifest.support.simulation_level.value != filters.simulation_level
+                and _SIMULATION_LEVEL_RANK[manifest.support.simulation_level.value]
+                < _SIMULATION_LEVEL_RANK[filters.simulation_level]
             ):
                 continue
 

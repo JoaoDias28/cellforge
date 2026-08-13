@@ -13,7 +13,7 @@ def test_extension_manifest_declares_supported_module_and_ui_dependency() -> Non
     )
 
     assert manifest["package"]["version"] == "0.5.0"
-    assert manifest["dependencies"] == {"omni.kit.app": {}, "omni.ui": {}}
+    assert manifest["dependencies"] == {"omni.ui": {}, "omni.usd": {}}
     assert manifest["python"]["module"] == [{"name": "cellforge.studio.extension"}]
 
 

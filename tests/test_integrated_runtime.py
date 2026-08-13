@@ -19,12 +19,13 @@ sys.path.insert(0, str(BRINGUP_ROOT))
 from cellforge_bringup.runtime import BringupError, load_runtime_bundle  # noqa: E402
 
 
-def _bundle(tmp_path: Path) -> Path:
+def _bundle(tmp_path: Path, *, fidelity: str = "L0") -> Path:
     project = ROOT / "examples" / "pen_engraving"
+    target_profile = "pen-sim-amd64" if fidelity == "L0" else "pen-isaac-l2-win64"
     report = compile_project(
         project,
         ROOT / "schemas",
-        target_profile="pen-sim-amd64",
+        target_profile=target_profile,
         mode=ExecutionMode.SIMULATION,
         source_revision="a" * 40,
     )
@@ -37,7 +38,9 @@ def _bundle(tmp_path: Path) -> Path:
         "config/behavior-tree-plugins/cellforge_pen_bt_nodes.json": (
             project / "behavior_tree_plugins" / "cellforge_pen_bt_nodes.json"
         ),
-        "config/adapters/runtime.json": project / "runtime" / "l0-adapters.json",
+        "config/adapters/runtime.json": (
+            project / "runtime" / ("l0-adapters.json" if fidelity == "L0" else "l2-adapters.json")
+        ),
         "config/operator-recovery.json": project / "operator" / "operator-recovery.json",
     }
     for relative, source in sources.items():
@@ -59,8 +62,14 @@ def test_loader_verifies_exact_identity_graph_files_and_offline_fidelity(tmp_pat
     assert runtime.adapter_configuration.is_file()
     assert runtime.cell_config_sha256 != runtime.scene_sha256
 
+    l2 = load_runtime_bundle(_bundle(tmp_path / "l2", fidelity="L2"), "L2")
+    assert l2.fidelity == "L2"
+    assert l2.executables["adapter"].package == "cellforge_simulation"
+    assert l2.executables["adapter"].executable == "isaac_l2_adapter"
+    assert l2.executables["motion_l2"].executable == "cellforge_motion_service"
 
-def test_loader_rejects_tampering_identity_and_unavailable_l2(tmp_path: Path) -> None:
+
+def test_loader_rejects_tampering_identity_and_fidelity_mismatch(tmp_path: Path) -> None:
     bundle = _bundle(tmp_path)
     adapter_path = bundle / "config" / "adapters" / "runtime.json"
     adapter_path.write_text("{}", encoding="utf-8")

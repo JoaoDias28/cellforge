@@ -118,5 +118,7 @@ scenarios:
   - physical/scenarios/nominal.yaml
   - physical/scenarios/dropped_pen.yaml
   - physical/scenarios/failed_seating.yaml
+  - physical/scenarios/collision.yaml
 deployment_profiles:
   - deployment-sim.yaml
+  - deployment-l2.yaml

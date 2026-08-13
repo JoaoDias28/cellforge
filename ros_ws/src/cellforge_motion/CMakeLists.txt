@@ -7,6 +7,9 @@ endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if(WIN32)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(cellforge_interfaces REQUIRED)
@@ -43,10 +46,12 @@ target_include_directories(cellforge_motion_moveit PUBLIC
 )
 target_link_libraries(cellforge_motion_moveit cellforge_motion_core)
 ament_target_dependencies(cellforge_motion_moveit
+  cellforge_interfaces
   moveit_msgs
   moveit_ros_planning_interface
   moveit_task_constructor_core
   rclcpp
+  rclcpp_action
 )
 
 add_library(cellforge_motion_node SHARED src/motion_node.cpp)
@@ -83,11 +88,14 @@ install(TARGETS
   cellforge_motion_moveit
   cellforge_motion_l0
   cellforge_motion_node
-  cellforge_motion_service
-  cellforge_l0_motion_service
   EXPORT export_cellforge_motion
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
+)
+install(TARGETS
+  cellforge_motion_service
+  cellforge_l0_motion_service
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY include/ DESTINATION include)

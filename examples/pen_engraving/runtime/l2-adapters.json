@@ -1,0 +1,32 @@
+{
+  "schema_version": "0.1.0",
+  "nodes": {},
+  "safety": {},
+  "scenario": {
+    "schema_version": "0.1.0",
+    "scenario": {
+      "id": "pen-physical-nominal",
+      "name": "L2 nominal pen manipulation",
+      "seed": 1001,
+      "timeout_seconds": 60
+    },
+    "simulation": {"requested_fidelity": "L2"},
+    "job": {
+      "recipe_id": "pen-aluminium-reference",
+      "recipe_version": 1,
+      "input_payload": {"engraving_text": "CELLFORGE"}
+    },
+    "initial_state": {
+      "product_present": true,
+      "safety_healthy": true,
+      "laser_ready": true
+    },
+    "randomization": {},
+    "faults": [],
+    "assertions": {
+      "final_status": "SUCCESS",
+      "required_events": ["process.command.completed", "inspection.accepted"],
+      "forbidden_events": ["safety.bypass"]
+    }
+  }
+}

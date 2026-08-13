@@ -70,8 +70,8 @@ auto portsFor(const std::string& node) -> BT::PortsList {
   return {};
 }
 
-auto scriptedTick(BT::TreeNode& node,
-                  const std::shared_ptr<ScenarioScript>& script) -> BT::NodeStatus {
+auto scriptedTick(BT::TreeNode& node, const std::shared_ptr<ScenarioScript>& script)
+    -> BT::NodeStatus {
   const auto name = node.registrationName();
   script->nodes.push_back(name);
   if (name == "CheckSafetyHealthy" && script->id == "pen-safety-unhealthy") {
@@ -112,8 +112,8 @@ auto scriptedTick(BT::TreeNode& node,
   return BT::NodeStatus::SUCCESS;
 }
 
-auto makeFactory(const std::shared_ptr<ScenarioScript>& script) -> BT::BehaviorTreeFactory {
-  BT::BehaviorTreeFactory factory;
+void configureFactory(BT::BehaviorTreeFactory& factory,
+                      const std::shared_ptr<ScenarioScript>& script) {
   const std::array<const char*, 14> nodes{
       "ValidateFrozenJob",
       "CheckSafetyHealthy",
@@ -135,7 +135,6 @@ auto makeFactory(const std::shared_ptr<ScenarioScript>& script) -> BT::BehaviorT
         node, [script](BT::TreeNode& tree_node) { return scriptedTick(tree_node, script); },
         portsFor(node));
   }
-  return factory;
 }
 
 auto makeBlackboard(const std::shared_ptr<ScenarioScript>& script) -> BT::Blackboard::Ptr {
@@ -171,7 +170,8 @@ TEST(PenScenarios, CanonicalRuntimeTraceMatchesOracleForAllTenScenarios) {
   for (const auto& [scenario_id, expected] : expectations.items()) {
     auto script = std::make_shared<ScenarioScript>();
     script->id = scenario_id;
-    auto factory = makeFactory(script);
+    BT::BehaviorTreeFactory factory;
+    configureFactory(factory, script);
     auto tree = cellforge_supervisor::createValidatedTreeFromFile(factory, PEN_TREE_PATH,
                                                                   makeBlackboard(script));
     const auto status = tree.tickWhileRunning();
