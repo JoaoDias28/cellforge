@@ -78,3 +78,75 @@ CPU 100-seed report passed but remains non-L2 contract evidence. The Windows ROS
 unavailable on this host, so its exact command bodies were run with `uv` and the documented Windows
 ROS scripts. No L0/CPU evidence was relabeled as L2. Laser/process and safety limitations remain
 unchanged: no beam/material or mark-quality claim, and modeled safety is read-only/non-rated.
+
+### Qualification follow-up - 2026-08-13
+
+The Linux GitHub Actions ROS build initially lacked `nlohmann_json`; the scoped CI/developer setup
+fix installs the existing `nlohmann-json3-dev` package. A follow-up CI run then exposed only
+format/static-analysis failures in Task 027 C++ files. The current workspace uses the Isaac ROS
+toolchain's clang-format 22 and passes the full Windows ROS suite after setting an isolated
+`ROS_LOG_DIR`: `Summary: 110 tests, 0 errors, 0 failures, 0 skipped`. The scoped PowerShell
+helpers now initialize `ProcessStartInfo.EnvironmentVariables` compatibly on Windows PowerShell
+5.1, rather than assuming the null `ProcessStartInfo.Environment` collection is writable.
+
+The final local qualification commands passed: ruff format/check; mypy (90 plus 15 source files);
+full pytest (`358 passed, 1 skipped`, where the skip requires Windows directory-symlink privilege);
+and example validation (`10` canonical schemas, `7` component config schemas, `24` YAML files).
+The supported Isaac Sim command
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_isaac_l2_gpu.ps1 -IsaacSimRoot C:\isaacsim`
+also passed again on the RTX 4080, producing
+`.artifacts/task027/isaac-l2-seed-report-final-ci-fix.json` with actual PhysX execution, 100/100
+seeds, and all 3 required fault scenarios. OmniHub/OptiX cache write warnings occurred after the
+successful report and are not evidence substitutions.
+
+The required real Kit/ROS replay matrix is presently blocked, not passed. The exact command used
+the rebuilt install, the immutable `C:\cf27\task027-l2-bundle`, and isolated ROS domain 77:
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_isaac_l2_runjob_matrix.ps1 ... -RosDomainId 77`.
+In the first `pen-nominal` scenario, the live acceptance client remained running without writing
+`isaac-l2-runjob-report.json`; Kit and the ROS runtime remained alive. The prior domain-42 retry
+showed the same symptom after its ProcessStartInfo fix. Both runs were terminated without accepting
+or relabeling any result. This is an unresolved real-runtime `/cell/run_job` replay stall; it
+blocks Task 027 publication and merge. Task 028 must not start until it is resolved and the Task 027
+PR is merged.
+
+### Qualification closure — 2026-08-14
+
+The previous blocked statement is superseded by this final qualification. The production Kit
+entrypoint now drives a dedicated `SingleThreadedExecutor` from a worker asyncio loop, while all
+OpenUSD/PhysX runtime execution and scenario resets are marshalled back to Kit's main asyncio
+loop. The runner waits for the real adapter-ready marker instead of a fixed startup sleep and
+configures Fast DDS UDP initial peers across participant offsets 0–40. The diagnostic monkeypatch
+was removed from `scripts/start_isaac_l2_ros_adapter.py`.
+
+Final deterministic/local checks:
+
+* `uv run --frozen ruff format --check .` — 256 files already formatted.
+* `uv run --frozen ruff check .` — passed.
+* strict mypy — 90 source files and the explicit Studio set of 15 source files — passed.
+* `uv run --frozen pytest --basetemp C:\cf27\pytest-tmp-task027-final -o cache_dir=C:\cf27\pytest-cache-task027-final` — 358 passed, 1 skipped (the skip requires Windows directory-symlink privilege).
+* `uv run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples/pen_engraving` — 10 canonical schemas, 7 component schemas, 24 YAML documents.
+* `make lint`, `make test`, `make validate-examples`, `make ros-build`, and `make ros-test` were each attempted and are unavailable because PowerShell reports `make` is not recognized. Their documented Windows equivalents were executed successfully.
+
+Final Windows ROS qualification used `C:\cf27\build-prod8` and `C:\cf27\install-prod8`:
+
+* `scripts/run_ros_windows_build.ps1` — 11 packages built and installed successfully with the Pixi Python/NumPy paths explicitly pinned for CMake.
+* `scripts/run_ros_windows_tests.ps1` — 110 ROS tests, 0 errors, 0 failures, 0 skipped; the package-level Python test command also reported 19 passed.
+
+Final supported Isaac Sim qualification used Isaac Sim `6.0.1-rc.7+release.42383.32955d8d.gl`
+and an NVIDIA GeForce RTX 4080. `scripts/run_isaac_l2_gpu.ps1` produced
+`.artifacts/task027/isaac-l2-seed-report-final-ci-fix.json` with `actual_physx_executed: true`,
+`summary.passed: 100`, `summary.failed: 0`, and all three required PhysX fault scenarios.
+The final real Kit/ROS command was:
+
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_isaac_l2_runjob_matrix.ps1 -InstallBase C:\cf27\install-prod8 -BuildBase C:\cf27\build-prod8 -Underlay C:\IsaacSim-ros-workspaces\jazzy_ws\install -PixiPrefix C:\IsaacSim-ros-workspaces\jazzy_ws\.pixi\envs\default -IsaacSimRoot C:\isaacsim -WorkingRoot C:\cf27\final-matrix-3 -RosDomainId 92 -RmwImplementation rmw_fastrtps_cpp -DdsAddress 127.0.0.1`
+
+It passed 4/4 isolated real-runtime scenarios and wrote
+`C:\cf27\final-matrix-3\isaac-l2-runjob-matrix-report.json`: nominal,
+`pen-physical-dropped`, `pen-physical-failed-seating`, and `pen-physical-collision`. Evidence is
+runtime/adapter-originated and each report records real Kit/OpenUSD/PhysX execution. The laser
+qualification remains limited to modeled readiness/handshake/cycle timing; beam/material
+interaction, heat/plume/optics, engraving contrast, text fidelity, and mark quality are not
+qualified. Modeled safety remains read-only engineering status; independent rated hardware remains
+authoritative. CellForge's persistent inbound rules are executable-scoped and restricted to
+loopback/local-subnet, enabled for Domain/Private/Public profiles as explicitly authorized; no
+broad any-remote rule was added.

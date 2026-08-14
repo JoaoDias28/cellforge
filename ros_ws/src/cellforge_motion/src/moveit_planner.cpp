@@ -98,7 +98,7 @@ auto MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_token sto
       }
       auto adapter_result = executeInIsaac(
           request.command_id,
-          "{\"mode\":\"move_to_pose\",\"named_pose\":\"" + escapeJson(request.named_pose) + "\"}",
+          R"({"mode":"move_to_pose","named_pose":")" + escapeJson(request.named_pose) + R"("})",
           request.timeout, stop_token);
       adapter_result.planning_time_seconds = result.planning_time_seconds;
       adapter_result.completed_stages = result.completed_stages;
@@ -157,7 +157,7 @@ auto MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_token sto
   result.completed_stages.emplace_back("execute");
   auto adapter_result = executeInIsaac(
       request.command_id,
-      "{\"mode\":\"move_to_pose\",\"named_pose\":\"" + escapeJson(request.named_pose) + "\"}",
+      R"({"mode":"move_to_pose","named_pose":")" + escapeJson(request.named_pose) + R"("})",
       request.timeout, stop_token);
   if (adapter_result.outcome != PlannerOutcome::SUCCESS) {
     adapter_result.trajectory = plan.trajectory;
@@ -216,13 +216,12 @@ auto MoveItPlanner::executeManipulation(const ManipulationRequest& request,
       result.message = "MTC staged manipulation executed by the selected controller.";
       result.completed_stages.emplace_back("execute");
     }
-    auto adapter_result =
-        executeInIsaac(request.command_id,
-                       "{\"mode\":\"manipulation\",\"operation\":\"" +
-                           escapeJson(operationName(request.operation)) + "\",\"object_id\":\"" +
-                           escapeJson(request.object_id) + "\",\"tool_frame\":\"" +
-                           escapeJson(request.tool_frame) + "\"}",
-                       request.timeout, stop_token);
+    auto adapter_result = executeInIsaac(
+        request.command_id,
+        R"({"mode":"manipulation","operation":")" + escapeJson(operationName(request.operation)) +
+            R"(","object_id":")" + escapeJson(request.object_id) + R"(","tool_frame":")" +
+            escapeJson(request.tool_frame) + R"("})",
+        request.timeout, stop_token);
     if (adapter_result.outcome != PlannerOutcome::SUCCESS) {
       adapter_result.planning_time_seconds = result.planning_time_seconds;
       adapter_result.completed_stages = result.completed_stages;
@@ -250,8 +249,8 @@ auto MoveItPlanner::executeManipulation(const ManipulationRequest& request,
 }
 
 auto MoveItPlanner::executeInIsaac(const std::string& command_id, const std::string& payload,
-                                   std::chrono::milliseconds timeout, std::stop_token stop_token)
-    -> PlannerResult {
+                                   std::chrono::milliseconds timeout,
+                                   const std::stop_token& stop_token) -> PlannerResult {
   if (!isaac_adapter_->wait_for_action_server(
           std::min(timeout, std::chrono::duration_cast<std::chrono::milliseconds>(5s)))) {
     return {PlannerOutcome::EXECUTION_FAILED, "Isaac L2 robot adapter is not ready."};
@@ -261,8 +260,10 @@ auto MoveItPlanner::executeInIsaac(const std::string& command_id, const std::str
   goal.skill_id = "robot_motion.action.execute_trajectory";
   goal.input_payload_json = payload;
   goal.execution_mode = "simulation";
-  goal.timeout.sec = static_cast<std::int32_t>(timeout.count() / 1000);
-  goal.timeout.nanosec = static_cast<std::uint32_t>((timeout.count() % 1000) * 1000000);
+  const auto timeout_seconds = std::chrono::duration_cast<std::chrono::seconds>(timeout);
+  goal.timeout.sec = static_cast<std::int32_t>(timeout_seconds.count());
+  goal.timeout.nanosec = static_cast<std::uint32_t>(
+      std::chrono::duration_cast<std::chrono::nanoseconds>(timeout - timeout_seconds).count());
   auto handle_future = isaac_adapter_->async_send_goal(goal);
   const auto deadline = std::chrono::steady_clock::now() + timeout;
   while (handle_future.wait_for(10ms) != std::future_status::ready) {
@@ -271,7 +272,7 @@ auto MoveItPlanner::executeInIsaac(const std::string& command_id, const std::str
               "Isaac L2 adapter goal was cancelled before acceptance."};
     }
   }
-  auto handle = handle_future.get();
+  const auto& handle = handle_future.get();
   if (!handle) {
     return {PlannerOutcome::EXECUTION_FAILED, "Isaac L2 adapter rejected the trajectory."};
   }
@@ -288,7 +289,7 @@ auto MoveItPlanner::executeInIsaac(const std::string& command_id, const std::str
       return {PlannerOutcome::EXECUTION_FAILED, "Isaac L2 adapter execution timed out."};
     }
   }
-  const auto wrapped = result_future.get();
+  const auto& wrapped = result_future.get();
   {
     std::scoped_lock lock(action_mutex_);
     active_adapter_goal_.reset();

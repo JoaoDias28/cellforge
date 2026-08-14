@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +18,7 @@ from cellforge_interfaces.srv import RegisterSimulationAdapter
 from geometry_msgs.msg import PoseStamped
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
+from rclpy.executors import ShutdownException, SingleThreadedExecutor
 from rclpy.node import Node
 from sensor_msgs.msg import JointState  # type: ignore[import-not-found]
 from std_msgs.msg import String
@@ -57,6 +60,38 @@ _FAULT_CODES = {
 }
 
 
+def _spin_kit_executor(executor: SingleThreadedExecutor, stop_event: threading.Event) -> None:
+    """Drive rclpy callbacks from a worker loop with a running asyncio context.
+
+    Isaac Sim owns the main asyncio loop.  Calling the rclpy global executor from that
+    loop stalls the Kit coroutine on Windows, while action callbacks also need a running
+    asyncio loop.  A zero-timeout executor tick on a dedicated loop satisfies both
+    constraints without making callbacks depend on the global rclpy executor.
+    """
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    def tick() -> None:
+        if stop_event.is_set() or not rclpy.ok():
+            loop.stop()
+            return
+        try:
+            executor.spin_once(timeout_sec=0.0)
+        except ShutdownException:
+            if not stop_event.is_set():
+                raise
+            loop.stop()
+            return
+        loop.call_soon(tick)
+
+    loop.call_soon(tick)
+    try:
+        loop.run_forever()
+    finally:
+        loop.close()
+
+
 class IsaacL2AdapterNode(Node):  # type: ignore[misc]
     """One Kit-hosted node exposing every canonical simulated device capability."""
 
@@ -66,10 +101,13 @@ class IsaacL2AdapterNode(Node):  # type: ignore[misc]
         scenario: dict[str, Any],
         *,
         report_path: Path | None = None,
+        runtime_loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
         super().__init__("isaac_l2_adapter")
         self._backend = backend
         self._report_path = report_path
+        self._runtime_loop = runtime_loop
+        self._runtime_thread_id = threading.get_ident()
         self._events_publisher = self.create_publisher(String, "/simulation/l2/events", 100)
         self._state_publishers = {
             component: self.create_publisher(
@@ -120,8 +158,15 @@ class IsaacL2AdapterNode(Node):  # type: ignore[misc]
         command_id = str(getattr(goal, "command_id", ""))
         timeout = getattr(goal, "timeout", None)
         if not command_id or timeout is None or _duration_seconds(timeout) <= 0:
+            self.get_logger().warning(
+                f"Rejected {capability} goal: command_id/timeout invalid "
+                f"(command_id={command_id!r}, timeout={timeout!r})."
+            )
             return GoalResponse.REJECT
         if hasattr(goal, "skill_id") and goal.skill_id != capability:
+            self.get_logger().warning(
+                f"Rejected {capability} goal: skill_id={goal.skill_id!r} does not match."
+            )
             return GoalResponse.REJECT
         return GoalResponse.ACCEPT
 
@@ -141,9 +186,23 @@ class IsaacL2AdapterNode(Node):  # type: ignore[misc]
         if hasattr(feedback, "message"):
             feedback.message = "Isaac adapter is applying the command."
         goal_handle.publish_feedback(feedback)
-        outcome = self._runtime.execute(
-            capability, self._payload(capability, goal), command_id=str(goal.command_id)
-        )
+        self.get_logger().info(f"Executing {capability} goal '{goal.command_id}'.")
+        try:
+            payload = self._payload(capability, goal)
+
+            def execute_runtime() -> L2Outcome:
+                return self._runtime.execute(capability, payload, command_id=str(goal.command_id))
+
+            outcome = self._run_on_kit(
+                execute_runtime, timeout=max(1.0, _duration_seconds(goal.timeout) + 5.0)
+            )
+        except Exception as error:
+            self.get_logger().error(f"L2 {capability} goal failed in adapter: {error}")
+            goal_handle.abort()
+            return self._action_result(
+                capability,
+                L2Outcome(False, "simulation.adapter.exception", str(error), {}),
+            )
         if goal_handle.is_cancel_requested:
             goal_handle.canceled()
             outcome = L2Outcome(False, "sdk.command.cancelled", "Command cancelled.", {})
@@ -204,20 +263,36 @@ class IsaacL2AdapterNode(Node):  # type: ignore[misc]
                 raise ValueError("scenario must be a JSON object")
             scenario_id = str(scenario.get("scenario", {}).get("id", ""))
             if scenario_id == self._runtime.scenario_id:
-                self._runtime.publish_configuration_event()
+                self._run_on_kit(self._runtime.publish_configuration_event)
                 return
-            if self._runtime.events:
-                self._completed_runs.append(
-                    {
-                        **self._runtime.evidence_metadata(),
-                        "events": [event.as_json() for event in self._runtime.events],
-                    }
+
+            def apply_configuration() -> None:
+                if self._runtime.events:
+                    self._completed_runs.append(
+                        {
+                            **self._runtime.evidence_metadata(),
+                            "events": [event.as_json() for event in self._runtime.events],
+                        }
+                    )
+                self._backend.reset_runtime_products()
+                self._runtime = IsaacL2Runtime(
+                    self._backend, scenario, event_sink=self._publish_event
                 )
-            self._backend.reset_runtime_products()
-            self._runtime = IsaacL2Runtime(self._backend, scenario, event_sink=self._publish_event)
+
+            self._run_on_kit(apply_configuration)
             self.get_logger().info(f"Configured L2 scenario '{self._runtime.scenario_id}'.")
         except (ValueError, TypeError) as error:
             self.get_logger().error(f"Rejected L2 scenario configuration: {error}")
+
+    def _run_on_kit(self, callback: Any, *, timeout: float = 65.0) -> Any:
+        if self._runtime_loop is None or threading.get_ident() == self._runtime_thread_id:
+            return callback()
+
+        async def invoke() -> Any:
+            return callback()
+
+        future = asyncio.run_coroutine_threadsafe(invoke(), self._runtime_loop)
+        return future.result(timeout=timeout)
 
     def _publish_event(self, event: L2Event) -> None:
         message = String()
@@ -442,6 +517,9 @@ async def run_in_existing_kit() -> None:
     )
     app = omni.kit.app.get_app()
     node: IsaacL2AdapterNode | None = None
+    executor: SingleThreadedExecutor | None = None
+    executor_stop = threading.Event()
+    executor_thread: threading.Thread | None = None
     try:
         if not omni.usd.get_context().open_stage(str(scene_path)):
             raise RuntimeError(f"Isaac could not open canonical scene '{scene_path}'")
@@ -460,11 +538,27 @@ async def run_in_existing_kit() -> None:
             backend,
             initial_scenario,
             report_path=Path(report_raw).resolve() if report_raw else None,
+            runtime_loop=asyncio.get_running_loop(),
         )
+        executor = SingleThreadedExecutor()
+        executor.add_node(node)
+        executor_thread = threading.Thread(
+            target=_spin_kit_executor,
+            args=(executor, executor_stop),
+            name="cellforge-isaac-rclpy",
+            daemon=True,
+        )
+        executor_thread.start()
         while app.is_running() and rclpy.ok():
-            rclpy.spin_once(node, timeout_sec=0.0)
             await app.next_update_async()
     finally:
+        executor_stop.set()
+        if executor is not None:
+            executor.wake()
+        if executor_thread is not None:
+            executor_thread.join(timeout=5.0)
+        if executor is not None:
+            executor.shutdown(timeout_sec=1.0)
         if node is not None:
             node.write_report()
             node.destroy_node()

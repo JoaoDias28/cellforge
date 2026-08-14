@@ -5,7 +5,10 @@ param(
     [string]$Underlay = "C:\IsaacSim-ros-workspaces\jazzy_ws\install",
     [string]$PixiPrefix = "C:\IsaacSim-ros-workspaces\jazzy_ws\.pixi\envs\default",
     [string]$IsaacSimRoot = "C:\isaacsim",
-    [string]$WorkingRoot = "C:\cf27\task027-runjob-matrix"
+    [string]$WorkingRoot = "C:\cf27\task027-runjob-matrix",
+    [ValidateRange(0, 101)][int]$RosDomainId = 42,
+    [string]$RmwImplementation = "rmw_fastrtps_cpp",
+    [string]$DdsAddress = "127.0.0.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -26,7 +29,10 @@ foreach ($scenario in $scenarios) {
         -PixiPrefix $PixiPrefix `
         -IsaacSimRoot $IsaacSimRoot `
         -WorkingRoot $runRoot `
-        -AcceptanceScenario $scenario
+        -AcceptanceScenario $scenario `
+        -RosDomainId $RosDomainId `
+        -RmwImplementation $RmwImplementation `
+        -DdsAddress $DdsAddress
     $reportPath = Join-Path $runRoot "isaac-l2-runjob-report.json"
     if (-not (Test-Path -LiteralPath $reportPath)) {
         throw "Task 027 scenario '$scenario' did not produce an acceptance report."

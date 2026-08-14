@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,7 @@ from cellforge_interfaces.action import RunJob
 from cellforge_interfaces.msg import CellState
 from rclpy.action import ActionClient
 from rclpy.node import Node
+from rclpy.utilities import get_rmw_implementation_identifier
 from std_msgs.msg import String
 
 CELL_ID = "0d3c6b63-a57f-4207-8638-e4cf76efec90"
@@ -161,6 +163,12 @@ def main() -> int:
     arguments = parser.parse_args()
     project = arguments.project.resolve()
     rclpy.init()
+    print(
+        "Task 027 acceptance ROS configuration: "
+        f"domain={os.environ.get('ROS_DOMAIN_ID', '<default>')}, "
+        f"rmw={get_rmw_implementation_identifier()}",
+        flush=True,
+    )
     node = AcceptanceClient()
     results: list[dict[str, Any]] = []
     try:

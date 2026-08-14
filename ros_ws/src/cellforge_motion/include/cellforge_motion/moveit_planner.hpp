@@ -30,7 +30,7 @@ class MoveItPlanner final : public MotionPlanner {
   using AdapterGoalHandle = rclcpp_action::ClientGoalHandle<ExecuteSkill>;
 
   auto executeInIsaac(const std::string& command_id, const std::string& payload,
-                      std::chrono::milliseconds timeout, std::stop_token stop_token)
+                      std::chrono::milliseconds timeout, const std::stop_token& stop_token)
       -> PlannerResult;
   static auto mapMoveItCode(const moveit::core::MoveItErrorCode& code, bool execution_phase)
       -> PlannerOutcome;

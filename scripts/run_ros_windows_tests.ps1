@@ -18,6 +18,8 @@ $toolPath = @(
     "C:\Program Files\Git\cmd"
     "C:\Program Files\CMake\bin"
 ) -join ";"
+$rosLogDirectory = Join-Path $BuildBase "ros-log"
+New-Item -ItemType Directory -Force -Path $rosLogDirectory | Out-Null
 
 function Invoke-RosCommand {
     param([Parameter(Mandatory = $true)][string]$Command)
@@ -36,14 +38,17 @@ function Invoke-RosCommand {
         "TEMP" = $env:TEMP
         "TMP" = $env:TMP
         "USERPROFILE" = $env:USERPROFILE
+        "ROS_LOG_DIR" = $rosLogDirectory
     }
-    $start.Environment.Clear()
+    $null = $start.Environment
+    $childProcessEnvironment = $start.EnvironmentVariables
+    $childProcessEnvironment.Clear()
     foreach ($entry in $preserved.GetEnumerator()) {
         if ($entry.Value) {
-            $start.Environment[$entry.Key] = $entry.Value
+            $childProcessEnvironment.Add($entry.Key, $entry.Value)
         }
     }
-    $start.Environment["Path"] = $toolPath
+    $childProcessEnvironment.Add("Path", $toolPath)
     $process = [System.Diagnostics.Process]::Start($start)
     $process.WaitForExit()
     if ($process.ExitCode -ne 0) {
