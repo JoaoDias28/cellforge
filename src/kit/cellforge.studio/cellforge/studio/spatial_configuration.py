@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -16,8 +16,15 @@ from cellforge_cli.projects import resolve_project_schema_directory
 from cellforge_domain import FilesystemComponentRegistry, SchemaRegistry
 from cellforge_domain.schemas import SchemaDocumentKind
 from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError
 
-from cellforge.studio.application import ProjectContents, SpatialEditResult, ValidationItem
+from cellforge.studio.application import (
+    ProjectContents,
+    SpatialBrowserResult,
+    SpatialComponent,
+    SpatialEditResult,
+    ValidationItem,
+)
 from cellforge.studio.component_service import (
     _dump_yaml,
     _parse_cell,
@@ -26,26 +33,6 @@ from cellforge.studio.component_service import (
     _validate_pair,
     _validate_variants,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class SpatialComponent:
-    """One selected component's inspectable spatial/configuration details."""
-
-    instance_id: str
-    alias: str
-    usd_prim: str
-    frames: tuple[str, ...]
-    collision_asset: str
-    transform: tuple[float, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class SpatialBrowserResult:
-    """Viewport-neutral selection, frame, and collision display data."""
-
-    components: tuple[SpatialComponent, ...]
-    validation: tuple[ValidationItem, ...] = ()
 
 
 class SpatialConfigurationService:
@@ -262,7 +249,14 @@ class SpatialConfigurationService:
         calibration_id = str(calibration["calibration_id"])
         relative = f"calibration/{calibration_id}.json"
         artifacts = dict(contents.artifacts)
-        encoded = _canonical_json(calibration)
+        try:
+            encoded = _canonical_json(calibration)
+        except (TypeError, ValueError):
+            return _rejected(
+                "studio.calibration-serialization-invalid",
+                root / relative,
+                "Calibration data must contain only JSON-compatible values.",
+            )
         existing = artifacts.get(relative)
         if existing is None:
             disk_path = root / relative
@@ -319,10 +313,160 @@ class SpatialConfigurationService:
             "valid_until": valid_until.astimezone(UTC).isoformat().replace("+00:00", "Z"),
             "data": dict(data),
         }
-        record["sha256"] = _calibration_digest(record)
+        try:
+            record["sha256"] = _calibration_digest(record)
+        except (TypeError, ValueError):
+            return _rejected(
+                "studio.calibration-serialization-invalid",
+                project_path.resolve() / "calibration",
+                "Calibration data must contain only JSON-compatible values.",
+            )
         return self.import_calibration(
             project_path, contents, instance_id=instance_id, calibration=record
         )
+
+    def validate_calibrations(
+        self, project_path: Path, contents: ProjectContents
+    ) -> tuple[ValidationItem, ...]:
+        """Validate every declared immutable calibration in an opened or saved candidate."""
+
+        root, parsed = self._parsed(project_path, contents)
+        if isinstance(parsed, SpatialEditResult):
+            return parsed.validation
+        paths = parsed.data.get("calibrations", [])
+        if not isinstance(paths, list):
+            return (
+                _finding(
+                    "studio.calibration-list-invalid",
+                    root / "cell.yaml",
+                    "Calibration references must be a list.",
+                ),
+            )
+
+        declared = {path for path in paths if isinstance(path, str)}
+        findings: list[ValidationItem] = []
+        components = {component.id: component for component in parsed.model.components}
+        if len(declared) != len(paths):
+            findings.append(
+                _finding(
+                    "studio.calibration-reference-duplicate",
+                    root / "cell.yaml",
+                    "Calibration references must be unique.",
+                    fragment="/calibrations",
+                )
+            )
+        for relative in paths:
+            if not isinstance(relative, str) or not _valid_calibration_path(relative):
+                findings.append(
+                    _finding(
+                        "studio.calibration-path-invalid",
+                        root / "cell.yaml",
+                        "Calibration references must be project-local calibration/*.json paths.",
+                        fragment="/calibrations",
+                    )
+                )
+                continue
+            encoded = contents.artifacts.get(relative)
+            if not isinstance(encoded, bytes):
+                findings.append(
+                    _finding(
+                        "studio.calibration-artifact-missing",
+                        root / relative,
+                        "The declared immutable calibration artifact is unavailable.",
+                    )
+                )
+                continue
+            try:
+                raw = json.loads(encoded.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                findings.append(
+                    _finding(
+                        "studio.calibration-artifact-invalid",
+                        root / relative,
+                        "The immutable calibration artifact is not valid UTF-8 JSON.",
+                    )
+                )
+                continue
+            if not isinstance(raw, Mapping):
+                findings.append(
+                    _finding(
+                        "studio.calibration-artifact-invalid",
+                        root / relative,
+                        "The immutable calibration artifact must contain a JSON object.",
+                    )
+                )
+                continue
+            calibration = dict(raw)
+            try:
+                canonical = _canonical_json(calibration)
+            except (TypeError, ValueError):
+                canonical = None
+            if canonical is None or encoded != canonical:
+                findings.append(
+                    _finding(
+                        "studio.calibration-encoding-invalid",
+                        root / relative,
+                        "Immutable calibration bytes must use canonical JSON encoding.",
+                    )
+                )
+            component_id = calibration.get("component_instance_id")
+            component = components.get(component_id) if isinstance(component_id, str) else None
+            if component is None:
+                findings.append(
+                    _finding(
+                        "studio.calibration-component-missing",
+                        root / relative,
+                        "Calibration must bind to a component instance declared in cell.yaml.",
+                    )
+                )
+            else:
+                findings.extend(self._calibration_findings(root, component.id, calibration))
+                if relative not in component.calibration_refs:
+                    findings.append(
+                        _finding(
+                            "studio.calibration-reference-missing",
+                            root / "cell.yaml",
+                            (
+                                "Each calibration artifact must be bound in its component "
+                                "calibration_refs."
+                            ),
+                            fragment="/components",
+                        )
+                    )
+            calibration_id = calibration.get("calibration_id")
+            if isinstance(calibration_id, str) and relative != f"calibration/{calibration_id}.json":
+                findings.append(
+                    _finding(
+                        "studio.calibration-path-mismatch",
+                        root / relative,
+                        "Calibration path must match the immutable calibration_id.",
+                    )
+                )
+
+        for component in parsed.model.components:
+            for relative in component.calibration_refs:
+                if relative not in declared:
+                    findings.append(
+                        _finding(
+                            "studio.calibration-reference-unlisted",
+                            root / "cell.yaml",
+                            (
+                                "A component calibration reference must also be listed in "
+                                "calibrations."
+                            ),
+                            fragment="/components",
+                        )
+                    )
+        for relative in contents.artifacts:
+            if relative not in declared:
+                findings.append(
+                    _finding(
+                        "studio.calibration-artifact-unreferenced",
+                        root / relative,
+                        "Staged calibration artifacts must be declared in cell.yaml.",
+                    )
+                )
+        return tuple(findings)
 
     def _parsed(
         self, project_path: Path, contents: ProjectContents
@@ -375,14 +519,27 @@ class SpatialConfigurationService:
                     "Calibration must bind to the selected immutable component instance ID.",
                 )
             )
-        if isinstance(calibration.get("sha256"), str) and calibration[
-            "sha256"
-        ] != _calibration_digest(calibration):
+        if isinstance(calibration.get("sha256"), str):
+            try:
+                digest_valid = calibration["sha256"] == _calibration_digest(calibration)
+            except (TypeError, ValueError):
+                digest_valid = False
+            if not digest_valid:
+                findings.append(
+                    _finding(
+                        "studio.calibration-digest-invalid",
+                        root / "calibration",
+                        "Calibration sha256 does not match its immutable payload.",
+                    )
+                )
+        try:
+            UUID(str(calibration["calibration_id"]))
+        except (KeyError, TypeError, ValueError):
             findings.append(
                 _finding(
-                    "studio.calibration-digest-invalid",
+                    "studio.calibration-id-invalid",
                     root / "calibration",
-                    "Calibration sha256 does not match its immutable payload.",
+                    "Calibration calibration_id must be a UUID.",
                 )
             )
         try:
@@ -392,7 +549,12 @@ class SpatialConfigurationService:
             created_at = datetime.fromisoformat(
                 str(calibration["created_at"]).replace("Z", "+00:00")
             )
-            if valid_until <= created_at or valid_until <= self._now().astimezone(UTC):
+            if (
+                valid_until.tzinfo is None
+                or created_at.tzinfo is None
+                or valid_until <= created_at
+                or valid_until <= self._now().astimezone(UTC)
+            ):
                 findings.append(
                     _finding(
                         "studio.calibration-expired",
@@ -425,7 +587,7 @@ def _configuration_findings(
             Draft202012Validator(schema).iter_errors(dict(value)),
             key=lambda item: (list(item.absolute_path), item.message),
         )
-    except (OSError, ValueError, json.JSONDecodeError):
+    except (OSError, ValueError, json.JSONDecodeError, SchemaError):
         return ("The declared component configuration schema is unreadable.",)
     return tuple(error.message for error in errors)
 
@@ -434,21 +596,37 @@ def _read_transform(scene: str, prim_path: str) -> tuple[float, ...] | None:
     spans = [span for span in _prim_spans(scene) if span.path == prim_path.rstrip("/")]
     if len(spans) != 1:
         return None
-    body = scene[spans[0].open_brace + 1 : spans[0].close_brace]
-    marker = "xformOp:translate = ("
-    start = body.find(marker)
-    if start < 0:
-        return (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)
-    end = body.find(")", start)
-    try:
-        xyz = tuple(float(value.strip()) for value in body[start + len(marker) : end].split(","))
-    except ValueError:
+    properties = _direct_xform_properties(scene, spans[0])
+    matrix = properties.get("transform")
+    if matrix is not None:
+        values = _numeric_values(matrix)
+        return tuple(values) if values is not None and len(values) == 16 else None
+    translate = properties.get("translate")
+    if translate is not None:
+        values = _numeric_values(translate)
+        if values is None or len(values) != 3:
+            return None
+        return (
+            1.0,
+            0.0,
+            0.0,
+            values[0],
+            0.0,
+            1.0,
+            0.0,
+            values[1],
+            0.0,
+            0.0,
+            1.0,
+            values[2],
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+        )
+    if any(name not in {"order"} for name in properties):
         return None
-    return (
-        (1.0, 0.0, 0.0, xyz[0], 0.0, 1.0, 0.0, xyz[1], 0.0, 0.0, 1.0, xyz[2], 0.0, 0.0, 0.0, 1.0)
-        if len(xyz) == 3
-        else None
-    )
+    return _identity_matrix()
 
 
 def _write_transform(scene: str, prim_path: str, matrix: tuple[float, ...]) -> str:
@@ -457,22 +635,37 @@ def _write_transform(scene: str, prim_path: str, matrix: tuple[float, ...]) -> s
         raise ValueError
     span = spans[0]
     body = scene[span.open_brace + 1 : span.close_brace]
-    if "xformOp:transform" in body:
-        raise ValueError
-    indent = "    "
-    values = ", ".join(f"{value:.12g}" for value in matrix)
+    line_start = scene.rfind("\n", 0, span.open_brace) + 1
+    line_prefix = scene[line_start : span.open_brace]
+    base_indent = line_prefix[: len(line_prefix) - len(line_prefix.lstrip())]
+    indent = f"{base_indent}    "
+    direct_lines: list[str] = []
+    for line in body.splitlines(keepends=True):
+        whitespace = line[: len(line) - len(line.lstrip())]
+        stripped = line.strip()
+        if whitespace == indent and (
+            "xformOp:" in stripped or stripped.startswith("uniform token[] xformOpOrder")
+        ):
+            continue
+        direct_lines.append(line)
+    rows = [matrix[index : index + 4] for index in range(0, 16, 4)]
+    literal = ", ".join("(" + ", ".join(f"{value:.12g}" for value in row) + ")" for row in rows)
     replacement = (
-        f"\n{indent}matrix4d xformOp:transform = ({values})\n"
+        f"\n{indent}matrix4d xformOp:transform = ({literal})\n"
         f'{indent}uniform token[] xformOpOrder = ["xformOp:transform"]\n'
     )
     return (
         f"{scene[: span.open_brace + 1]}{replacement}"
-        f"{scene[span.open_brace + 1 : span.close_brace]}{scene[span.close_brace :]}"
+        f"{''.join(direct_lines)}{scene[span.close_brace :]}"
     )
 
 
 def _valid_matrix(matrix: tuple[float, ...]) -> bool:
-    if len(matrix) != 16 or not all(math.isfinite(value) for value in matrix):
+    if len(matrix) != 16 or any(
+        isinstance(value, bool) or not isinstance(value, (int, float)) for value in matrix
+    ):
+        return False
+    if not all(math.isfinite(float(value)) for value in matrix):
         return False
     determinant = (
         matrix[0] * (matrix[5] * matrix[10] - matrix[6] * matrix[9])
@@ -482,6 +675,43 @@ def _valid_matrix(matrix: tuple[float, ...]) -> bool:
     return abs(determinant) > 1e-12 and matrix[12:] == (0.0, 0.0, 0.0, 1.0)
 
 
+def _direct_xform_properties(scene: str, span: Any) -> dict[str, str]:
+    """Read direct Xform operations without accidentally inspecting child prims."""
+
+    line_start = scene.rfind("\n", 0, span.open_brace) + 1
+    line_prefix = scene[line_start : span.open_brace]
+    base_indent = line_prefix[: len(line_prefix) - len(line_prefix.lstrip())]
+    direct_indent = len(base_indent) + 4
+    body = scene[span.open_brace + 1 : span.close_brace]
+    properties: dict[str, str] = {}
+    for line in body.splitlines():
+        whitespace = line[: len(line) - len(line.lstrip())]
+        if len(whitespace) != direct_indent:
+            continue
+        match = re.search(r"xformOp:(transform|translate)\s*=\s*(.+)$", line.strip())
+        if match is not None:
+            properties[match.group(1)] = match.group(2)
+            continue
+        if "xformOp:" in line.strip():
+            properties[line.strip().split("xformOp:", 1)[1].split()[0]] = ""
+        elif line.strip().startswith("uniform token[] xformOpOrder"):
+            properties["order"] = line.strip()
+    return properties
+
+
+def _numeric_values(value: str) -> tuple[float, ...] | None:
+    matches = re.findall(r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?", value)
+    try:
+        values = tuple(float(item) for item in matches)
+    except ValueError:
+        return None
+    return values
+
+
+def _identity_matrix() -> tuple[float, ...]:
+    return (1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0)
+
+
 def _calibration_digest(calibration: Mapping[str, Any]) -> str:
     payload = {key: value for key, value in calibration.items() if key != "sha256"}
     return hashlib.sha256(_canonical_json(payload)).hexdigest()
@@ -489,8 +719,26 @@ def _calibration_digest(calibration: Mapping[str, Any]) -> str:
 
 def _canonical_json(value: Mapping[str, Any]) -> bytes:
     return (
-        json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+        json.dumps(
+            value,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n"
     ).encode("utf-8")
+
+
+def _valid_calibration_path(relative: str) -> bool:
+    path = Path(relative)
+    return (
+        not path.is_absolute()
+        and len(path.parts) == 2
+        and path.parts[0] == "calibration"
+        and path.parts[1].endswith(".json")
+        and path.parts[1] not in {"", ".", ".."}
+    )
 
 
 def _finding(code: str, source: Path, message: str, *, fragment: str = "") -> ValidationItem:

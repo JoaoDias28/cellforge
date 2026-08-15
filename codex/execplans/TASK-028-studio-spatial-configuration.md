@@ -20,9 +20,11 @@ claims that a non-Kit test is an Isaac Sim visual-interaction qualification.
 Tasks 015–017 already provide in-memory paired YAML/USD buffers, transactional Save, stable
 component IDs, placement/removal, typed connections, mechanical snap preview/application, and
 whole-pair undo/redo. Component manifests provide config-schema paths, variants, frames, ports,
-and assets; `calibration.schema.json` describes immutable calibration files. Task 027 commits are
-present, but its required Isaac Sim 6 acceptance and publication are unresolved. The current
-Windows environment also has no usable Isaac Sim 6 runner.
+and assets; `calibration.schema.json` describes immutable calibration files. Task 027 is locally
+qualified on Isaac Sim 6 with the RTX 4080, while GitHub publication remains externally blocked by
+the user's GitHub tool-usage limit. Isaac Sim 6.0.1-rc.7 is available locally for the Task 028
+probe; the embedded Kit Python needs the repository's locked workspace packages and the probe
+supplies those source/site-package paths without changing the production extension.
 
 The initial focused Studio baseline could not execute because pytest's default user temp directory
 and pre-existing `.pytest_cache` are owned by another Windows identity; this is an environment
@@ -55,8 +57,8 @@ engineering metadata and no command implements a safety function.
    variants, calibration integrity/expiry/binding, save/reopen, undo/redo, and failure paths.
 4. Run focused and repository checks where the environment permits; run the documented Isaac Sim
    6 probe only if the supported runner is installed.
-5. Inspect, commit, and attempt publication. Do not merge or claim qualification while the inherited
-   Task 027 Isaac Sim 6 prerequisite remains unavailable.
+5. Inspect, commit, and attempt publication. Do not claim remote publication or merge while the
+   GitHub tool-usage restriction remains active.
 
 ## Validation
 - `uv run --frozen pytest --basetemp <writable temporary root>` for focused Studio tests.
@@ -85,9 +87,13 @@ project schemas. Reverting the Task 028 commit removes the new editor without a 
 - [x] 2026-08-13 — Integrate undoable commands and thin Studio controls; add deterministic,
   application, lifecycle-contract, and OpenUSD probe coverage.
 - [x] 2026-08-13 — Committed the scoped implementation as `bd6ae66` after staged diff checks.
-- [ ] 2026-08-13 — Publication and merge blocked: the supported Isaac Sim 6 acceptance probe timed
-  out without output, and prerequisite Task 027 remains unqualified/unpublished for the same
-  platform reason. Do not open a PR or begin Task 029.
+- [x] 2026-08-15 — Rebased the existing local Task 028 implementation on the final local Task 027
+  qualification, fixed repeatable USDA matrix round trips, exposed calibration import, and added
+  reopen-time immutable calibration validation.
+- [x] 2026-08-15 — Wired spatial browser data through the application snapshot and Kit selection
+  controls; deterministic and real Isaac Sim 6/OpenUSD probes reached their success assertions.
+- [ ] 2026-08-15 — Publication, PR creation, and merge remain unavailable until the GitHub tool
+  usage limit resets; no dependent Task 029 work has started.
 
 ## Decisions
 - 2026-08-13 — Use a pure application service and existing paired-source validator rather than
@@ -101,21 +107,19 @@ project schemas. Reverting the Task 028 commit removes the new editor without a 
   sources; reopening loads declared calibration bytes into the working state.
 
 ## Results
-Implemented viewport-neutral selection data, finite non-singular Xform authoring, schema-driven
-component configuration, manifest-backed variant edits, immutable calibration creation/import with
-schema/digest/expiry/binding checks, paired artifact staging, transactional persistence/recovery,
-and complete-pair undo/redo through the Studio application. The Kit UI delegates these commands and
-the deterministic Task 028 probe passes.
+Implemented viewport-neutral selection data, finite non-singular Xform authoring with repeatable
+OpenUSD matrix round trips, schema-driven component configuration, manifest-backed variant edits,
+immutable calibration creation/import with canonical encoding, digest, expiry, path, and component
+binding checks, paired artifact staging, transactional persistence/recovery, and complete-pair
+undo/redo through the Studio application. The Kit UI delegates these commands and presents frame and
+collision metadata without direct file writes.
 
-Focused Studio checks pass: strict mypy for changed files and 43 Studio regressions; the new
-deterministic probe passes. Repository example validation passes. The full Python suite produced
-362 passed and 1 skipped, with one pre-existing unrelated failure asserting the absent
-`CurrentState` text in `cellforge_motion/src/mtc_task_builder.cpp`. The repository-wide lint/type
-run also reports pre-existing Task 027 formatting/lint issues in ROS sources and a missing
-`sensor_msgs.msg` type stub. Isaac Sim 6.0.1-rc.7 is installed, but its required Task 028 headless
-Kit/OpenUSD command timed out after 184 seconds without output; its process was stopped. This is a
-failed/unavailable real workflow acceptance, not a passing qualification.
-
-The implementation is committed locally as `bd6ae66 task(028): add studio spatial configuration`.
-It was not pushed and no PR was opened because neither the Task 028 real Kit acceptance nor Task
-027 prerequisite qualification is complete.
+Focused Studio checks pass: 49 Studio tests, strict mypy for the 17-file Studio set, Ruff format and
+lint, and the deterministic Task 028 probe. The final full Python suite passes with 366 passed and
+1 skipped for Windows directory-symlink privilege. The Kit backend now discovers the locked source
+workspace when launched from the repository, while installed deployments still use their normal
+package environment.
+The Isaac Sim 6.0.1-rc.7 RTX 4080 probe reached `Verified Task 028 spatial configuration through
+Isaac Sim 6/OpenUSD`; the Windows batch wrapper did not return before the command timeout even
+though no Kit process remained. This wrapper behavior is recorded as a command-exit limitation,
+not silently counted as a clean process exit.

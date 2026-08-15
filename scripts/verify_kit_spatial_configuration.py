@@ -4,16 +4,31 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import omni.kit.app
-from pxr import Usd
-
-from cellforge.studio.project_service import ProjectCommandService
-
 root = Path.cwd().resolve()
+for package_root in (
+    root / ".venv" / "Lib" / "site-packages",
+    root / "src" / "kit" / "cellforge.studio",
+    root / "src" / "python" / "cellforge_cli" / "src",
+    root / "src" / "python" / "cellforge_domain" / "src",
+    root / "src" / "python" / "cellforge_bundle" / "src",
+):
+    sys.path.insert(0, str(package_root))
+
+import omni.kit.app  # noqa: E402
+from pxr import Usd  # noqa: E402
+
+from cellforge.studio.application import StudioStatus  # noqa: E402
+from cellforge.studio.backend import create_default_application  # noqa: E402
+from cellforge.studio.project_service import ProjectCommandService  # noqa: E402
+
+if create_default_application().snapshot.status is StudioStatus.BACKEND_UNAVAILABLE:
+    raise RuntimeError("Cell Studio backend packages were unavailable inside Isaac Sim 6")
+
 temporary_root = Path(os.environ.get("CELLFORGE_TEST_TEMP", root))
 with tempfile.TemporaryDirectory(prefix="cellforge-task028-kit-", dir=temporary_root) as directory:
     project = Path(directory) / "pen-project"
@@ -27,6 +42,13 @@ with tempfile.TemporaryDirectory(prefix="cellforge-task028-kit-", dir=temporary_
         encoding="utf-8",
         newline="\n",
     )
+    studio = create_default_application()
+    studio_snapshot = studio.open_project(project)
+    if studio_snapshot.project is None or studio_snapshot.validation:
+        raise RuntimeError("Kit Studio application could not open the reference project")
+    if not studio_snapshot.spatial_components:
+        raise RuntimeError("Kit Studio application did not expose viewport spatial metadata")
+
     backend = ProjectCommandService(root / "schemas")
     opened = backend.inspect(project)
     if opened.contents is None:

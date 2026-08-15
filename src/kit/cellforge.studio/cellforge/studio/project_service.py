@@ -36,6 +36,7 @@ from cellforge.studio.application import (
     ConnectionBrowserResult,
     ConnectionEditResult,
     ProjectContents,
+    SpatialBrowserResult,
     SpatialEditResult,
     ValidationItem,
 )
@@ -106,6 +107,7 @@ class ProjectCommandService:
             contents = candidate.contents
             scene, scene_findings = inspect_scene(contents.scene_usda, candidate.scene_path)
             findings.extend(scene_findings)
+            findings.extend(self._spatial.validate_calibrations(root, contents))
             if scene is not None:
                 findings.extend(
                     validate_scene_cross_references(
@@ -180,6 +182,7 @@ class ProjectCommandService:
             contents,
             cell_model.scene.usd,
         )
+        project_findings = (*project_findings, *self._spatial.validate_calibrations(root, contents))
         if project_findings:
             return BackendResult(project=None, validation=project_findings)
 
@@ -272,6 +275,11 @@ class ProjectCommandService:
         """Return typed ports and graph edges from the current in-memory sources."""
 
         return self._connections.browse(project_path, contents)
+
+    def browse_spatial(self, project_path: Path, contents: ProjectContents) -> SpatialBrowserResult:
+        """Return viewport-neutral transforms, frames, and collision display data."""
+
+        return self._spatial.browse(project_path, contents)
 
     def preview_mechanical_connection(
         self,
@@ -396,6 +404,23 @@ class ProjectCommandService:
             kind=kind,
             valid_until=deadline,
             data=data,
+        )
+
+    def import_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        calibration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Stage an existing immutable calibration and bind it to one component."""
+
+        return self._spatial.import_calibration(
+            project_path,
+            contents,
+            instance_id=instance_id,
+            calibration=calibration,
         )
 
     def _registry_for(self, project_path: Path) -> SchemaRegistry:
@@ -775,6 +800,9 @@ def _artifact_candidates(
         if (
             Path(relative).is_absolute()
             or not target.is_relative_to(root)
+            or Path(relative).parts[:1] != ("calibration",)
+            or len(Path(relative).parts) != 2
+            or target.suffix.lower() != ".json"
             or not isinstance(content, bytes)
         ):
             return BackendResult(

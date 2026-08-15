@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": {"const": "0.1.0"},
     "calibration_id": {"type": "string", "format": "uuid"},
-    "component_instance_id": {"type": "string", "format": "uuid"},
+    "component_instance_id": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$"},
     "kind": {"type": "string", "pattern": "^[a-z][a-z0-9_.-]+$"},
     "created_at": {"type": "string", "format": "date-time"},
     "valid_until": {"type": "string", "format": "date-time"},

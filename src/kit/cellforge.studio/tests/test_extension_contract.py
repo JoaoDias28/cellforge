@@ -60,6 +60,7 @@ def test_ui_callbacks_delegate_to_application_services() -> None:
         "_on_set_configuration": "set_component_configuration",
         "_on_set_variants": "set_component_variants",
         "_on_create_calibration": "create_calibration",
+        "_on_import_calibration": "import_calibration",
         "_on_configure_simulation": "configure",
         "_on_simulation_control": "control",
         "_on_inject_simulation_fault": "inject_fault",
