@@ -72,8 +72,8 @@ void requireIdentifier(const std::string& value, const char* field) {
   }
 }
 
-auto containedPath(const std::filesystem::path& root,
-                   const std::string& reference) -> std::filesystem::path {
+auto containedPath(const std::filesystem::path& root, const std::string& reference)
+    -> std::filesystem::path {
   const auto raw = std::filesystem::path(reference);
   const auto normalized_root = std::filesystem::weakly_canonical(root);
   const auto candidate = std::filesystem::weakly_canonical(normalized_root / raw);
@@ -85,8 +85,8 @@ auto containedPath(const std::filesystem::path& root,
   return candidate;
 }
 
-auto declaredNodeTypes(const std::string& manifest_text,
-                       const PluginIdentity& identity) -> std::set<std::string> {
+auto declaredNodeTypes(const std::string& manifest_text, const PluginIdentity& identity)
+    -> std::set<std::string> {
   Json document;
   try {
     document = Json::parse(manifest_text);
@@ -134,8 +134,8 @@ auto pluginLibraryPath(const PluginIdentity& identity) -> std::filesystem::path 
 
 auto loadDeclaration(BT::BehaviorTreeFactory& factory, const Json& declaration,
                      const std::filesystem::path& bundle_root,
-                     const std::set<std::string>& native_packages,
-                     std::set<std::string>& packages) -> LoadedBundlePlugin {
+                     const std::set<std::string>& native_packages, std::set<std::string>& packages)
+    -> LoadedBundlePlugin {
   if (!declaration.is_object()) {
     throw BundlePluginError("supervisor.plugin.manifest_invalid",
                             "Plugin declaration must be an object.");
@@ -180,9 +180,10 @@ BundlePluginError::BundlePluginError(const char* code, const std::string& messag
 
 auto BundlePluginError::code() const noexcept -> const std::string& { return code_; }
 
-auto loadBundleDeclaredPlugins(
-    BT::BehaviorTreeFactory& factory, const std::filesystem::path& bundle_manifest_path,
-    const std::string& expected_bundle_id) -> std::vector<LoadedBundlePlugin> {
+auto loadBundleDeclaredPlugins(BT::BehaviorTreeFactory& factory,
+                               const std::filesystem::path& bundle_manifest_path,
+                               const std::string& expected_bundle_id)
+    -> std::vector<LoadedBundlePlugin> {
   Json bundle;
   try {
     bundle = Json::parse(readFile(bundle_manifest_path));

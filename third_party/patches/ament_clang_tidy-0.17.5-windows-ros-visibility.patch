@@ -1,0 +1,18 @@
+diff --git a/ament_clang_tidy/ament_clang_tidy/main.py b/ament_clang_tidy/ament_clang_tidy/main.py
+index b5373f3..b02a819 100644
+--- a/ament_clang_tidy/ament_clang_tidy/main.py
++++ b/ament_clang_tidy/ament_clang_tidy/main.py
+@@ -129,6 +129,13 @@ def main(argv=sys.argv[1:]):
+
+         cmd = [clang_tidy_bin,
+                '-p', package_dir]
++        if os.name == 'nt':
++            cmd.extend([
++                '--extra-arg=-DRCLCPP_LIFECYCLE__VISIBILITY_CONTROL_H_',
++                '--extra-arg=-DRCLCPP_LIFECYCLE_PUBLIC=',
++                '--extra-arg=-DRCLCPP_LIFECYCLE_PUBLIC_TYPE=',
++                '--extra-arg=-DRCLCPP_LIFECYCLE_LOCAL=',
++            ])
+
+         if args.config_file is not None:
+             with open(args.config_file, 'r') as h:

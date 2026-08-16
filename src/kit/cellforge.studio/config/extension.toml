@@ -9,7 +9,7 @@ keywords = ["cellforge", "robotics", "engineering", "isaac-sim"]
 readme = "docs/Overview.md"
 
 [dependencies]
-"omni.kit.app" = {}
+"omni.usd" = {}
 "omni.ui" = {}
 
 [[python.module]]

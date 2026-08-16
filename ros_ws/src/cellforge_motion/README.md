@@ -14,6 +14,11 @@ reference config supplies the named states `home`, `process_safe`, `load_safe`, 
 The included `mock_components/GenericSystem` and joint trajectory controller are test/simulation
 components only.
 
+In the L2 graph, successful MoveIt/MTC controller execution is forwarded to the immutable
+`/device/robot_001/execute_trajectory` capability. The result is not reported successful until the
+Isaac adapter has applied the operation and returned OpenUSD/PhysX attachment, seating, drop, and
+contact observations. Missing, rejected, cancelled, or timed-out adapter execution fails closed.
+
 The MTC builder treats `pick` and `unload` as acquiring/attaching the declared object at its target
 pose; `load` places/detaches an already attached object. All three retreat to the caller-selected
 declared safe pose. Gripper actuation and fixture sequencing remain separate capability calls owned
@@ -37,8 +42,10 @@ reconciliation.
   used only for the supported reference fake-controller launch. Removal path: select a supported
   simulation or hardware controller adapter in the deployment bundle.
 
-ROS 2 Jazzy resolves the package versions through rosdep on Ubuntu 24.04. No runtime node requires
-internet, a browser, Cell Studio, Isaac Sim, or cloud services.
+ROS 2 Jazzy resolves the package versions through rosdep on Ubuntu 24.04 or NVIDIA's maintained
+IsaacSim-ros_workspaces Pixi environment on Windows 11. Normal runtime requires no internet,
+browser, Cell Studio, or cloud service. The L2 target explicitly requires local Isaac Sim 6 and an
+NVIDIA GPU; the L0 target does not.
 
 ## Checks
 

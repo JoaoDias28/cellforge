@@ -79,6 +79,7 @@ rclcpp_action::Server<ExecuteSkill>::SharedPtr makeServer(const rclcpp::Node::Sh
                                                           std::atomic_int& accepted,
                                                           std::atomic_bool& cancelled) {
   auto held_goals = std::make_shared<std::vector<std::shared_ptr<ServerGoalHandle>>>();
+  auto workers = std::make_shared<std::vector<std::jthread>>();
   return rclcpp_action::create_server<ExecuteSkill>(
       node, action_name,
       [](const rclcpp_action::GoalUUID&, std::shared_ptr<const ExecuteSkill::Goal>) {
@@ -88,26 +89,30 @@ rclcpp_action::Server<ExecuteSkill>::SharedPtr makeServer(const rclcpp::Node::Sh
         cancelled.store(true);
         return rclcpp_action::CancelResponse::ACCEPT;
       },
-      [&accepted, outcome, held_goals](const std::shared_ptr<ServerGoalHandle> goal_handle) {
-        const int attempt = ++accepted;
+      [&accepted, outcome, held_goals,
+       workers](const std::shared_ptr<ServerGoalHandle> goal_handle) {
         if (outcome == MockOutcome::HANG) {
+          ++accepted;
           held_goals->push_back(goal_handle);
           return;
         }
-        auto result = std::make_shared<ExecuteSkill::Result>();
-        if (outcome == MockOutcome::FAIL_ONCE && attempt == 1) {
-          result->success = false;
-          result->result_code = "mock.injected_failure";
-          result->result_message = "Retry me.";
-          result->output_payload_json = "{}";
-          goal_handle->abort(result);
-          return;
-        }
-        result->success = true;
-        result->result_code = "mock.completed";
-        result->result_message = "Completed.";
-        result->output_payload_json = "{\"ok\":true}";
-        goal_handle->succeed(result);
+        workers->emplace_back([&accepted, outcome, goal_handle]() {
+          const int attempt = ++accepted;
+          auto result = std::make_shared<ExecuteSkill::Result>();
+          if (outcome == MockOutcome::FAIL_ONCE && attempt == 1) {
+            result->success = false;
+            result->result_code = "mock.injected_failure";
+            result->result_message = "Retry me.";
+            result->output_payload_json = "{}";
+            goal_handle->abort(result);
+            return;
+          }
+          result->success = true;
+          result->result_code = "mock.completed";
+          result->result_message = "Completed.";
+          result->output_payload_json = "{\"ok\":true}";
+          goal_handle->succeed(result);
+        });
       });
 }
 

@@ -53,6 +53,8 @@ jobs:
         run: |
           rosdep update
           rosdep install --from-paths ros_ws/src --ignore-src --rosdistro jazzy -y
+      - name: Install supervisor JSON build dependency
+        run: sudo apt-get update && sudo apt-get install -y nlohmann-json3-dev
       - name: Build ROS workspace
         run: make ros-build
       - name: Test ROS workspace

@@ -3,8 +3,14 @@ ROS_DISTRO ?= jazzy
 ROS_SETUP ?= /opt/ros/$(ROS_DISTRO)/setup.bash
 ROS_WORKSPACE ?= ros_ws
 COLCON ?= colcon
+ROS_WINDOWS_BUILD ?= C:/cf27/build
+ROS_WINDOWS_INSTALL ?= C:/cf27/install
+ROS_WINDOWS_PIXI_PREFIX ?= C:/IsaacSim-ros-workspaces/jazzy_ws/.pixi/envs/default
+ROS_WINDOWS_UNDERLAY ?= C:/IsaacSim-ros-workspaces/jazzy_ws/install
+ROS_WINDOWS_LLVM_BIN ?= C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin
+PYTEST_BASETEMP ?= .pytest-tmp
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check isaac-l2-gpu-check ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
@@ -15,7 +21,7 @@ lint:
 
 test:
 	$(UV) sync --locked --all-packages
-	$(UV) run --frozen pytest
+	$(UV) run --frozen pytest --basetemp "$(PYTEST_BASETEMP)" -o cache_dir=.pytest-cache/task027
 
 validate-examples:
 	$(UV) sync --locked --all-packages
@@ -76,8 +82,19 @@ integrated-runtime-check:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --packages-up-to cellforge_bringup --event-handlers console_direct+'
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; cd "$(ROS_WORKSPACE)"; source "install/setup.bash"; set -u; $(COLCON) test --packages-select cellforge_bringup --return-code-on-test-failure --event-handlers console_direct+; $(COLCON) test-result --test-result-base build/cellforge_bringup --verbose'
 
+isaac-l2-gpu-check:
+	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_isaac_l2_gpu.ps1
+
+ifeq ($(OS),Windows_NT)
+ros-build:
+	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_ros_windows_build.ps1 -SourceBase "$(ROS_WORKSPACE)/src" -BuildBase "$(ROS_WINDOWS_BUILD)" -InstallBase "$(ROS_WINDOWS_INSTALL)" -Underlay "$(ROS_WINDOWS_UNDERLAY)" -PixiPrefix "$(ROS_WINDOWS_PIXI_PREFIX)"
+
+ros-test:
+	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_ros_windows_tests.ps1 -BuildBase "$(ROS_WINDOWS_BUILD)" -InstallBase "$(ROS_WINDOWS_INSTALL)" -Underlay "$(ROS_WINDOWS_UNDERLAY)" -PixiPrefix "$(ROS_WINDOWS_PIXI_PREFIX)" -LlvmBin "$(ROS_WINDOWS_LLVM_BIN)"
+else
 ros-build:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --symlink-install --event-handlers console_direct+'
 
 ros-test:
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; cd "$(ROS_WORKSPACE)"; source "install/setup.bash"; set -u; $(COLCON) test --return-code-on-test-failure --event-handlers console_direct+; $(COLCON) test-result --verbose'
+endif

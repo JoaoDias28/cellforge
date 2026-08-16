@@ -14,7 +14,6 @@ def test_supervisor_package_declares_cpp20_and_runtime_contracts() -> None:
         "behaviortree_cpp",
         "ament_index_cpp",
         "cellforge_interfaces",
-        "nlohmann_json_schema_validator_vendor",
         "rclcpp",
         "rclcpp_action",
         "std_msgs",

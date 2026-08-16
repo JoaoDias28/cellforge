@@ -1,0 +1,17 @@
+diff --git a/ament_clang_tidy/ament_clang_tidy/main.py b/ament_clang_tidy/ament_clang_tidy/main.py
+index 46735a9..b5373f3 100644
+--- a/ament_clang_tidy/ament_clang_tidy/main.py
++++ b/ament_clang_tidy/ament_clang_tidy/main.py
+@@ -144,10 +144,9 @@ def main(argv=sys.argv[1:]):
+         if args.fix_errors:
+             cmd.append('--fix-errors')
+-        cmd.append('--header-filter')
+         if args.header_filter:
+-            cmd.append(args.header_filter)
++            cmd.append('--header-filter=' + args.header_filter)
+         else:
+-            cmd.append('include/%s/.*' % package_name)
++            cmd.append('--header-filter=include/%s/.*' % package_name)
+         if args.quiet:
+             cmd.append('--quiet')
+         if args.system_headers:

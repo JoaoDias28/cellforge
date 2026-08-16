@@ -39,6 +39,13 @@ def Xform "World" {
             double3 xformOp:translate = (0.45, 0, 0.17)
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
+        def Xform "GripperBody" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+        ) {
+            bool physics:kinematicEnabled = true
+            double3 xformOp:translate = (0.45, 0, 0.17)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
     }
 
     def Xform "InputCarrier" {

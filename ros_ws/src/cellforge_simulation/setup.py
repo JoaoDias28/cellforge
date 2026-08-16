@@ -21,5 +21,10 @@ setup(
     description="Deterministic Isaac simulation and ROS 2 scenario control bridge.",
     license="Proprietary",
     tests_require=["pytest"],
-    entry_points={"console_scripts": ["simulation_bridge = cellforge_simulation.ros_node:main"]},
+    entry_points={
+        "console_scripts": [
+            "simulation_bridge = cellforge_simulation.ros_node:main",
+            "isaac_l2_adapter = cellforge_simulation.l2_ros_node:main",
+        ]
+    },
 )

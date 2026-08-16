@@ -12,7 +12,6 @@
   <depend>behaviortree_cpp</depend>
   <depend>cellforge_interfaces</depend>
   <depend>geometry_msgs</depend>
-  <depend>nlohmann_json_schema_validator_vendor</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_action</depend>
 

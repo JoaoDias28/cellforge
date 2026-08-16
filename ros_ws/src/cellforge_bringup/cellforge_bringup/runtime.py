@@ -33,6 +33,11 @@ _L0_EXECUTABLES = {
     "supervisor": ("cellforge_supervisor", "cellforge_supervisor_node"),
     "trace": ("cellforge_state_trace", "durable_event_recorder"),
 }
+_L2_EXECUTABLES = {
+    **_L0_EXECUTABLES,
+    "adapter": ("cellforge_simulation", "isaac_l2_adapter"),
+    "safety_status": ("cellforge_simulation", "isaac_l2_adapter"),
+}
 _TOPICS = {
     "cell_state": "/cell/state",
     "events": "/events/job",
@@ -102,10 +107,10 @@ def load_runtime_bundle(bundle_root: str | Path, requested_fidelity: str = "L0")
             "bringup.fidelity.identity_mismatch",
             f"Requested {requested_fidelity}, but the immutable bundle selects {fidelity}.",
         )
-    if fidelity != "L0":
+    if fidelity not in {"L0", "L2"}:
         raise BringupError(
             "bringup.fidelity.unavailable",
-            "Genuine L2 runtime adapters are not available before Task 027.",
+            f"Runtime fidelity {fidelity!r} is unsupported; expected L0 or genuine Isaac L2.",
         )
     topics = _string_map(runtime.get("topics"), "bringup.runtime.topics_invalid")
     endpoints = _string_map(runtime.get("endpoints"), "bringup.runtime.endpoints_invalid")
@@ -135,12 +140,13 @@ def load_runtime_bundle(bundle_root: str | Path, requested_fidelity: str = "L0")
         raise BringupError(
             "bringup.runtime.executables_invalid", "Runtime executable roles are incomplete."
         )
+    expected_executables = _L0_EXECUTABLES if fidelity == "L0" else _L2_EXECUTABLES
     if {
         role: (identity.package, identity.executable) for role, identity in executables.items()
-    } != _L0_EXECUTABLES:
+    } != expected_executables:
         raise BringupError(
             "bringup.runtime.executables_invalid",
-            "Runtime executable identities do not match the supported L0 graph.",
+            f"Runtime executable identities do not match the supported {fidelity} graph.",
         )
     for component_id in raw_devices:
         expected_topic = f"/device/{component_id.replace('-', '_')}/state"
@@ -199,7 +205,9 @@ def load_runtime_bundle(bundle_root: str | Path, requested_fidelity: str = "L0")
         or not isinstance(adapter_document.get("nodes"), dict)
         or not isinstance(adapter_document.get("safety"), dict)
     ):
-        raise BringupError("bringup.adapters.invalid", "L0 adapter configuration is invalid.")
+        raise BringupError(
+            "bringup.adapters.invalid", f"{fidelity} adapter configuration is invalid."
+        )
     return RuntimeBundle(
         root=root,
         manifest_path=manifest_path,

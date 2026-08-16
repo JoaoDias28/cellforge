@@ -8,6 +8,7 @@ import sqlite3
 import tempfile
 import threading
 import time
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 
@@ -183,7 +184,7 @@ def test_gateway_forwards_once_persists_then_replays_and_rejects_conflict() -> N
                 (bundle / "config/behavior-trees/reference@1.xml").read_bytes()
             )
 
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection:
                 status, result_json = connection.execute(
                     "SELECT status, result_json FROM jobs WHERE idempotency_key = 'order-001'"
                 ).fetchone()
