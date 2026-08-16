@@ -15,6 +15,9 @@ from cellforge.studio.application import (
     ConnectionEdge,
     ConnectionEditResult,
     ProjectContents,
+    SpatialBrowserResult,
+    SpatialComponent,
+    SpatialEditResult,
     StudioApplication,
     StudioStatus,
     ValidationItem,
@@ -35,6 +38,8 @@ class RecordingBackend:
         self.edit_result = ComponentEditResult(contents=None)
         self.connection_browser_result = ConnectionBrowserResult(ports=(), edges=())
         self.connection_edit_result = ConnectionEditResult(contents=None)
+        self.spatial_browser_result = SpatialBrowserResult(components=())
+        self.spatial_edit_result = SpatialEditResult(contents=None)
 
     def inspect(self, project_path: Path) -> BackendResult:
         self.paths.append(project_path)
@@ -107,6 +112,61 @@ class RecordingBackend:
     ) -> ConnectionEditResult:
         return self.connection_edit_result
 
+    def browse_spatial(self, project_path: Path, contents: ProjectContents) -> SpatialBrowserResult:
+        return self.spatial_browser_result
+
+    def set_component_transform(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        matrix: tuple[float, ...],
+    ) -> SpatialEditResult:
+        return self.spatial_edit_result
+
+    def set_component_configuration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        configuration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        return self.spatial_edit_result
+
+    def set_component_variants(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        variants: Mapping[str, str],
+    ) -> SpatialEditResult:
+        return self.spatial_edit_result
+
+    def create_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        kind: str,
+        valid_until: str,
+        data: Mapping[str, object],
+    ) -> SpatialEditResult:
+        return self.spatial_edit_result
+
+    def import_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        calibration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        return self.spatial_edit_result
+
 
 def _tree_bytes(root: Path) -> Mapping[str, bytes]:
     return {
@@ -125,6 +185,36 @@ def test_startup_is_a_useful_empty_state_and_does_not_call_backend() -> None:
     assert application.snapshot.headline == "No project open"
     assert "without opening or modifying" in application.snapshot.logs[0].message
     assert backend.paths == []
+
+
+def test_spatial_browser_data_is_exposed_for_viewport_selection(tmp_path: Path) -> None:
+    project = BackendProject(
+        path=tmp_path,
+        cell_id="00000000-0000-4000-8000-000000000001",
+        name="Test Cell",
+        scene="scene.usda",
+        component_count=1,
+        connection_count=0,
+        task_count=0,
+        recipe_count=0,
+        scenario_count=0,
+        deployment_profile_count=1,
+    )
+    contents = ProjectContents(cell_yaml="before", scene_usda="scene")
+    backend = RecordingBackend(BackendResult(project=project, validation=(), contents=contents))
+    component = SpatialComponent(
+        instance_id="camera-001",
+        alias="camera",
+        usd_prim="/World/Camera",
+        frames=("root", "optical"),
+        collision_asset="assets/camera_collision.usd",
+        transform=(1.0,) * 16,
+    )
+    backend.spatial_browser_result = SpatialBrowserResult(components=(component,))
+
+    snapshot = StudioApplication(backend).open_project(tmp_path)
+
+    assert snapshot.spatial_components == (component,)
 
 
 def test_missing_backend_is_explicit_and_stable() -> None:
@@ -313,6 +403,42 @@ def test_modeled_safety_connection_is_distinct_and_undoable(tmp_path: Path) -> N
     assert backend.saved == []
 
 
+def test_spatial_configuration_edits_are_undoable_complete_buffer_pairs(tmp_path: Path) -> None:
+    project = BackendProject(
+        path=tmp_path,
+        cell_id="00000000-0000-4000-8000-000000000001",
+        name="Test Cell",
+        scene="scene.usda",
+        component_count=1,
+        connection_count=0,
+        task_count=0,
+        recipe_count=0,
+        scenario_count=0,
+        deployment_profile_count=1,
+    )
+    original = ProjectContents(cell_yaml="before", scene_usda="before scene")
+    changed = ProjectContents(
+        cell_yaml="after", scene_usda="after scene", artifacts={"calibration/a.json": b"{}\n"}
+    )
+    backend = RecordingBackend(BackendResult(project=project, validation=(), contents=original))
+    backend.spatial_edit_result = SpatialEditResult(
+        contents=changed, calibration_path="calibration/a.json"
+    )
+    application = StudioApplication(backend)
+    application.open_project(tmp_path)
+
+    edited = application.create_calibration(
+        "camera-001", "camera.intrinsics", "2030-01-01T00:00:00Z", {}
+    )
+    undone = application.undo()
+    redone = application.redo()
+
+    assert edited.dirty is True
+    assert undone.dirty is False
+    assert redone.dirty is True
+    assert backend.saved == []
+
+
 def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
     class FailingBackend:
         def inspect(self, project_path: Path) -> BackendResult:
@@ -381,6 +507,63 @@ def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
             to_component: str,
             to_port: str,
         ) -> ConnectionEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def browse_spatial(
+            self, project_path: Path, contents: ProjectContents
+        ) -> SpatialBrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def set_component_transform(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            instance_id: str,
+            matrix: tuple[float, ...],
+        ) -> SpatialEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def set_component_configuration(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            instance_id: str,
+            configuration: Mapping[str, object],
+        ) -> SpatialEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def set_component_variants(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            instance_id: str,
+            variants: Mapping[str, str],
+        ) -> SpatialEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def create_calibration(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            instance_id: str,
+            kind: str,
+            valid_until: str,
+            data: Mapping[str, object],
+        ) -> SpatialEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def import_calibration(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            instance_id: str,
+            calibration: Mapping[str, object],
+        ) -> SpatialEditResult:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
     snapshot = StudioApplication(FailingBackend()).open_project(PEN_PROJECT)

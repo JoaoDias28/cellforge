@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
@@ -68,6 +68,7 @@ class ProjectContents:
 
     cell_yaml: str
     scene_usda: str
+    artifacts: Mapping[str, bytes] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,6 +193,35 @@ class ConnectionEditResult:
     preview: MechanicalSnapPreview | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class SpatialEditResult:
+    """Result of an undoable spatial/configuration/calibration paired edit."""
+
+    contents: ProjectContents | None
+    validation: tuple[ValidationItem, ...] = ()
+    calibration_path: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SpatialComponent:
+    """One selected component's inspectable spatial/configuration details."""
+
+    instance_id: str
+    alias: str
+    usd_prim: str
+    frames: tuple[str, ...]
+    collision_asset: str
+    transform: tuple[float, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SpatialBrowserResult:
+    """Viewport-neutral selection, frame, and collision display data."""
+
+    components: tuple[SpatialComponent, ...]
+    validation: tuple[ValidationItem, ...] = ()
+
+
 class ProjectBackend(Protocol):
     """Project commands implemented outside UI callbacks."""
 
@@ -236,6 +266,9 @@ class ProjectBackend(Protocol):
     ) -> ConnectionBrowserResult:
         """Return the typed port graph for the current in-memory sources."""
 
+    def browse_spatial(self, project_path: Path, contents: ProjectContents) -> SpatialBrowserResult:
+        """Return component transforms, frames, and collision display data."""
+
     def preview_mechanical_connection(
         self,
         project_path: Path,
@@ -262,6 +295,58 @@ class ProjectBackend(Protocol):
         to_port: str,
     ) -> ConnectionEditResult:
         """Create a validated logical or paired mechanical connection edit."""
+
+    def set_component_transform(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        matrix: tuple[float, ...],
+    ) -> SpatialEditResult:
+        """Edit one component transform in the paired in-memory sources."""
+
+    def set_component_configuration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        configuration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Edit one schema-validated instance configuration in memory."""
+
+    def set_component_variants(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        variants: Mapping[str, str],
+    ) -> SpatialEditResult:
+        """Edit one component's declared variant selections in memory."""
+
+    def create_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        kind: str,
+        valid_until: str,
+        data: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Stage and bind one immutable calibration artifact in memory."""
+
+    def import_calibration(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        instance_id: str,
+        calibration: Mapping[str, object],
+    ) -> SpatialEditResult:
+        """Stage and bind one existing immutable calibration artifact in memory."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,6 +386,7 @@ class StudioSnapshot:
     logs: tuple[LogEntry, ...] = ()
     dirty: bool = False
     browser: tuple[BrowserComponent, ...] = ()
+    spatial_components: tuple[SpatialComponent, ...] = ()
     connection_ports: tuple[ConnectionPort, ...] = ()
     connection_edges: tuple[ConnectionEdge, ...] = ()
     safety_disclaimer: str = ""
@@ -313,6 +399,7 @@ class StudioSnapshot:
 class _EditState:
     contents: ProjectContents
     project: ProjectView
+    spatial_components: tuple[SpatialComponent, ...]
     connection_ports: tuple[ConnectionPort, ...]
     connection_edges: tuple[ConnectionEdge, ...]
     safety_disclaimer: str
@@ -387,6 +474,7 @@ class StudioApplication:
                 validation=(),
                 dirty=False,
                 browser=(),
+                spatial_components=(),
                 connection_ports=(),
                 connection_edges=(),
                 safety_disclaimer="",
@@ -419,6 +507,7 @@ class StudioApplication:
         if snapshot.project is None:
             return snapshot
         self.refresh_components()
+        self.refresh_spatial()
         return self.refresh_connections()
 
     def create_project(self, project_path: str | Path) -> StudioSnapshot:
@@ -438,6 +527,7 @@ class StudioApplication:
         if snapshot.project is None:
             return snapshot
         self.refresh_components()
+        self.refresh_spatial()
         return self.refresh_connections()
 
     def refresh_components(self, filters: ComponentFilters = ComponentFilters()) -> StudioSnapshot:
@@ -464,6 +554,35 @@ class StudioApplication:
             logs=self._append_log(
                 LogLevel.INFO,
                 f"Refreshed component browser with {len(result.components)} match(es).",
+            ),
+        )
+        return self._snapshot
+
+    def refresh_spatial(self) -> StudioSnapshot:
+        """Refresh viewport-neutral transforms, frames, and collision display data."""
+
+        if self._backend is None:
+            return self._snapshot
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None:
+            return self._no_open_project(
+                "Cannot inspect spatial configuration without a valid project open."
+            )
+        try:
+            result = self._backend.browse_spatial(Path(project.path), contents)
+        except Exception as error:
+            return self._operation_failure(
+                "Spatial configuration refresh", error, preserve_project=True
+            )
+        self._snapshot = replace(
+            self._snapshot,
+            spatial_components=result.components,
+            validation=result.validation,
+            detail=f"Spatial browser contains {len(result.components)} component(s).",
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Refreshed spatial browser with {len(result.components)} component(s).",
             ),
         )
         return self._snapshot
@@ -498,6 +617,7 @@ class StudioApplication:
             return self._edit_rejected("Component placement", result.validation)
         self._record_edit(contents, project)
         self._working_contents = result.contents
+        spatial = self._spatial_graph(Path(project.path), self._working_contents)
         connection_graph = self._connection_graph(Path(project.path), self._working_contents)
         self._snapshot = replace(
             self._snapshot,
@@ -509,6 +629,7 @@ class StudioApplication:
             project=replace(project, component_count=project.component_count + 1),
             validation=(),
             dirty=self._working_contents != self._saved_contents,
+            spatial_components=spatial.components,
             connection_ports=connection_graph.ports,
             connection_edges=connection_graph.edges,
             safety_disclaimer=connection_graph.safety_disclaimer,
@@ -629,6 +750,7 @@ class StudioApplication:
             return self._edit_rejected("Connection creation", result.validation)
         self._record_edit(contents, project)
         self._working_contents = result.contents
+        spatial = self._spatial_graph(Path(project.path), self._working_contents)
         self._snapshot = replace(
             self._snapshot,
             status=StudioStatus.PROJECT_READY,
@@ -637,6 +759,7 @@ class StudioApplication:
             project=replace(project, connection_count=project.connection_count + 1),
             validation=(),
             dirty=self._working_contents != self._saved_contents,
+            spatial_components=spatial.components,
             connection_edges=(*self._snapshot.connection_edges, result.edge),
             mechanical_preview=result.preview,
             can_undo=True,
@@ -676,6 +799,7 @@ class StudioApplication:
             return self._edit_rejected("Component removal", result.validation)
         self._record_edit(contents, project)
         self._working_contents = result.contents
+        spatial = self._spatial_graph(Path(project.path), self._working_contents)
         connection_graph = self._connection_graph(Path(project.path), self._working_contents)
         self._snapshot = replace(
             self._snapshot,
@@ -689,6 +813,7 @@ class StudioApplication:
             ),
             validation=(),
             dirty=self._working_contents != self._saved_contents,
+            spatial_components=spatial.components,
             connection_ports=connection_graph.ports,
             connection_edges=connection_graph.edges,
             safety_disclaimer=connection_graph.safety_disclaimer,
@@ -701,6 +826,74 @@ class StudioApplication:
             ),
         )
         return self._snapshot
+
+    def set_component_transform(
+        self, instance_id: str, matrix: tuple[float, ...]
+    ) -> StudioSnapshot:
+        """Apply a validated spatial transform as a whole-pair undoable edit."""
+
+        return self._spatial_edit(
+            "Spatial transform",
+            lambda backend, path, contents: backend.set_component_transform(
+                path, contents, instance_id=instance_id, matrix=matrix
+            ),
+        )
+
+    def set_component_configuration(
+        self, instance_id: str, configuration: Mapping[str, object]
+    ) -> StudioSnapshot:
+        """Apply a schema-backed component configuration edit."""
+
+        return self._spatial_edit(
+            "Component configuration",
+            lambda backend, path, contents: backend.set_component_configuration(
+                path, contents, instance_id=instance_id, configuration=configuration
+            ),
+        )
+
+    def set_component_variants(
+        self, instance_id: str, variants: Mapping[str, str]
+    ) -> StudioSnapshot:
+        """Apply declared component variant selections without direct YAML editing."""
+
+        return self._spatial_edit(
+            "Component variants",
+            lambda backend, path, contents: backend.set_component_variants(
+                path, contents, instance_id=instance_id, variants=variants
+            ),
+        )
+
+    def create_calibration(
+        self, instance_id: str, kind: str, valid_until: str, data: Mapping[str, object]
+    ) -> StudioSnapshot:
+        """Create and bind an immutable calibration, staged until explicit save."""
+
+        return self._spatial_edit(
+            "Calibration creation",
+            lambda backend, path, contents: backend.create_calibration(
+                path,
+                contents,
+                instance_id=instance_id,
+                kind=kind,
+                valid_until=valid_until,
+                data=data,
+            ),
+        )
+
+    def import_calibration(
+        self, instance_id: str, calibration: Mapping[str, object]
+    ) -> StudioSnapshot:
+        """Import and bind an existing immutable calibration until explicit save."""
+
+        return self._spatial_edit(
+            "Calibration import",
+            lambda backend, path, contents: backend.import_calibration(
+                path,
+                contents,
+                instance_id=instance_id,
+                calibration=calibration,
+            ),
+        )
 
     def undo(self) -> StudioSnapshot:
         """Undo one complete paired-buffer placement/removal edit."""
@@ -717,6 +910,7 @@ class StudioApplication:
             project=previous.project,
             validation=(),
             dirty=previous.contents != self._saved_contents,
+            spatial_components=previous.spatial_components,
             connection_ports=previous.connection_ports,
             connection_edges=previous.connection_edges,
             safety_disclaimer=previous.safety_disclaimer,
@@ -743,6 +937,7 @@ class StudioApplication:
             project=next_state.project,
             validation=(),
             dirty=next_state.contents != self._saved_contents,
+            spatial_components=next_state.spatial_components,
             connection_ports=next_state.connection_ports,
             connection_edges=next_state.connection_edges,
             safety_disclaimer=next_state.safety_disclaimer,
@@ -829,6 +1024,7 @@ class StudioApplication:
                 validation=result.validation,
                 dirty=False,
                 browser=(),
+                spatial_components=(),
                 connection_ports=(),
                 connection_edges=(),
                 safety_disclaimer="",
@@ -866,6 +1062,7 @@ class StudioApplication:
             ),
             validation=result.validation,
             dirty=False,
+            spatial_components=(),
             mechanical_preview=None,
             can_undo=False,
             can_redo=False,
@@ -892,15 +1089,58 @@ class StudioApplication:
         self._undo_stack = self._undo_stack[-100:]
         self._redo_stack.clear()
 
+    def _spatial_edit(
+        self,
+        operation: str,
+        command: Callable[[ProjectBackend, Path, ProjectContents], SpatialEditResult],
+    ) -> StudioSnapshot:
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project(
+                "Cannot edit spatial configuration without a valid project."
+            )
+        try:
+            result = command(self._backend, Path(project.path), contents)
+        except Exception as error:
+            return self._operation_failure(operation, error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected(operation, result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        spatial = self._spatial_graph(Path(project.path), self._working_contents)
+        self._snapshot = replace(
+            self._snapshot,
+            detail=f"{operation} updated paired sources in memory; save explicitly to persist.",
+            spatial_components=spatial.components,
+            validation=spatial.validation,
+            dirty=self._working_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(LogLevel.INFO, f"{operation} updated paired sources in memory."),
+        )
+        return self._snapshot
+
     def _edit_state(self, contents: ProjectContents, project: ProjectView) -> _EditState:
         return _EditState(
             contents=contents,
             project=project,
+            spatial_components=self._snapshot.spatial_components,
             connection_ports=self._snapshot.connection_ports,
             connection_edges=self._snapshot.connection_edges,
             safety_disclaimer=self._snapshot.safety_disclaimer,
             mechanical_preview=self._snapshot.mechanical_preview,
         )
+
+    def _spatial_graph(self, project_path: Path, contents: ProjectContents) -> SpatialBrowserResult:
+        if self._backend is None:
+            return SpatialBrowserResult(components=self._snapshot.spatial_components)
+        try:
+            return self._backend.browse_spatial(project_path, contents)
+        except Exception:
+            return SpatialBrowserResult(components=self._snapshot.spatial_components)
 
     def _connection_graph(
         self, project_path: Path, contents: ProjectContents
