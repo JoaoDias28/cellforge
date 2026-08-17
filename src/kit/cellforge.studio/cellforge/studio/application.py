@@ -9,12 +9,36 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
+    from cellforge.studio.deployment_service import (
+        AgentPaths,
+        BundleAssemblyResult,
+        BundleDiffResult,
+        DeploymentBrowserResult,
+        DeploymentInstallResult,
+        DeploymentProfileDetail,
+        DeploymentProfileSummary,
+        DeploymentRollbackResult,
+        DeploymentStatusResult,
+        SignatureVerificationResult,
+        TargetCompatibilityResult,
+    )
     from cellforge.studio.recipe_service import (
         RecipeBrowserResult,
         RecipeDetail,
         RecipeDiffResult,
         RecipeEditResult,
         RecipeSummary,
+    )
+    from cellforge.studio.scenario_service import (
+        EvidenceDetail,
+        EvidenceSummary,
+        ScenarioAssertionSpec,
+        ScenarioBrowserResult,
+        ScenarioDetail,
+        ScenarioExecutionResult,
+        ScenarioFaultSpec,
+        ScenarioReplayResult,
+        ScenarioSummary,
     )
     from cellforge.studio.task_service import (
         TaskBrowserResult,
@@ -435,6 +459,119 @@ class ProjectBackend(Protocol):
     ) -> RecipeDiffResult | None:
         """Diff two recipe versions in the current project sources."""
 
+    def browse_scenarios(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ScenarioBrowserResult:
+        """Enumerate and summarize all scenarios declared in the project."""
+
+    def inspect_scenario(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        scenario_id: str,
+    ) -> ScenarioDetail | None:
+        """Inspect full scenario definition and parameters."""
+
+    def execute_scenario(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        scenario_id: str,
+        seed_override: int | None = None,
+        injected_faults: Sequence[ScenarioFaultSpec] | None = None,
+        available_backend_fidelity: str = "L0",
+        has_cuda_gpu: bool = False,
+        actual_physx_executed: bool = False,
+    ) -> ScenarioExecutionResult:
+        """Execute a scenario and produce evidence."""
+
+    def browse_evidence(self, project_path: Path) -> tuple[EvidenceSummary, ...]:
+        """Scan and summarize evidence files in the project."""
+
+    def inspect_evidence(self, project_path: Path, *, evidence_path: str) -> EvidenceDetail | None:
+        """Inspect full simulation evidence document."""
+
+    def replay_evidence(
+        self,
+        project_path: Path,
+        *,
+        evidence_path: str,
+        expected_assertions: ScenarioAssertionSpec | None = None,
+    ) -> ScenarioReplayResult | None:
+        """Replay and verify recorded evidence for deterministic consistency."""
+
+    def browse_deployment_profiles(
+        self, project_path: Path, contents: ProjectContents
+    ) -> DeploymentBrowserResult:
+        """Enumerate all deployment profiles declared in the project."""
+
+    def inspect_deployment_profile(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        profile_id: str,
+    ) -> DeploymentProfileDetail | None:
+        """Inspect full deployment profile configuration."""
+
+    def assemble_bundle(
+        self,
+        project_path: Path,
+        schemas_path: Path,
+        *,
+        target_profile: str,
+        mode: str,
+        source_revision: str,
+        output_dir: Path,
+        signing_key_path: Path,
+    ) -> BundleAssemblyResult:
+        """Assemble an immutable signed release bundle."""
+
+    def diff_bundles(
+        self,
+        base_bundle_path: Path,
+        candidate_bundle_path: Path,
+    ) -> BundleDiffResult:
+        """Compute deterministic differences between two bundle directories."""
+
+    def verify_bundle_signature(
+        self,
+        bundle_root: Path,
+        trusted_keys_root: Path | None = None,
+    ) -> SignatureVerificationResult:
+        """Verify the Ed25519 signature of a release bundle."""
+
+    def preflight_target_compatibility(
+        self,
+        bundle_root: Path,
+        target_facts_path: Path,
+    ) -> TargetCompatibilityResult:
+        """Check bundle compatibility against target facts."""
+
+    def get_deployment_status(self, agent_paths: AgentPaths) -> DeploymentStatusResult:
+        """Query deployment agent status."""
+
+    def install_bundle(
+        self,
+        bundle_root: Path,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: Any | None = None,
+        health_checker: Any | None = None,
+    ) -> DeploymentInstallResult:
+        """Install a release bundle to target."""
+
+    def rollback_deployment(
+        self,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: Any | None = None,
+        health_checker: Any | None = None,
+    ) -> DeploymentRollbackResult:
+        """Rollback to previous release."""
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectView:
@@ -481,6 +618,19 @@ class StudioSnapshot:
     tasks: tuple[TaskSummary, ...] = ()
     available_node_specs: tuple[TaskNodeSpec, ...] = ()
     recipes: tuple[RecipeSummary, ...] = ()
+    scenarios: tuple[ScenarioSummary, ...] = ()
+    evidence_records: tuple[EvidenceSummary, ...] = ()
+    deployment_profiles: tuple[DeploymentProfileSummary, ...] = ()
+    selected_scenario: ScenarioDetail | None = None
+    selected_evidence: EvidenceDetail | None = None
+    selected_deployment_profile: DeploymentProfileDetail | None = None
+    last_execution_result: ScenarioExecutionResult | None = None
+    last_replay_result: ScenarioReplayResult | None = None
+    last_bundle_assembly: BundleAssemblyResult | None = None
+    last_bundle_diff: BundleDiffResult | None = None
+    last_signature_verification: SignatureVerificationResult | None = None
+    last_compatibility_result: TargetCompatibilityResult | None = None
+    last_deployment_status: DeploymentStatusResult | None = None
     can_undo: bool = False
     can_redo: bool = False
 
@@ -497,6 +647,9 @@ class _EditState:
     tasks: tuple[TaskSummary, ...] = ()
     available_node_specs: tuple[TaskNodeSpec, ...] = ()
     recipes: tuple[RecipeSummary, ...] = ()
+    scenarios: tuple[ScenarioSummary, ...] = ()
+    evidence_records: tuple[EvidenceSummary, ...] = ()
+    deployment_profiles: tuple[DeploymentProfileSummary, ...] = ()
 
 
 class StudioApplication:
@@ -575,6 +728,19 @@ class StudioApplication:
                 tasks=(),
                 available_node_specs=(),
                 recipes=(),
+                scenarios=(),
+                evidence_records=(),
+                deployment_profiles=(),
+                selected_scenario=None,
+                selected_evidence=None,
+                selected_deployment_profile=None,
+                last_execution_result=None,
+                last_replay_result=None,
+                last_bundle_assembly=None,
+                last_bundle_diff=None,
+                last_signature_verification=None,
+                last_compatibility_result=None,
+                last_deployment_status=None,
                 can_undo=False,
                 can_redo=False,
                 logs=self._append_log(LogLevel.WARNING, "Project path was empty."),
@@ -1142,6 +1308,9 @@ class StudioApplication:
 
         task_graph = self._task_graph(resolved_path, result.contents)
         recipe_graph = self._recipe_graph(resolved_path, result.contents)
+        scenario_graph = self._scenario_graph(resolved_path, result.contents)
+        evidence_records = self._evidence_records(resolved_path)
+        deployment_graph = self._deployment_graph(resolved_path, result.contents)
         project = result.project
         self._saved_contents = result.contents
         self._working_contents = result.contents
@@ -1171,6 +1340,19 @@ class StudioApplication:
             tasks=task_graph.tasks,
             available_node_specs=task_graph.available_node_specs,
             recipes=recipe_graph.recipes,
+            scenarios=scenario_graph.scenarios,
+            evidence_records=evidence_records,
+            deployment_profiles=deployment_graph.profiles,
+            selected_scenario=None,
+            selected_evidence=None,
+            selected_deployment_profile=None,
+            last_execution_result=None,
+            last_replay_result=None,
+            last_bundle_assembly=None,
+            last_bundle_diff=None,
+            last_signature_verification=None,
+            last_compatibility_result=None,
+            last_deployment_status=None,
             can_undo=False,
             can_redo=False,
             logs=self._append_log(LogLevel.INFO, f"{operation} project {project.name}."),
@@ -1422,6 +1604,9 @@ class StudioApplication:
             tasks=self._snapshot.tasks,
             available_node_specs=self._snapshot.available_node_specs,
             recipes=self._snapshot.recipes,
+            scenarios=self._snapshot.scenarios,
+            evidence_records=self._snapshot.evidence_records,
+            deployment_profiles=self._snapshot.deployment_profiles,
         )
 
     def _task_graph(self, project_path: Path, contents: ProjectContents) -> TaskBrowserResult:
@@ -1447,6 +1632,403 @@ class StudioApplication:
             return self._backend.browse_recipes(project_path, contents)
         except Exception:
             return RecipeBrowserResult(recipes=self._snapshot.recipes)
+
+    def _scenario_graph(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ScenarioBrowserResult:
+        from cellforge.studio.scenario_service import ScenarioBrowserResult
+
+        if self._backend is None:
+            return ScenarioBrowserResult(scenarios=self._snapshot.scenarios)
+        try:
+            return self._backend.browse_scenarios(project_path, contents)
+        except Exception:
+            return ScenarioBrowserResult(scenarios=self._snapshot.scenarios)
+
+    def _evidence_records(self, project_path: Path) -> tuple[EvidenceSummary, ...]:
+        if self._backend is None:
+            return self._snapshot.evidence_records
+        try:
+            return self._backend.browse_evidence(project_path)
+        except Exception:
+            return self._snapshot.evidence_records
+
+    def _deployment_graph(
+        self, project_path: Path, contents: ProjectContents
+    ) -> DeploymentBrowserResult:
+        from cellforge.studio.deployment_service import DeploymentBrowserResult
+
+        if self._backend is None:
+            return DeploymentBrowserResult(profiles=self._snapshot.deployment_profiles)
+        try:
+            return self._backend.browse_deployment_profiles(project_path, contents)
+        except Exception:
+            return DeploymentBrowserResult(profiles=self._snapshot.deployment_profiles)
+
+    def refresh_scenarios(self) -> StudioSnapshot:
+        """Refresh scenarios declared in the open project."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None:
+            return self._snapshot
+        scenario_graph = self._scenario_graph(Path(project.path), contents)
+        self._snapshot = replace(
+            self._snapshot,
+            scenarios=scenario_graph.scenarios,
+            validation=scenario_graph.validation or self._snapshot.validation,
+        )
+        return self._snapshot
+
+    def inspect_scenario(self, scenario_id: str) -> ScenarioDetail | None:
+        """Inspect specific scenario parameters and assertions."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None or project is None or contents is None:
+            return None
+        try:
+            detail = self._backend.inspect_scenario(
+                Path(project.path), contents, scenario_id=scenario_id
+            )
+            if detail is not None:
+                self._snapshot = replace(self._snapshot, selected_scenario=detail)
+            return detail
+        except Exception:
+            return None
+
+    def execute_scenario(
+        self,
+        scenario_id: str,
+        *,
+        seed_override: int | None = None,
+        injected_faults: Sequence[ScenarioFaultSpec] | None = None,
+        available_backend_fidelity: str = "L0",
+        has_cuda_gpu: bool = False,
+        actual_physx_executed: bool = False,
+    ) -> StudioSnapshot:
+        """Execute a scenario through the pure service and record evidence."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None or project is None or contents is None:
+            return self._no_open_project("Cannot execute scenario without a valid project.")
+        try:
+            result = self._backend.execute_scenario(
+                Path(project.path),
+                contents,
+                scenario_id=scenario_id,
+                seed_override=seed_override,
+                injected_faults=injected_faults,
+                available_backend_fidelity=available_backend_fidelity,
+                has_cuda_gpu=has_cuda_gpu,
+                actual_physx_executed=actual_physx_executed,
+            )
+            evidence_records = self._evidence_records(Path(project.path))
+            self._snapshot = replace(
+                self._snapshot,
+                last_execution_result=result,
+                evidence_records=evidence_records,
+                detail=(
+                    f"Scenario '{scenario_id}' executed: {result.final_status} "
+                    f"(Fidelity: {result.fidelity.achieved})."
+                ),
+                logs=self._append_log(
+                    LogLevel.INFO if result.passed else LogLevel.WARNING,
+                    f"Executed scenario '{scenario_id}' with "
+                    f"{result.fidelity.achieved} fidelity: {result.final_status}.",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure(
+                f"Scenario execution '{scenario_id}'", error, preserve_project=True
+            )
+
+    def refresh_evidence(self) -> StudioSnapshot:
+        """Refresh evidence files in the open project."""
+        project = self._snapshot.project
+        if project is None:
+            return self._snapshot
+        evidence_records = self._evidence_records(Path(project.path))
+        self._snapshot = replace(
+            self._snapshot,
+            evidence_records=evidence_records,
+        )
+        return self._snapshot
+
+    def inspect_evidence(self, evidence_path: str) -> EvidenceDetail | None:
+        """Inspect specific simulation evidence document."""
+        project = self._snapshot.project
+        if self._backend is None or project is None:
+            return None
+        try:
+            detail = self._backend.inspect_evidence(Path(project.path), evidence_path=evidence_path)
+            if detail is not None:
+                self._snapshot = replace(self._snapshot, selected_evidence=detail)
+            return detail
+        except Exception:
+            return None
+
+    def replay_evidence(
+        self,
+        evidence_path: str,
+        expected_assertions: ScenarioAssertionSpec | None = None,
+    ) -> StudioSnapshot:
+        """Replay recorded evidence trace and verify deterministic consistency."""
+        project = self._snapshot.project
+        if self._backend is None or project is None:
+            return self._no_open_project("Cannot replay evidence without a valid project.")
+        try:
+            replay_result = self._backend.replay_evidence(
+                Path(project.path),
+                evidence_path=evidence_path,
+                expected_assertions=expected_assertions,
+            )
+            if replay_result is None:
+                return self._operation_failure(
+                    f"Replay evidence '{evidence_path}'",
+                    RuntimeError("Evidence file not found"),
+                    preserve_project=True,
+                )
+            match_str = "MATCHED" if replay_result.events_matched else "MISMATCH"
+            self._snapshot = replace(
+                self._snapshot,
+                last_replay_result=replay_result,
+                detail=f"Replayed evidence '{evidence_path}': {match_str}.",
+                logs=self._append_log(
+                    LogLevel.INFO if replay_result.passed else LogLevel.WARNING,
+                    f"Replayed evidence '{evidence_path}' "
+                    f"({replay_result.replayed_event_count} events).",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure(
+                f"Replay evidence '{evidence_path}'", error, preserve_project=True
+            )
+
+    def refresh_deployment_profiles(self) -> StudioSnapshot:
+        """Refresh deployment profiles declared in the project."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None:
+            return self._snapshot
+        deployment_graph = self._deployment_graph(Path(project.path), contents)
+        self._snapshot = replace(
+            self._snapshot,
+            deployment_profiles=deployment_graph.profiles,
+            validation=deployment_graph.validation or self._snapshot.validation,
+        )
+        return self._snapshot
+
+    def inspect_deployment_profile(self, profile_id: str) -> DeploymentProfileDetail | None:
+        """Inspect full deployment profile configuration."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None or project is None or contents is None:
+            return None
+        try:
+            detail = self._backend.inspect_deployment_profile(
+                Path(project.path), contents, profile_id=profile_id
+            )
+            if detail is not None:
+                self._snapshot = replace(self._snapshot, selected_deployment_profile=detail)
+            return detail
+        except Exception:
+            return None
+
+    def assemble_bundle(
+        self,
+        *,
+        target_profile: str,
+        mode: str,
+        source_revision: str,
+        output_dir: Path,
+        signing_key_path: Path,
+        schemas_path: Path | None = None,
+    ) -> StudioSnapshot:
+        """Assemble an immutable signed bundle release."""
+        project = self._snapshot.project
+        if self._backend is None or project is None:
+            return self._no_open_project("Cannot assemble bundle without a valid open project.")
+        schemas = schemas_path or (Path(project.path) / "../../schemas").resolve()
+        try:
+            result = self._backend.assemble_bundle(
+                Path(project.path),
+                schemas,
+                target_profile=target_profile,
+                mode=mode,
+                source_revision=source_revision,
+                output_dir=output_dir,
+                signing_key_path=signing_key_path,
+            )
+            err_msg = f"Bundle assembly failed: {result.error}"
+            self._snapshot = replace(
+                self._snapshot,
+                last_bundle_assembly=result,
+                detail=(
+                    f"Assembled signed bundle '{result.bundle_id[:16]}...'."
+                    if result.success
+                    else err_msg
+                ),
+                logs=self._append_log(
+                    LogLevel.INFO if result.success else LogLevel.ERROR,
+                    f"Assembled signed bundle {result.bundle_id}."
+                    if result.success
+                    else f"Assembly failed: {result.error}",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure("Bundle assembly", error, preserve_project=True)
+
+    def diff_bundles(self, base_bundle_path: Path, candidate_bundle_path: Path) -> StudioSnapshot:
+        """Compute deterministic diff between two release bundles."""
+        if self._backend is None:
+            return self._snapshot
+        try:
+            diff_result = self._backend.diff_bundles(base_bundle_path, candidate_bundle_path)
+            base_short = diff_result.base_bundle_id[:12]
+            cand_short = diff_result.candidate_bundle_id[:12]
+            self._snapshot = replace(
+                self._snapshot,
+                last_bundle_diff=diff_result,
+                detail=f"Bundle diff: {diff_result.summary}",
+                logs=self._append_log(
+                    LogLevel.INFO,
+                    f"Compared bundle {base_short} vs {cand_short}: {diff_result.summary}",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure("Bundle diff", error, preserve_project=True)
+
+    def verify_bundle_signature(
+        self, bundle_root: Path, trusted_keys_root: Path | None = None
+    ) -> StudioSnapshot:
+        """Verify Ed25519 signature and checksum inventory of a release bundle."""
+        if self._backend is None:
+            return self._snapshot
+        try:
+            sig_result = self._backend.verify_bundle_signature(bundle_root, trusted_keys_root)
+            sig_status = "VALID" if sig_result.valid else "FAILED"
+            sig_outcome = "VALID" if sig_result.valid else sig_result.message
+            self._snapshot = replace(
+                self._snapshot,
+                last_signature_verification=sig_result,
+                detail=f"Signature verification: {sig_status} ({sig_result.message}).",
+                logs=self._append_log(
+                    LogLevel.INFO if sig_result.valid else LogLevel.ERROR,
+                    f"Signature check for {bundle_root.name}: {sig_outcome}.",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure("Signature verification", error, preserve_project=True)
+
+    def preflight_target_compatibility(
+        self, bundle_root: Path, target_facts_path: Path
+    ) -> StudioSnapshot:
+        """Check compatibility of a bundle against local target facts."""
+        if self._backend is None:
+            return self._snapshot
+        try:
+            compat_result = self._backend.preflight_target_compatibility(
+                bundle_root, target_facts_path
+            )
+            compat_status = "COMPATIBLE" if compat_result.compatible else "INCOMPATIBLE"
+            self._snapshot = replace(
+                self._snapshot,
+                last_compatibility_result=compat_result,
+                detail=f"Target compatibility: {compat_status}.",
+                logs=self._append_log(
+                    LogLevel.INFO if compat_result.compatible else LogLevel.WARNING,
+                    f"Target preflight for {bundle_root.name}: {compat_status}.",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure(
+                "Target compatibility check", error, preserve_project=True
+            )
+
+    def refresh_deployment_status(self, agent_paths: AgentPaths) -> StudioSnapshot:
+        """Query deployment agent status."""
+        if self._backend is None:
+            return self._snapshot
+        try:
+            status_result = self._backend.get_deployment_status(agent_paths)
+            active_id = status_result.active_bundle_id or "none"
+            self._snapshot = replace(
+                self._snapshot,
+                last_deployment_status=status_result,
+                detail=f"Deployment agent status: {status_result.state} (Active: {active_id}).",
+                logs=self._append_log(
+                    LogLevel.INFO,
+                    f"Agent status: {status_result.state}, active: {active_id}.",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure("Deployment status query", error, preserve_project=True)
+
+    def install_bundle(
+        self,
+        bundle_root: Path,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: Any | None = None,
+        health_checker: Any | None = None,
+    ) -> StudioSnapshot:
+        """Install a release bundle via BundleAgent."""
+        if self._backend is None:
+            return self._snapshot
+        try:
+            result = self._backend.install_bundle(
+                bundle_root,
+                agent_paths,
+                systemd_runner=systemd_runner,
+                health_checker=health_checker,
+            )
+            outcome = "SUCCESS" if result.success else result.error
+            self._snapshot = replace(
+                self._snapshot,
+                last_deployment_status=result.status,
+                detail=f"Bundle install: {'SUCCESS' if result.success else 'FAILED'}.",
+                logs=self._append_log(
+                    LogLevel.INFO if result.success else LogLevel.ERROR,
+                    f"Installed bundle {result.bundle_id}: {outcome}.",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure("Bundle installation", error, preserve_project=True)
+
+    def rollback_deployment(
+        self,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: Any | None = None,
+        health_checker: Any | None = None,
+    ) -> StudioSnapshot:
+        """Rollback to previous release via BundleAgent."""
+        if self._backend is None:
+            return self._snapshot
+        try:
+            result = self._backend.rollback_deployment(
+                agent_paths, systemd_runner=systemd_runner, health_checker=health_checker
+            )
+            outcome = "SUCCESS" if result.success else result.error
+            self._snapshot = replace(
+                self._snapshot,
+                last_deployment_status=result.status,
+                detail=f"Deployment rollback: {'SUCCESS' if result.success else 'FAILED'}.",
+                logs=self._append_log(
+                    LogLevel.INFO if result.success else LogLevel.ERROR,
+                    f"Rollback to {result.restored_bundle_id}: {outcome}.",
+                ),
+            )
+            return self._snapshot
+        except Exception as error:
+            return self._operation_failure("Deployment rollback", error, preserve_project=True)
 
     def _spatial_graph(self, project_path: Path, contents: ProjectContents) -> SpatialBrowserResult:
         if self._backend is None:
