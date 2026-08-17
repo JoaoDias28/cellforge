@@ -20,12 +20,17 @@ def main() -> int:
         "cellforge/studio/backend.py",
         "cellforge/studio/component_service.py",
         "cellforge/studio/connection_service.py",
+        "cellforge/studio/deployment_service.py",
         "cellforge/studio/extension.py",
         "cellforge/studio/project_service.py",
+        "cellforge/studio/recipe_service.py",
+        "cellforge/studio/scenario_service.py",
         "cellforge/studio/scene.py",
         "cellforge/studio/simulation_application.py",
         "cellforge/studio/simulation_backend.py",
         "cellforge/studio/simulation_host.py",
+        "cellforge/studio/spatial_configuration.py",
+        "cellforge/studio/task_service.py",
     ):
         if not (extension / relative).is_file():
             print(f"Missing extension source: {relative}", file=sys.stderr)

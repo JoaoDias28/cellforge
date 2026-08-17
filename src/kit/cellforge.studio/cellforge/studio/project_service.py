@@ -42,12 +42,36 @@ from cellforge.studio.application import (
 )
 from cellforge.studio.component_service import ComponentPlacementService
 from cellforge.studio.connection_service import ConnectionAuthoringService
+from cellforge.studio.deployment_service import (
+    AgentPaths,
+    BundleAssemblyResult,
+    BundleDiffResult,
+    DeploymentBrowserResult,
+    DeploymentInstallResult,
+    DeploymentProfileDetail,
+    DeploymentRollbackResult,
+    DeploymentService,
+    DeploymentStatusResult,
+    SignatureVerificationResult,
+    TargetCompatibilityResult,
+)
 from cellforge.studio.recipe_service import (
     RecipeAuthoringService,
     RecipeBrowserResult,
     RecipeDetail,
     RecipeDiffResult,
     RecipeEditResult,
+)
+from cellforge.studio.scenario_service import (
+    EvidenceDetail,
+    EvidenceSummary,
+    ScenarioAssertionSpec,
+    ScenarioBrowserResult,
+    ScenarioDetail,
+    ScenarioEvidenceService,
+    ScenarioExecutionResult,
+    ScenarioFaultSpec,
+    ScenarioReplayResult,
 )
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
 from cellforge.studio.spatial_configuration import SpatialConfigurationService
@@ -91,6 +115,8 @@ class ProjectCommandService:
         spatial_service: SpatialConfigurationService | None = None,
         task_service: TaskAuthoringService | None = None,
         recipe_service: RecipeAuthoringService | None = None,
+        scenario_service: ScenarioEvidenceService | None = None,
+        deployment_service: DeploymentService | None = None,
     ) -> None:
         self._canonical_schemas = canonical_schema_directory.resolve()
         self._replace_file = replace_file
@@ -101,6 +127,8 @@ class ProjectCommandService:
         self._spatial = spatial_service or SpatialConfigurationService(self._canonical_schemas)
         self._tasks = task_service or TaskAuthoringService(self._canonical_schemas)
         self._recipes = recipe_service or RecipeAuthoringService(self._canonical_schemas)
+        self._scenarios = scenario_service or ScenarioEvidenceService(self._canonical_schemas)
+        self._deployments = deployment_service or DeploymentService(self._canonical_schemas)
 
     def create(self, project_path: Path) -> BackendResult:
         """Explicitly create a starter project and return its validated buffers."""
@@ -127,6 +155,8 @@ class ProjectCommandService:
             findings.extend(self._spatial.validate_calibrations(root, contents))
             findings.extend(self._tasks.browse(root, contents).validation)
             findings.extend(self._recipes.browse(root, contents).validation)
+            findings.extend(self._scenarios.browse_scenarios(root, contents).validation)
+            findings.extend(self._deployments.browse_deployment_profiles(root, contents).validation)
             if scene is not None:
                 findings.extend(
                     validate_scene_cross_references(
@@ -546,6 +576,162 @@ class ProjectCommandService:
         if rec_a is None or rec_b is None:
             return None
         return self._recipes.diff(rec_a.data, rec_b.data)
+
+    def browse_scenarios(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ScenarioBrowserResult:
+        """Enumerate and summarize all scenarios declared in the project."""
+        return self._scenarios.browse_scenarios(project_path, contents)
+
+    def inspect_scenario(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        scenario_id: str,
+    ) -> ScenarioDetail | None:
+        """Inspect full scenario definition and parameters."""
+        return self._scenarios.inspect_scenario(
+            project_path, contents, scenario_id_or_path=scenario_id
+        )
+
+    def execute_scenario(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        scenario_id: str,
+        seed_override: int | None = None,
+        injected_faults: Sequence[ScenarioFaultSpec] | None = None,
+        available_backend_fidelity: str = "L0",
+        has_cuda_gpu: bool = False,
+        actual_physx_executed: bool = False,
+    ) -> ScenarioExecutionResult:
+        """Execute a scenario and produce evidence."""
+        return self._scenarios.execute_scenario(
+            project_path,
+            contents,
+            scenario_id_or_path=scenario_id,
+            seed_override=seed_override,
+            injected_faults=injected_faults,
+            available_backend_fidelity=available_backend_fidelity,
+            has_cuda_gpu=has_cuda_gpu,
+            actual_physx_executed=actual_physx_executed,
+        )
+
+    def browse_evidence(self, project_path: Path) -> tuple[EvidenceSummary, ...]:
+        """Scan and summarize evidence files in the project."""
+        return self._scenarios.browse_evidence(project_path)
+
+    def inspect_evidence(self, project_path: Path, *, evidence_path: str) -> EvidenceDetail | None:
+        """Inspect full simulation evidence document."""
+        return self._scenarios.inspect_evidence(project_path, evidence_path)
+
+    def replay_evidence(
+        self,
+        project_path: Path,
+        *,
+        evidence_path: str,
+        expected_assertions: ScenarioAssertionSpec | None = None,
+    ) -> ScenarioReplayResult | None:
+        """Replay and verify recorded evidence for deterministic consistency."""
+        detail = self._scenarios.inspect_evidence(project_path, evidence_path)
+        if detail is None:
+            return None
+        return self._scenarios.replay_evidence(detail.data, expected_assertions)
+
+    def browse_deployment_profiles(
+        self, project_path: Path, contents: ProjectContents
+    ) -> DeploymentBrowserResult:
+        """Enumerate all deployment profiles declared in the project."""
+        return self._deployments.browse_deployment_profiles(project_path, contents)
+
+    def inspect_deployment_profile(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        profile_id: str,
+    ) -> DeploymentProfileDetail | None:
+        """Inspect full deployment profile configuration."""
+        return self._deployments.inspect_deployment_profile(
+            project_path, contents, profile_id_or_path=profile_id
+        )
+
+    def assemble_bundle(
+        self,
+        project_path: Path,
+        schemas_path: Path,
+        *,
+        target_profile: str,
+        mode: str,
+        source_revision: str,
+        output_dir: Path,
+        signing_key_path: Path,
+    ) -> BundleAssemblyResult:
+        """Assemble an immutable signed release bundle."""
+        return self._deployments.assemble_bundle_release(
+            project_path,
+            schemas_path,
+            target_profile=target_profile,
+            mode=mode,
+            source_revision=source_revision,
+            output_dir=output_dir,
+            signing_key_path=signing_key_path,
+        )
+
+    def diff_bundles(
+        self,
+        base_bundle_path: Path,
+        candidate_bundle_path: Path,
+    ) -> BundleDiffResult:
+        """Compute deterministic differences between two bundle directories."""
+        return self._deployments.diff_bundles(base_bundle_path, candidate_bundle_path)
+
+    def verify_bundle_signature(
+        self,
+        bundle_root: Path,
+        trusted_keys_root: Path | None = None,
+    ) -> SignatureVerificationResult:
+        """Verify the Ed25519 signature of a release bundle."""
+        return self._deployments.verify_bundle_signature(bundle_root, trusted_keys_root)
+
+    def preflight_target_compatibility(
+        self,
+        bundle_root: Path,
+        target_facts_path: Path,
+    ) -> TargetCompatibilityResult:
+        """Check bundle compatibility against target facts."""
+        return self._deployments.preflight_target_compatibility(bundle_root, target_facts_path)
+
+    def get_deployment_status(self, agent_paths: AgentPaths) -> DeploymentStatusResult:
+        """Query deployment agent status."""
+        return self._deployments.get_agent_status(agent_paths)
+
+    def install_bundle(
+        self,
+        bundle_root: Path,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: Any | None = None,
+        health_checker: Any | None = None,
+    ) -> DeploymentInstallResult:
+        """Install a release bundle to target."""
+        return self._deployments.install_bundle(
+            bundle_root, agent_paths, systemd_runner=systemd_runner, health_checker=health_checker
+        )
+
+    def rollback_deployment(
+        self,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: Any | None = None,
+        health_checker: Any | None = None,
+    ) -> DeploymentRollbackResult:
+        """Rollback to previous release."""
+        return self._deployments.rollback_deployment(
+            agent_paths, systemd_runner=systemd_runner, health_checker=health_checker
+        )
 
     def _registry_for(self, project_path: Path) -> SchemaRegistry:
         directory = resolve_project_schema_directory(project_path, self._canonical_schemas)

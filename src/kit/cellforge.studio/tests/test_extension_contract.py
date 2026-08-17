@@ -72,6 +72,19 @@ def test_ui_callbacks_delegate_to_application_services() -> None:
         "_on_simulation_control": "control",
         "_on_inject_simulation_fault": "inject_fault",
         "_on_finalize_simulation": "finalize",
+        "_on_refresh_scenarios": "refresh_scenarios",
+        "_on_run_scenario_service": "execute_scenario",
+        "_on_refresh_evidence": "refresh_evidence",
+        "_on_inspect_evidence": "inspect_evidence",
+        "_on_replay_evidence": "replay_evidence",
+        "_on_refresh_deployments": "refresh_deployment_profiles",
+        "_on_assemble_bundle": "assemble_bundle",
+        "_on_diff_bundles": "diff_bundles",
+        "_on_verify_bundle_signature": "verify_bundle_signature",
+        "_on_preflight_target_compatibility": "preflight_target_compatibility",
+        "_on_refresh_deployment_status": "refresh_deployment_status",
+        "_on_install_bundle": "install_bundle",
+        "_on_rollback_deployment": "rollback_deployment",
     }
     for callback_name, command_name in expected.items():
         callback = next(

@@ -23,11 +23,34 @@ from cellforge.studio.application import (
     ValidationItem,
 )
 from cellforge.studio.backend import create_default_application
+from cellforge.studio.deployment_service import (
+    AgentPaths,
+    BundleAssemblyResult,
+    BundleDiffResult,
+    DeploymentBrowserResult,
+    DeploymentInstallResult,
+    DeploymentProfileDetail,
+    DeploymentRollbackResult,
+    DeploymentStatusResult,
+    SignatureVerificationResult,
+    TargetCompatibilityResult,
+)
 from cellforge.studio.recipe_service import (
     RecipeBrowserResult,
     RecipeDetail,
     RecipeDiffResult,
     RecipeEditResult,
+)
+from cellforge.studio.scenario_service import (
+    EvidenceDetail,
+    EvidenceSummary,
+    FidelityInfo,
+    ScenarioAssertionSpec,
+    ScenarioBrowserResult,
+    ScenarioDetail,
+    ScenarioExecutionResult,
+    ScenarioFaultSpec,
+    ScenarioReplayResult,
 )
 from cellforge.studio.task_service import (
     TaskBrowserResult,
@@ -57,6 +80,79 @@ class RecordingBackend:
         self.recipe_edit_result = RecipeEditResult(contents=None)
         self.recipe_detail: RecipeDetail | None = None
         self.recipe_diff_result: RecipeDiffResult | None = None
+        self.scenario_browser_result = ScenarioBrowserResult(scenarios=())
+        self.scenario_detail: ScenarioDetail | None = None
+        self.scenario_execution_result = ScenarioExecutionResult(
+            scenario_id="nominal",
+            passed=True,
+            final_status="SUCCESS",
+            failures=(),
+            fidelity=FidelityInfo("L0", "L0", "mock"),
+            randomization_samples={},
+            trace_events=(),
+            evidence_document={},
+        )
+        self.evidence_summaries: tuple[EvidenceSummary, ...] = ()
+        self.evidence_detail: EvidenceDetail | None = None
+        self.scenario_replay_result: ScenarioReplayResult | None = None
+        self.deployment_browser_result = DeploymentBrowserResult(profiles=())
+        self.deployment_profile_detail: DeploymentProfileDetail | None = None
+        self.bundle_assembly_result = BundleAssemblyResult(
+            success=True, bundle_id="0" * 64, output_path=None, key_id="0" * 64
+        )
+        self.bundle_diff_result = BundleDiffResult("base", "cand", (), True, "compatible")
+        self.signature_verification_result = SignatureVerificationResult(
+            valid=True,
+            key_id="0" * 64,
+            algorithm="Ed25519",
+            error_code=None,
+            message="Signature valid",
+            signed_files_count=10,
+        )
+        self.target_compatibility_result = TargetCompatibilityResult(
+            compatible=True,
+            profile_id="prof",
+            platform_checks={},
+            missing_packages=(),
+            missing_prerequisites=(),
+            missing_entrypoints=(),
+            findings=(),
+        )
+        self.deployment_status_result = DeploymentStatusResult(
+            state="healthy",
+            active_bundle_id="0" * 64,
+            previous_bundle_id=None,
+            candidate_bundle_id=None,
+            error=None,
+            last_event="installed",
+            event_count=1,
+        )
+        self.deployment_install_result = DeploymentInstallResult(
+            success=True,
+            bundle_id="0" * 64,
+            status=DeploymentStatusResult(
+                state="healthy",
+                active_bundle_id="0" * 64,
+                previous_bundle_id=None,
+                candidate_bundle_id=None,
+                error=None,
+                last_event="installed",
+                event_count=1,
+            ),
+        )
+        self.deployment_rollback_result = DeploymentRollbackResult(
+            success=True,
+            restored_bundle_id="0" * 64,
+            status=DeploymentStatusResult(
+                state="healthy",
+                active_bundle_id="0" * 64,
+                previous_bundle_id=None,
+                candidate_bundle_id=None,
+                error=None,
+                last_event="rolled_back",
+                event_count=2,
+            ),
+        )
 
     def inspect(self, project_path: Path) -> BackendResult:
         self.paths.append(project_path)
@@ -254,6 +350,119 @@ class RecordingBackend:
         version_b: int,
     ) -> RecipeDiffResult | None:
         return self.recipe_diff_result
+
+    def browse_scenarios(
+        self, project_path: Path, contents: ProjectContents
+    ) -> ScenarioBrowserResult:
+        return self.scenario_browser_result
+
+    def inspect_scenario(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        scenario_id: str,
+    ) -> ScenarioDetail | None:
+        return self.scenario_detail
+
+    def execute_scenario(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        scenario_id: str,
+        seed_override: int | None = None,
+        injected_faults: Sequence[ScenarioFaultSpec] | None = None,
+        available_backend_fidelity: str = "L0",
+        has_cuda_gpu: bool = False,
+        actual_physx_executed: bool = False,
+    ) -> ScenarioExecutionResult:
+        return self.scenario_execution_result
+
+    def browse_evidence(self, project_path: Path) -> tuple[EvidenceSummary, ...]:
+        return self.evidence_summaries
+
+    def inspect_evidence(self, project_path: Path, *, evidence_path: str) -> EvidenceDetail | None:
+        return self.evidence_detail
+
+    def replay_evidence(
+        self,
+        project_path: Path,
+        *,
+        evidence_path: str,
+        expected_assertions: ScenarioAssertionSpec | None = None,
+    ) -> ScenarioReplayResult | None:
+        return self.scenario_replay_result
+
+    def browse_deployment_profiles(
+        self, project_path: Path, contents: ProjectContents
+    ) -> DeploymentBrowserResult:
+        return self.deployment_browser_result
+
+    def inspect_deployment_profile(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        profile_id: str,
+    ) -> DeploymentProfileDetail | None:
+        return self.deployment_profile_detail
+
+    def assemble_bundle(
+        self,
+        project_path: Path,
+        schemas_path: Path,
+        *,
+        target_profile: str,
+        mode: str,
+        source_revision: str,
+        output_dir: Path,
+        signing_key_path: Path,
+    ) -> BundleAssemblyResult:
+        return self.bundle_assembly_result
+
+    def diff_bundles(
+        self,
+        base_bundle_path: Path,
+        candidate_bundle_path: Path,
+    ) -> BundleDiffResult:
+        return self.bundle_diff_result
+
+    def verify_bundle_signature(
+        self,
+        bundle_root: Path,
+        trusted_keys_root: Path | None = None,
+    ) -> SignatureVerificationResult:
+        return self.signature_verification_result
+
+    def preflight_target_compatibility(
+        self,
+        bundle_root: Path,
+        target_facts_path: Path,
+    ) -> TargetCompatibilityResult:
+        return self.target_compatibility_result
+
+    def get_deployment_status(self, agent_paths: AgentPaths) -> DeploymentStatusResult:
+        return self.deployment_status_result
+
+    def install_bundle(
+        self,
+        bundle_root: Path,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: object | None = None,
+        health_checker: object | None = None,
+    ) -> DeploymentInstallResult:
+        return self.deployment_install_result
+
+    def rollback_deployment(
+        self,
+        agent_paths: AgentPaths,
+        *,
+        systemd_runner: object | None = None,
+        health_checker: object | None = None,
+    ) -> DeploymentRollbackResult:
+        return self.deployment_rollback_result
 
 
 def _tree_bytes(root: Path) -> Mapping[str, bytes]:
@@ -727,6 +936,107 @@ def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
         ) -> RecipeDiffResult | None:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
+        def browse_scenarios(
+            self, project_path: Path, contents: ProjectContents
+        ) -> ScenarioBrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def inspect_scenario(
+            self, project_path: Path, contents: ProjectContents, *, scenario_id: str
+        ) -> ScenarioDetail | None:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def execute_scenario(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            scenario_id: str,
+            seed_override: int | None = None,
+            injected_faults: Sequence[ScenarioFaultSpec] | None = None,
+            available_backend_fidelity: str = "L0",
+            has_cuda_gpu: bool = False,
+            actual_physx_executed: bool = False,
+        ) -> ScenarioExecutionResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def browse_evidence(self, project_path: Path) -> tuple[EvidenceSummary, ...]:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def inspect_evidence(
+            self, project_path: Path, *, evidence_path: str
+        ) -> EvidenceDetail | None:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def replay_evidence(
+            self,
+            project_path: Path,
+            *,
+            evidence_path: str,
+            expected_assertions: ScenarioAssertionSpec | None = None,
+        ) -> ScenarioReplayResult | None:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def browse_deployment_profiles(
+            self, project_path: Path, contents: ProjectContents
+        ) -> DeploymentBrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def inspect_deployment_profile(
+            self, project_path: Path, contents: ProjectContents, *, profile_id: str
+        ) -> DeploymentProfileDetail | None:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def assemble_bundle(
+            self,
+            project_path: Path,
+            schemas_path: Path,
+            *,
+            target_profile: str,
+            mode: str,
+            source_revision: str,
+            output_dir: Path,
+            signing_key_path: Path,
+        ) -> BundleAssemblyResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def diff_bundles(
+            self, base_bundle_path: Path, candidate_bundle_path: Path
+        ) -> BundleDiffResult:
+            raise RuntimeError(f"sensitive detail at {base_bundle_path}")
+
+        def verify_bundle_signature(
+            self, bundle_root: Path, trusted_keys_root: Path | None = None
+        ) -> SignatureVerificationResult:
+            raise RuntimeError(f"sensitive detail at {bundle_root}")
+
+        def preflight_target_compatibility(
+            self, bundle_root: Path, target_facts_path: Path
+        ) -> TargetCompatibilityResult:
+            raise RuntimeError(f"sensitive detail at {bundle_root}")
+
+        def get_deployment_status(self, agent_paths: AgentPaths) -> DeploymentStatusResult:
+            raise RuntimeError(f"sensitive detail at {agent_paths}")
+
+        def install_bundle(
+            self,
+            bundle_root: Path,
+            agent_paths: AgentPaths,
+            *,
+            systemd_runner: object | None = None,
+            health_checker: object | None = None,
+        ) -> DeploymentInstallResult:
+            raise RuntimeError(f"sensitive detail at {bundle_root}")
+
+        def rollback_deployment(
+            self,
+            agent_paths: AgentPaths,
+            *,
+            systemd_runner: object | None = None,
+            health_checker: object | None = None,
+        ) -> DeploymentRollbackResult:
+            raise RuntimeError(f"sensitive detail at {agent_paths}")
+
     snapshot = StudioApplication(FailingBackend()).open_project(PEN_PROJECT)
 
     assert snapshot.status is StudioStatus.OPERATION_FAILED
@@ -843,3 +1153,83 @@ def test_recipe_lifecycle_and_versioning_through_application(tmp_path: Path) -> 
     diff = application.diff_recipes("pen-aluminium-reference", version_a=1, version_b=2)
     assert diff is not None
     assert any(d.key == "robot_speed_scale" for d in diff.differences)
+
+
+def test_scenario_workflow_through_application() -> None:
+    application = create_default_application()
+    application.open_project(PEN_PROJECT)
+
+    # Refresh scenarios
+    snapshot = application.refresh_scenarios()
+    assert len(snapshot.scenarios) == 14
+    assert any(s.id == "pen-nominal" for s in snapshot.scenarios)
+
+    # Inspect scenario
+    detail = application.inspect_scenario("nominal")
+    assert detail is not None
+    assert detail.summary.id == "pen-nominal"
+    assert detail.assertions.final_status == "SUCCESS"
+
+    # Execute scenario
+    snap_exec = application.execute_scenario("nominal", seed_override=1001)
+    assert snap_exec.last_execution_result is not None
+    assert snap_exec.last_execution_result.passed is True
+    assert snap_exec.last_execution_result.fidelity.achieved == "L0"
+    assert len(snap_exec.last_execution_result.trace_events) > 0
+
+
+def test_deployment_workflow_through_application(tmp_path: Path) -> None:
+    import hashlib
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+    application = create_default_application()
+    application.open_project(PEN_PROJECT)
+
+    # Refresh deployment profiles
+    snapshot = application.refresh_deployment_profiles()
+    assert len(snapshot.deployment_profiles) == 2
+    assert any(p.id == "pen-sim-amd64" for p in snapshot.deployment_profiles)
+
+    # Inspect deployment profile
+    detail = application.inspect_deployment_profile("deployment-sim")
+    assert detail is not None
+    assert detail.summary.id == "pen-sim-amd64"
+
+    # Generate signing key
+    private_key = Ed25519PrivateKey.generate()
+    pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    key_file = tmp_path / "signing.pem"
+    key_file.write_bytes(pem)
+
+    public_bytes = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.Raw,
+        format=serialization.PublicFormat.Raw,
+    )
+    key_id = hashlib.sha256(public_bytes).hexdigest()
+    trusted_dir = tmp_path / "trusted-keys"
+    trusted_dir.mkdir(parents=True, exist_ok=True)
+    (trusted_dir / f"{key_id}.pub").write_bytes(public_bytes)
+
+    # Assemble bundle
+    bundle_out = tmp_path / "app_bundle"
+    snap_asm = application.assemble_bundle(
+        target_profile="pen-sim-amd64",
+        mode="simulation",
+        source_revision="0123456789abcdef0123456789abcdef01234567",
+        output_dir=bundle_out,
+        signing_key_path=key_file,
+        schemas_path=REPOSITORY_ROOT / "schemas",
+    )
+    assert snap_asm.last_bundle_assembly is not None
+    assert snap_asm.last_bundle_assembly.success is True
+
+    # Verify signature
+    snap_sig = application.verify_bundle_signature(bundle_out, trusted_dir)
+    assert snap_sig.last_signature_verification is not None
+    assert snap_sig.last_signature_verification.valid is True

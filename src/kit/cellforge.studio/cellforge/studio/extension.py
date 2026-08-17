@@ -1,6 +1,7 @@
 """Isaac Sim 6 / Omniverse Kit UI adapter for the Cell Studio shell."""
 
 import json
+from pathlib import Path
 
 import omni.ext
 import omni.ui as ui
@@ -12,6 +13,7 @@ from cellforge.studio.application import (
     StudioApplication,
 )
 from cellforge.studio.backend import create_default_application
+from cellforge.studio.deployment_service import AgentPaths
 from cellforge.studio.simulation_backend import create_simulation_application
 from cellforge.studio.simulation_host import create_kit_simulation_host
 
@@ -23,6 +25,8 @@ CONNECTION_WINDOW = "CellForge Connections"
 SIMULATION_WINDOW = "CellForge Simulation"
 TASK_WINDOW = "CellForge Tasks"
 RECIPE_WINDOW = "CellForge Recipes"
+DEPLOYMENT_WINDOW = "CellForge Deployment"
+EVIDENCE_WINDOW = "CellForge Evidence"
 
 
 class CellForgeStudioExtension(omni.ext.IExt):
@@ -75,12 +79,33 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._recipe_evidence_model = ui.SimpleStringModel("scenario:nominal")
         self._recipe_diff_version_b_model = ui.SimpleIntModel(2)
         self._recipe_diff_output_model = ui.SimpleStringModel("")
+        self._selected_scenario_model = ui.SimpleStringModel("nominal")
+        self._scenario_seed_model = ui.SimpleIntModel(1001)
+        self._scenario_fidelity_model = ui.SimpleStringModel("L0")
+        self._selected_evidence_path_model = ui.SimpleStringModel("")
+        self._deployment_profile_id_model = ui.SimpleStringModel("deployment-sim")
+        self._deployment_target_profile_model = ui.SimpleStringModel("pen-cell-amd64")
+        self._deployment_mode_model = ui.SimpleStringModel("simulation")
+        self._deployment_revision_model = ui.SimpleStringModel("main")
+        self._deployment_output_dir_model = ui.SimpleStringModel("dist/bundle")
+        self._deployment_signing_key_model = ui.SimpleStringModel("keys/signing.pem")
+        self._diff_base_bundle_model = ui.SimpleStringModel("")
+        self._diff_candidate_bundle_model = ui.SimpleStringModel("")
+        self._diff_output_model = ui.SimpleStringModel("")
+        self._signature_bundle_path_model = ui.SimpleStringModel("")
+        self._signature_trusted_keys_model = ui.SimpleStringModel("")
+        self._compat_bundle_path_model = ui.SimpleStringModel("")
+        self._compat_target_facts_model = ui.SimpleStringModel("/etc/cellforge/target.json")
+        self._agent_install_root_model = ui.SimpleStringModel("/opt/cellforge")
+        self._agent_state_root_model = ui.SimpleStringModel("/var/lib/cellforge")
         self._project_window = ui.Window(PROJECT_WINDOW, width=360, height=420)
         self._component_window = ui.Window(COMPONENT_WINDOW, width=460, height=520)
         self._connection_window = ui.Window(CONNECTION_WINDOW, width=520, height=620)
         self._simulation_window = ui.Window(SIMULATION_WINDOW, width=460, height=620)
         self._task_window = ui.Window(TASK_WINDOW, width=480, height=520)
         self._recipe_window = ui.Window(RECIPE_WINDOW, width=480, height=520)
+        self._deployment_window = ui.Window(DEPLOYMENT_WINDOW, width=520, height=620)
+        self._evidence_window = ui.Window(EVIDENCE_WINDOW, width=480, height=520)
         self._validation_window = ui.Window(VALIDATION_WINDOW, width=460, height=420)
         self._log_window = ui.Window(LOG_WINDOW, width=820, height=220)
         self._render_all()
@@ -90,6 +115,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
         ui.dock_window_in_window(SIMULATION_WINDOW, CONNECTION_WINDOW, ui.DockPosition.RIGHT, 0.5)
         ui.dock_window_in_window(TASK_WINDOW, COMPONENT_WINDOW, ui.DockPosition.BOTTOM, 0.5)
         ui.dock_window_in_window(RECIPE_WINDOW, TASK_WINDOW, ui.DockPosition.RIGHT, 0.5)
+        ui.dock_window_in_window(DEPLOYMENT_WINDOW, RECIPE_WINDOW, ui.DockPosition.RIGHT, 0.5)
+        ui.dock_window_in_window(EVIDENCE_WINDOW, SIMULATION_WINDOW, ui.DockPosition.BOTTOM, 0.5)
         ui.dock_window_in_window(LOG_WINDOW, PROJECT_WINDOW, ui.DockPosition.BOTTOM, 0.35)
 
     def on_shutdown(self) -> None:
@@ -102,6 +129,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
             "_simulation_window",
             "_task_window",
             "_recipe_window",
+            "_deployment_window",
+            "_evidence_window",
             "_validation_window",
             "_log_window",
         ):
@@ -409,6 +438,107 @@ class CellForgeStudioExtension(omni.ext.IExt):
                 )
             self._render_all()
 
+    def _on_refresh_scenarios(self) -> None:
+        if self._application is not None:
+            self._application.refresh_scenarios()
+            self._render_all()
+
+    def _on_run_scenario_service(self) -> None:
+        if self._application is not None:
+            self._application.execute_scenario(
+                self._selected_scenario_model.as_string,
+                seed_override=self._scenario_seed_model.as_int,
+                available_backend_fidelity=self._scenario_fidelity_model.as_string,
+            )
+            self._render_all()
+
+    def _on_refresh_evidence(self) -> None:
+        if self._application is not None:
+            self._application.refresh_evidence()
+            self._render_all()
+
+    def _on_inspect_evidence(self) -> None:
+        if self._application is not None:
+            self._application.inspect_evidence(self._selected_evidence_path_model.as_string)
+            self._render_all()
+
+    def _on_replay_evidence(self) -> None:
+        if self._application is not None:
+            self._application.replay_evidence(self._selected_evidence_path_model.as_string)
+            self._render_all()
+
+    def _on_refresh_deployments(self) -> None:
+        if self._application is not None:
+            self._application.refresh_deployment_profiles()
+            self._render_all()
+
+    def _on_assemble_bundle(self) -> None:
+        if self._application is not None:
+            self._application.assemble_bundle(
+                target_profile=self._deployment_target_profile_model.as_string,
+                mode=self._deployment_mode_model.as_string,
+                source_revision=self._deployment_revision_model.as_string,
+                output_dir=Path(self._deployment_output_dir_model.as_string),
+                signing_key_path=Path(self._deployment_signing_key_model.as_string),
+            )
+            self._render_all()
+
+    def _on_diff_bundles(self) -> None:
+        if self._application is not None:
+            base_p = Path(self._diff_base_bundle_model.as_string)
+            cand_p = Path(self._diff_candidate_bundle_model.as_string)
+            self._application.diff_bundles(base_p, cand_p)
+            diff = self._application.snapshot.last_bundle_diff
+            if diff is not None:
+                self._diff_output_model.set_value(diff.summary)
+            self._render_all()
+
+    def _on_verify_bundle_signature(self) -> None:
+        if self._application is not None:
+            root_p = Path(self._signature_bundle_path_model.as_string)
+            keys_p = (
+                Path(self._signature_trusted_keys_model.as_string)
+                if self._signature_trusted_keys_model.as_string
+                else None
+            )
+            self._application.verify_bundle_signature(root_p, keys_p)
+            self._render_all()
+
+    def _on_preflight_target_compatibility(self) -> None:
+        if self._application is not None:
+            root_p = Path(self._compat_bundle_path_model.as_string)
+            facts_p = Path(self._compat_target_facts_model.as_string)
+            self._application.preflight_target_compatibility(root_p, facts_p)
+            self._render_all()
+
+    def _on_refresh_deployment_status(self) -> None:
+        if self._application is not None:
+            paths = AgentPaths(
+                install_root=Path(self._agent_install_root_model.as_string),
+                state_root=Path(self._agent_state_root_model.as_string),
+            )
+            self._application.refresh_deployment_status(paths)
+            self._render_all()
+
+    def _on_install_bundle(self) -> None:
+        if self._application is not None:
+            paths = AgentPaths(
+                install_root=Path(self._agent_install_root_model.as_string),
+                state_root=Path(self._agent_state_root_model.as_string),
+            )
+            bundle_p = Path(self._deployment_output_dir_model.as_string)
+            self._application.install_bundle(bundle_p, paths)
+            self._render_all()
+
+    def _on_rollback_deployment(self) -> None:
+        if self._application is not None:
+            paths = AgentPaths(
+                install_root=Path(self._agent_install_root_model.as_string),
+                state_root=Path(self._agent_state_root_model.as_string),
+            )
+            self._application.rollback_deployment(paths)
+            self._render_all()
+
     def _render_all(self) -> None:
         self._render_project_panel()
         self._render_component_panel()
@@ -416,6 +546,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._render_task_panel()
         self._render_recipe_panel()
         self._render_simulation_panel()
+        self._render_evidence_panel()
+        self._render_deployment_panel()
         self._render_validation_panel()
         self._render_log_panel()
 
@@ -802,6 +934,181 @@ class CellForgeStudioExtension(omni.ext.IExt):
                     )
                     if snapshot.evidence_path:
                         ui.Label(f"Evidence: {snapshot.evidence_path}", word_wrap=True)
+                    ui.Separator(height=8)
+                    ui.Label("Declared Scenarios", style={"font_size": 16})
+                    app_snapshot = self._application.snapshot
+                    for sc in app_snapshot.scenarios:
+                        ui.Label(f"• {sc.id} [{sc.requested_fidelity}] - {sc.name}", word_wrap=True)
+                    ui.Label("Selected Scenario ID")
+                    ui.StringField(model=self._selected_scenario_model)
+                    ui.Label("Seed")
+                    ui.IntField(model=self._scenario_seed_model)
+                    ui.Label("Simulation Backend Fidelity")
+                    ui.StringField(model=self._scenario_fidelity_model)
+                    with ui.HStack(spacing=4, height=28):
+                        ui.Button("Refresh Scenarios", clicked_fn=self._on_refresh_scenarios)
+                        ui.Button("Run Scenario Engine", clicked_fn=self._on_run_scenario_service)
+                    if app_snapshot.last_execution_result is not None:
+                        exec_res = app_snapshot.last_execution_result
+                        ui.Separator(height=4)
+                        ui.Label(f"Result: {exec_res.final_status} (Passed: {exec_res.passed})")
+                        ui.Label(
+                            f"Achieved Fidelity: [{exec_res.fidelity.achieved}]", word_wrap=True
+                        )
+                        ui.Label(
+                            f"Limitations: {exec_res.fidelity.limitations}",
+                            word_wrap=True,
+                            style={"font_size": 12},
+                        )
+                        ui.Label(
+                            exec_res.fidelity.safety_disclaimer,
+                            word_wrap=True,
+                            style={"font_size": 12},
+                        )
+                        ui.Label(f"Trace events captured: {len(exec_res.trace_events)}")
+                        for evt in exec_res.trace_events[-8:]:
+                            line_txt = (
+                                f"  {evt.sequence:02d}. {evt.event_type} "
+                                f"({evt.component_instance_id}) -> {evt.result_code}"
+                            )
+                            ui.Label(line_txt, word_wrap=True)
+
+    def _render_evidence_panel(self) -> None:
+        app_snapshot = self._application.snapshot
+        self._evidence_window.frame.clear()
+        with self._evidence_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Simulation Evidence", style={"font_size": 18})
+                    disclaimer_msg = (
+                        "Simulation status and evidence are standard-control engineering "
+                        "data only. Functional safety remains independently enforced "
+                        "and validated by rated hardware."
+                    )
+                    ui.Label(
+                        disclaimer_msg,
+                        word_wrap=True,
+                        style={"font_size": 12},
+                    )
+                    ui.Separator(height=4)
+                    ui.Button("Refresh Evidence Files", clicked_fn=self._on_refresh_evidence)
+                    for ev in app_snapshot.evidence_records:
+                        ev_summary_txt = (
+                            f"• {ev.path}: {ev.scenario_id} "
+                            f"[{ev.achieved_fidelity}] -> {ev.final_status}"
+                        )
+                        ui.Label(ev_summary_txt, word_wrap=True)
+                    ui.Separator(height=4)
+                    ui.Label("Evidence File Path")
+                    ui.StringField(model=self._selected_evidence_path_model)
+                    with ui.HStack(spacing=4, height=28):
+                        ui.Button("Inspect Evidence", clicked_fn=self._on_inspect_evidence)
+                        ui.Button("Replay & Verify", clicked_fn=self._on_replay_evidence)
+                    if app_snapshot.selected_evidence is not None:
+                        ed = app_snapshot.selected_evidence
+                        ui.Separator(height=4)
+                        ui.Label(f"Scenario: {ed.summary.scenario_id} (Seed: {ed.summary.seed})")
+                        ui.Label(
+                            f"Outcome: {ed.summary.final_status} (Passed: {ed.summary.passed})"
+                        )
+                        ui.Label(f"Project Cell SHA: {ed.project_cell_sha256[:16]}...")
+                        ui.Label(f"Project Scene SHA: {ed.project_scene_sha256[:16]}...")
+                        ui.Label(f"Trace events: {len(ed.trace_events)}")
+                    if app_snapshot.last_replay_result is not None:
+                        rep = app_snapshot.last_replay_result
+                        ui.Label(f"Replay Matched: {rep.events_matched} (Passed: {rep.passed})")
+
+    def _render_deployment_panel(self) -> None:
+        app_snapshot = self._application.snapshot
+        self._deployment_window.frame.clear()
+        with self._deployment_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Deployment and Release", style={"font_size": 18})
+                    ui.Label("Deployment Profiles", style={"font_size": 16})
+                    for p in app_snapshot.deployment_profiles:
+                        ui.Label(
+                            f"• {p.id} [{p.execution_mode}] target: {p.target_profile}",
+                            word_wrap=True,
+                        )
+                    ui.Button("Refresh Profiles", clicked_fn=self._on_refresh_deployments)
+                    ui.Separator(height=6)
+                    ui.Label("Signed Bundle Assembly", style={"font_size": 16})
+                    ui.Label("Target Profile")
+                    ui.StringField(model=self._deployment_target_profile_model)
+                    ui.Label("Mode")
+                    ui.StringField(model=self._deployment_mode_model)
+                    ui.Label("Source Revision")
+                    ui.StringField(model=self._deployment_revision_model)
+                    ui.Label("Output Directory")
+                    ui.StringField(model=self._deployment_output_dir_model)
+                    ui.Label("Signing Key (PEM)")
+                    ui.StringField(model=self._deployment_signing_key_model)
+                    ui.Button("Assemble Signed Bundle", clicked_fn=self._on_assemble_bundle)
+                    if app_snapshot.last_bundle_assembly is not None:
+                        assemb = app_snapshot.last_bundle_assembly
+                        ui.Label(f"Assembly Status: {'SUCCESS' if assemb.success else 'FAILED'}")
+                        if assemb.success:
+                            ui.Label(f"Bundle ID: {assemb.bundle_id}", word_wrap=True)
+                            ui.Label(f"Key ID: {assemb.key_id}", word_wrap=True)
+                        else:
+                            ui.Label(f"Error: {assemb.error}", word_wrap=True)
+                    ui.Separator(height=6)
+                    ui.Label("Deterministic Diff & Comparison", style={"font_size": 16})
+                    ui.Label("Base Bundle (Active Release)")
+                    ui.StringField(model=self._diff_base_bundle_model)
+                    ui.Label("Candidate Bundle")
+                    ui.StringField(model=self._diff_candidate_bundle_model)
+                    ui.Button("Compute Bundle Diff", clicked_fn=self._on_diff_bundles)
+                    if app_snapshot.last_bundle_diff is not None:
+                        bd = app_snapshot.last_bundle_diff
+                        ui.Label(f"Diff: {bd.summary}", word_wrap=True)
+                        ui.Label(f"Compatible: {bd.is_compatible}")
+                    ui.Separator(height=6)
+                    ui.Label("Signature Verification", style={"font_size": 16})
+                    ui.Label("Bundle Path")
+                    ui.StringField(model=self._signature_bundle_path_model)
+                    ui.Label("Trusted Keys Dir (optional)")
+                    ui.StringField(model=self._signature_trusted_keys_model)
+                    ui.Button(
+                        "Verify Ed25519 Signature", clicked_fn=self._on_verify_bundle_signature
+                    )
+                    if app_snapshot.last_signature_verification is not None:
+                        sv = app_snapshot.last_signature_verification
+                        ui.Label(
+                            f"Signature: {'[VALID]' if sv.valid else '[INVALID]'}", word_wrap=True
+                        )
+                        ui.Label(f"Message: {sv.message}", word_wrap=True)
+                    ui.Separator(height=6)
+                    ui.Label("Target Compatibility Preflight", style={"font_size": 16})
+                    ui.Label("Bundle Path")
+                    ui.StringField(model=self._compat_bundle_path_model)
+                    ui.Label("Target Facts File")
+                    ui.StringField(model=self._compat_target_facts_model)
+                    ui.Button(
+                        "Check Target Compatibility",
+                        clicked_fn=self._on_preflight_target_compatibility,
+                    )
+                    if app_snapshot.last_compatibility_result is not None:
+                        cr = app_snapshot.last_compatibility_result
+                        compat_badge = "[COMPATIBLE]" if cr.compatible else "[INCOMPATIBLE]"
+                        ui.Label(f"Compatibility: {compat_badge}")
+                    ui.Separator(height=6)
+                    ui.Label("Agent Status, Install & Rollback", style={"font_size": 16})
+                    ui.Label("Install Root")
+                    ui.StringField(model=self._agent_install_root_model)
+                    ui.Label("State Root")
+                    ui.StringField(model=self._agent_state_root_model)
+                    with ui.HStack(spacing=4, height=28):
+                        ui.Button("Agent Status", clicked_fn=self._on_refresh_deployment_status)
+                        ui.Button("Install Candidate", clicked_fn=self._on_install_bundle)
+                        ui.Button("Rollback Release", clicked_fn=self._on_rollback_deployment)
+                    if app_snapshot.last_deployment_status is not None:
+                        st = app_snapshot.last_deployment_status
+                        ui.Label(
+                            f"Agent State: {st.state} (Active: {st.active_bundle_id or 'none'})",
+                            word_wrap=True,
+                        )
 
     def _render_log_panel(self) -> None:
         snapshot = self._application.snapshot
