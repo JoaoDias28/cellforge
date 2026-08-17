@@ -8,7 +8,7 @@ import json
 import os
 import shutil
 import tempfile
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -42,8 +42,21 @@ from cellforge.studio.application import (
 )
 from cellforge.studio.component_service import ComponentPlacementService
 from cellforge.studio.connection_service import ConnectionAuthoringService
+from cellforge.studio.recipe_service import (
+    RecipeAuthoringService,
+    RecipeBrowserResult,
+    RecipeDetail,
+    RecipeDiffResult,
+    RecipeEditResult,
+)
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
 from cellforge.studio.spatial_configuration import SpatialConfigurationService
+from cellforge.studio.task_service import (
+    TaskAuthoringService,
+    TaskBrowserResult,
+    TaskEditResult,
+    TaskTreeModel,
+)
 
 RECOVERY_FILE = ".cellforge-save-recovery.json"
 
@@ -76,6 +89,8 @@ class ProjectCommandService:
         component_service: ComponentPlacementService | None = None,
         connection_service: ConnectionAuthoringService | None = None,
         spatial_service: SpatialConfigurationService | None = None,
+        task_service: TaskAuthoringService | None = None,
+        recipe_service: RecipeAuthoringService | None = None,
     ) -> None:
         self._canonical_schemas = canonical_schema_directory.resolve()
         self._replace_file = replace_file
@@ -84,6 +99,8 @@ class ProjectCommandService:
             self._canonical_schemas
         )
         self._spatial = spatial_service or SpatialConfigurationService(self._canonical_schemas)
+        self._tasks = task_service or TaskAuthoringService(self._canonical_schemas)
+        self._recipes = recipe_service or RecipeAuthoringService(self._canonical_schemas)
 
     def create(self, project_path: Path) -> BackendResult:
         """Explicitly create a starter project and return its validated buffers."""
@@ -108,6 +125,8 @@ class ProjectCommandService:
             scene, scene_findings = inspect_scene(contents.scene_usda, candidate.scene_path)
             findings.extend(scene_findings)
             findings.extend(self._spatial.validate_calibrations(root, contents))
+            findings.extend(self._tasks.browse(root, contents).validation)
+            findings.extend(self._recipes.browse(root, contents).validation)
             if scene is not None:
                 findings.extend(
                     validate_scene_cross_references(
@@ -182,7 +201,12 @@ class ProjectCommandService:
             contents,
             cell_model.scene.usd,
         )
-        project_findings = (*project_findings, *self._spatial.validate_calibrations(root, contents))
+        project_findings = (
+            *project_findings,
+            *self._spatial.validate_calibrations(root, contents),
+            *self._tasks.browse(root, contents).validation,
+            *self._recipes.browse(root, contents).validation,
+        )
         if project_findings:
             return BackendResult(project=None, validation=project_findings)
 
@@ -422,6 +446,106 @@ class ProjectCommandService:
             instance_id=instance_id,
             calibration=calibration,
         )
+
+    def browse_tasks(self, project_path: Path, contents: ProjectContents) -> TaskBrowserResult:
+        """Return tasks and node manifests for current project sources."""
+        return self._tasks.browse(project_path, contents)
+
+    def set_task_tree(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        task_id: str,
+        tree: TaskTreeModel | str,
+    ) -> TaskEditResult:
+        """Edit a task's BehaviorTree XML in staged project artifacts."""
+        return self._tasks.set_task_tree(project_path, contents, task_id=task_id, tree=tree)
+
+    def browse_recipes(self, project_path: Path, contents: ProjectContents) -> RecipeBrowserResult:
+        """Return recipes and validation findings for current project sources."""
+        return self._recipes.browse(project_path, contents)
+
+    def inspect_recipe(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int | None = None,
+    ) -> RecipeDetail | None:
+        """Inspect specific recipe version fields and form schema metadata."""
+        return self._recipes.inspect_recipe(
+            project_path, contents, recipe_id=recipe_id, version=version
+        )
+
+    def edit_recipe(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int,
+        data: Mapping[str, Any],
+    ) -> RecipeEditResult:
+        """Edit a draft recipe document in memory."""
+        return self._recipes.edit_recipe(
+            project_path, contents, recipe_id=recipe_id, version=version, data=data
+        )
+
+    def create_recipe_version(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        base_version: int | None = None,
+        overrides: Mapping[str, Any] | None = None,
+    ) -> RecipeEditResult:
+        """Create a new immutable recipe version without mutating its predecessor."""
+        return self._recipes.create_recipe_version(
+            project_path,
+            contents,
+            recipe_id=recipe_id,
+            base_version=base_version,
+            overrides=overrides,
+        )
+
+    def transition_recipe_lifecycle(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int,
+        target_status: str,
+        evidence: Sequence[str] | None = None,
+    ) -> RecipeEditResult:
+        """Transition a recipe version to a new lifecycle state."""
+        return self._recipes.transition_lifecycle(
+            project_path,
+            contents,
+            recipe_id=recipe_id,
+            version=version,
+            target_status=target_status,
+            evidence=evidence,
+        )
+
+    def diff_recipes(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version_a: int,
+        version_b: int,
+    ) -> RecipeDiffResult | None:
+        """Diff two recipe versions in the current project sources."""
+        rec_a = self.inspect_recipe(project_path, contents, recipe_id=recipe_id, version=version_a)
+        rec_b = self.inspect_recipe(project_path, contents, recipe_id=recipe_id, version=version_b)
+        if rec_a is None or rec_b is None:
+            return None
+        return self._recipes.diff(rec_a.data, rec_b.data)
 
     def _registry_for(self, project_path: Path) -> SchemaRegistry:
         directory = resolve_project_schema_directory(project_path, self._canonical_schemas)
@@ -800,9 +924,7 @@ def _artifact_candidates(
         if (
             Path(relative).is_absolute()
             or not target.is_relative_to(root)
-            or Path(relative).parts[:1] != ("calibration",)
-            or len(Path(relative).parts) != 2
-            or target.suffix.lower() != ".json"
+            or target.suffix.lower() not in {".json", ".xml", ".yaml", ".yml"}
             or not isinstance(content, bytes)
         ):
             return BackendResult(

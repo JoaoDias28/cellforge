@@ -60,7 +60,7 @@ def _classify_document(path: Path) -> SchemaDocumentKind | None:
         return SchemaDocumentKind.SCENARIO
     if path.name.startswith("deployment"):
         return SchemaDocumentKind.DEPLOYMENT_PROFILE
-    if path.name.startswith("recipe"):
+    if path.name.startswith("recipe") or path.parent.name == "recipes":
         return SchemaDocumentKind.RECIPE
     return None
 

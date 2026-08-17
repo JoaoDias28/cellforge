@@ -21,10 +21,12 @@ LOG_WINDOW = "CellForge Log"
 COMPONENT_WINDOW = "CellForge Components"
 CONNECTION_WINDOW = "CellForge Connections"
 SIMULATION_WINDOW = "CellForge Simulation"
+TASK_WINDOW = "CellForge Tasks"
+RECIPE_WINDOW = "CellForge Recipes"
 
 
 class CellForgeStudioExtension(omni.ext.IExt):
-    """Own the three shell windows for the lifetime of the Kit extension."""
+    """Own the shell windows for the lifetime of the Kit extension."""
 
     def on_startup(self, ext_id: str) -> None:
         """Create a read-only empty shell; startup never opens a project."""
@@ -64,10 +66,21 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._fault_parameters_model = ui.SimpleStringModel("{}")
         self._final_status_model = ui.SimpleStringModel("SUCCESS")
         self._evidence_path_model = ui.SimpleStringModel("")
+        self._task_id_model = ui.SimpleStringModel("pen_engraving")
+        self._task_xml_model = ui.SimpleStringModel("")
+        self._recipe_id_model = ui.SimpleStringModel("pen-aluminium-reference")
+        self._recipe_version_model = ui.SimpleIntModel(1)
+        self._recipe_data_model = ui.SimpleStringModel("{}")
+        self._recipe_status_model = ui.SimpleStringModel("VALIDATED")
+        self._recipe_evidence_model = ui.SimpleStringModel("scenario:nominal")
+        self._recipe_diff_version_b_model = ui.SimpleIntModel(2)
+        self._recipe_diff_output_model = ui.SimpleStringModel("")
         self._project_window = ui.Window(PROJECT_WINDOW, width=360, height=420)
         self._component_window = ui.Window(COMPONENT_WINDOW, width=460, height=520)
         self._connection_window = ui.Window(CONNECTION_WINDOW, width=520, height=620)
         self._simulation_window = ui.Window(SIMULATION_WINDOW, width=460, height=620)
+        self._task_window = ui.Window(TASK_WINDOW, width=480, height=520)
+        self._recipe_window = ui.Window(RECIPE_WINDOW, width=480, height=520)
         self._validation_window = ui.Window(VALIDATION_WINDOW, width=460, height=420)
         self._log_window = ui.Window(LOG_WINDOW, width=820, height=220)
         self._render_all()
@@ -75,6 +88,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
         ui.dock_window_in_window(COMPONENT_WINDOW, PROJECT_WINDOW, ui.DockPosition.LEFT, 0.55)
         ui.dock_window_in_window(CONNECTION_WINDOW, VALIDATION_WINDOW, ui.DockPosition.BOTTOM, 0.55)
         ui.dock_window_in_window(SIMULATION_WINDOW, CONNECTION_WINDOW, ui.DockPosition.RIGHT, 0.5)
+        ui.dock_window_in_window(TASK_WINDOW, COMPONENT_WINDOW, ui.DockPosition.BOTTOM, 0.5)
+        ui.dock_window_in_window(RECIPE_WINDOW, TASK_WINDOW, ui.DockPosition.RIGHT, 0.5)
         ui.dock_window_in_window(LOG_WINDOW, PROJECT_WINDOW, ui.DockPosition.BOTTOM, 0.35)
 
     def on_shutdown(self) -> None:
@@ -85,6 +100,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
             "_component_window",
             "_connection_window",
             "_simulation_window",
+            "_task_window",
+            "_recipe_window",
             "_validation_window",
             "_log_window",
         ):
@@ -322,10 +339,82 @@ class CellForgeStudioExtension(omni.ext.IExt):
             )
             self._render_all()
 
+    def _on_refresh_tasks(self) -> None:
+        if self._application is not None:
+            self._application.refresh_tasks()
+            self._render_all()
+
+    def _on_save_task(self) -> None:
+        if self._application is not None:
+            self._application.set_task_tree(
+                self._task_id_model.as_string,
+                self._task_xml_model.as_string,
+            )
+            self._render_all()
+
+    def _on_refresh_recipes(self) -> None:
+        if self._application is not None:
+            self._application.refresh_recipes()
+            self._render_all()
+
+    def _on_edit_recipe(self) -> None:
+        if self._application is None:
+            return
+        try:
+            data = json.loads(self._recipe_data_model.as_string)
+        except json.JSONDecodeError:
+            return
+        if not isinstance(data, dict):
+            return
+        self._application.edit_recipe(
+            self._recipe_id_model.as_string,
+            self._recipe_version_model.as_int,
+            data,
+        )
+        self._render_all()
+
+    def _on_create_recipe_version(self) -> None:
+        if self._application is not None:
+            self._application.create_recipe_version(
+                self._recipe_id_model.as_string,
+                base_version=self._recipe_version_model.as_int,
+            )
+            self._render_all()
+
+    def _on_transition_recipe_lifecycle(self) -> None:
+        if self._application is not None:
+            ev_str = self._recipe_evidence_model.as_string.strip()
+            evidence = [ev_str] if ev_str else None
+            self._application.transition_recipe_lifecycle(
+                self._recipe_id_model.as_string,
+                self._recipe_version_model.as_int,
+                self._recipe_status_model.as_string,
+                evidence=evidence,
+            )
+            self._render_all()
+
+    def _on_diff_recipes(self) -> None:
+        if self._application is not None:
+            result = self._application.diff_recipes(
+                self._recipe_id_model.as_string,
+                self._recipe_version_model.as_int,
+                self._recipe_diff_version_b_model.as_int,
+            )
+            if result is not None:
+                self._recipe_diff_output_model.set_value(
+                    f"Breaking changes: {result.breaking}\n"
+                    f"Parameter diffs: {len(result.parameter_diffs)}\n"
+                    f"Trajectory diffs: {len(result.trajectory_diffs)}\n"
+                    f"Tolerance diffs: {len(result.tolerance_diffs)}"
+                )
+            self._render_all()
+
     def _render_all(self) -> None:
         self._render_project_panel()
         self._render_component_panel()
         self._render_connection_panel()
+        self._render_task_panel()
+        self._render_recipe_panel()
         self._render_simulation_panel()
         self._render_validation_panel()
         self._render_log_panel()
@@ -542,6 +631,115 @@ class CellForgeStudioExtension(omni.ext.IExt):
                         word_wrap=True,
                         style={"color": 0xFF4AA3FF},
                     )
+
+    def _render_task_panel(self) -> None:
+        snapshot = self._application.snapshot
+        self._task_window.frame.clear()
+        with self._task_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Task Authoring", style={"font_size": 18})
+                    with ui.HStack(spacing=6, height=28):
+                        ui.Button("Refresh tasks", clicked_fn=self._on_refresh_tasks)
+                    ui.Separator(height=8)
+                    ui.Label("Tasks in Project")
+                    if not snapshot.tasks:
+                        ui.Label("No tasks declared in project.")
+                    for task in snapshot.tasks:
+                        valid_badge = "VALID" if task.valid else "INVALID"
+                        color = 0xFF44AA44 if task.valid else 0xFF4444FF
+                        ui.Label(
+                            f"[{valid_badge}] {task.task_id} ({task.file_name}) — "
+                            f"{task.node_count} nodes",
+                            style={"color": color},
+                        )
+                        if task.capabilities_required:
+                            ui.Label(
+                                f"  Required capabilities: {', '.join(task.capabilities_required)}",
+                                style={"font_size": 12},
+                            )
+                        if task.errors:
+                            for err in task.errors:
+                                ui.Label(f"  * {err}", style={"color": 0xFF4444FF, "font_size": 12})
+                    ui.Separator(height=8)
+                    ui.Label("Available Plugin Nodes")
+                    for spec in snapshot.available_node_specs:
+                        ui.Label(f"• {spec.node_type} [{spec.category}]")
+                        for port in spec.ports:
+                            ui.Label(
+                                f"    {port.direction}: {port.name} ({port.port_type})",
+                                style={"font_size": 12},
+                            )
+                    ui.Separator(height=8)
+                    ui.Label("Task BehaviorTree XML Editor")
+                    ui.Label("Task ID")
+                    ui.StringField(model=self._task_id_model)
+                    ui.Label("Tree XML")
+                    ui.StringField(model=self._task_xml_model, multiline=True)
+                    with ui.HStack(spacing=6, height=28):
+                        ui.Button("Save Task XML", clicked_fn=self._on_save_task)
+
+    def _render_recipe_panel(self) -> None:
+        snapshot = self._application.snapshot
+        self._recipe_window.frame.clear()
+        with self._recipe_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Recipe Authoring & Lifecycle", style={"font_size": 18})
+                    with ui.HStack(spacing=6, height=28):
+                        ui.Button("Refresh recipes", clicked_fn=self._on_refresh_recipes)
+                    ui.Separator(height=8)
+                    ui.Label("Recipes in Project")
+                    if not snapshot.recipes:
+                        ui.Label("No recipes found in project.")
+                    for rec in snapshot.recipes:
+                        imm_badge = "IMMUTABLE" if rec.is_immutable else "EDITABLE"
+                        ui.Label(
+                            f"[{rec.status}] {rec.recipe_id} v{rec.version} "
+                            f"({rec.file_path}) [{imm_badge}]",
+                            word_wrap=True,
+                        )
+                        ui.Label(f"  Component: {rec.component_type} | Mode: {rec.process_mode}")
+                        if rec.parameters:
+                            ui.Label(f"  Params: {rec.parameters}")
+                        if rec.validation_errors:
+                            for err in rec.validation_errors:
+                                ui.Label(f"  * {err}", style={"color": 0xFF4444FF, "font_size": 12})
+                    ui.Separator(height=8)
+                    ui.Label("Edit / Transition Recipe")
+                    for label, model in (
+                        ("Recipe ID", self._recipe_id_model),
+                        ("Recipe version", self._recipe_version_model),
+                        ("Recipe data (JSON)", self._recipe_data_model),
+                        (
+                            "Target status (VALIDATED, TESTED, APPROVED, RETIRED)",
+                            self._recipe_status_model,
+                        ),
+                        (
+                            "Transition evidence (e.g. scenario / test run ID)",
+                            self._recipe_evidence_model,
+                        ),
+                    ):
+                        ui.Label(label)
+                        if isinstance(model, ui.SimpleIntModel):
+                            ui.IntField(model=model)
+                        else:
+                            ui.StringField(model=model)
+                    with ui.HStack(spacing=6, height=28):
+                        ui.Button("Apply Edits (Draft)", clicked_fn=self._on_edit_recipe)
+                        ui.Button(
+                            "Create Next Version (N+1)", clicked_fn=self._on_create_recipe_version
+                        )
+                        ui.Button(
+                            "Transition Status", clicked_fn=self._on_transition_recipe_lifecycle
+                        )
+                    ui.Separator(height=8)
+                    ui.Label("Diff Recipe Versions")
+                    ui.Label("Compare Version A (above) with Version B:")
+                    ui.IntField(model=self._recipe_diff_version_b_model)
+                    ui.Button("Compute Diff", clicked_fn=self._on_diff_recipes)
+                    if self._recipe_diff_output_model.as_string:
+                        ui.Label(self._recipe_diff_output_model.as_string, word_wrap=True)
 
     def _render_validation_panel(self) -> None:
         snapshot = self._application.snapshot
