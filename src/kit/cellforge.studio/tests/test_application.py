@@ -1,7 +1,7 @@
 """Headless tests for the pure Cell Studio application boundary."""
 
 import shutil
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from cellforge.studio.application import (
@@ -23,6 +23,17 @@ from cellforge.studio.application import (
     ValidationItem,
 )
 from cellforge.studio.backend import create_default_application
+from cellforge.studio.recipe_service import (
+    RecipeBrowserResult,
+    RecipeDetail,
+    RecipeDiffResult,
+    RecipeEditResult,
+)
+from cellforge.studio.task_service import (
+    TaskBrowserResult,
+    TaskEditResult,
+    TaskTreeModel,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 PEN_PROJECT = REPOSITORY_ROOT / "examples" / "pen_engraving"
@@ -40,6 +51,12 @@ class RecordingBackend:
         self.connection_edit_result = ConnectionEditResult(contents=None)
         self.spatial_browser_result = SpatialBrowserResult(components=())
         self.spatial_edit_result = SpatialEditResult(contents=None)
+        self.task_browser_result = TaskBrowserResult(tasks=(), available_node_specs=())
+        self.task_edit_result = TaskEditResult(contents=None)
+        self.recipe_browser_result = RecipeBrowserResult(recipes=())
+        self.recipe_edit_result = RecipeEditResult(contents=None)
+        self.recipe_detail: RecipeDetail | None = None
+        self.recipe_diff_result: RecipeDiffResult | None = None
 
     def inspect(self, project_path: Path) -> BackendResult:
         self.paths.append(project_path)
@@ -166,6 +183,77 @@ class RecordingBackend:
         calibration: Mapping[str, object],
     ) -> SpatialEditResult:
         return self.spatial_edit_result
+
+    def browse_tasks(self, project_path: Path, contents: ProjectContents) -> TaskBrowserResult:
+        return self.task_browser_result
+
+    def set_task_tree(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        task_id: str,
+        tree: TaskTreeModel | str,
+    ) -> TaskEditResult:
+        return self.task_edit_result
+
+    def browse_recipes(self, project_path: Path, contents: ProjectContents) -> RecipeBrowserResult:
+        return self.recipe_browser_result
+
+    def inspect_recipe(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int | None = None,
+    ) -> RecipeDetail | None:
+        return self.recipe_detail
+
+    def edit_recipe(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int,
+        data: Mapping[str, object],
+    ) -> RecipeEditResult:
+        return self.recipe_edit_result
+
+    def create_recipe_version(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        base_version: int | None = None,
+        overrides: Mapping[str, object] | None = None,
+    ) -> RecipeEditResult:
+        return self.recipe_edit_result
+
+    def transition_recipe_lifecycle(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int,
+        target_status: str,
+        evidence: Sequence[str] | None = None,
+    ) -> RecipeEditResult:
+        return self.recipe_edit_result
+
+    def diff_recipes(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version_a: int,
+        version_b: int,
+    ) -> RecipeDiffResult | None:
+        return self.recipe_diff_result
 
 
 def _tree_bytes(root: Path) -> Mapping[str, bytes]:
@@ -566,6 +654,79 @@ def test_backend_failure_is_sanitized_and_does_not_escape() -> None:
         ) -> SpatialEditResult:
             raise RuntimeError(f"sensitive detail at {project_path}")
 
+        def browse_tasks(self, project_path: Path, contents: ProjectContents) -> TaskBrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def set_task_tree(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            task_id: str,
+            tree: TaskTreeModel | str,
+        ) -> TaskEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def browse_recipes(
+            self, project_path: Path, contents: ProjectContents
+        ) -> RecipeBrowserResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def inspect_recipe(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            recipe_id: str,
+            version: int | None = None,
+        ) -> RecipeDetail | None:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def edit_recipe(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            recipe_id: str,
+            version: int,
+            data: Mapping[str, object],
+        ) -> RecipeEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def create_recipe_version(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            recipe_id: str,
+            base_version: int | None = None,
+            overrides: Mapping[str, object] | None = None,
+        ) -> RecipeEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def transition_recipe_lifecycle(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            recipe_id: str,
+            version: int,
+            target_status: str,
+            evidence: Sequence[str] | None = None,
+        ) -> RecipeEditResult:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
+        def diff_recipes(
+            self,
+            project_path: Path,
+            contents: ProjectContents,
+            *,
+            recipe_id: str,
+            version_a: int,
+            version_b: int,
+        ) -> RecipeDiffResult | None:
+            raise RuntimeError(f"sensitive detail at {project_path}")
+
     snapshot = StudioApplication(FailingBackend()).open_project(PEN_PROJECT)
 
     assert snapshot.status is StudioStatus.OPERATION_FAILED
@@ -594,4 +755,91 @@ def test_default_backend_inspection_is_byte_for_byte_read_only(tmp_path: Path) -
     assert snapshot.status is StudioStatus.PROJECT_READY
     assert snapshot.project is not None
     assert snapshot.project.name == "Pen Engraving Reference Cell"
+    assert len(snapshot.tasks) > 0
+    assert len(snapshot.recipes) > 0
     assert _tree_bytes(project) == before
+
+
+def test_task_edit_updates_snapshot_and_supports_undo(tmp_path: Path) -> None:
+    project = tmp_path / "pen-project"
+    shutil.copytree(PEN_PROJECT, project)
+    shutil.copytree(REPOSITORY_ROOT / "schemas", project / "schemas")
+    cell_path = project / "cell.yaml"
+    cell_path.write_text(
+        cell_path.read_text(encoding="utf-8").replace(
+            "schema: ../../schemas/recipe.schema.json",
+            "schema: schemas/recipe.schema.json",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    application = create_default_application()
+    application.open_project(project)
+
+    valid_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<root BTCPP_format="4" main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <Sequence>
+      <CheckRequiredDevicesReady ready="true"/>
+    </Sequence>
+  </BehaviorTree>
+  <TreeNodesModel/>
+</root>"""
+    snap_after_edit = application.set_task_tree("pen_engraving", valid_xml)
+    assert snap_after_edit.dirty is True
+    assert snap_after_edit.can_undo is True
+
+    # Undo task edit
+    snap_after_undo = application.undo()
+    assert snap_after_undo.can_redo is True
+
+    # Redo task edit
+    snap_after_redo = application.redo()
+    assert snap_after_redo.dirty is True
+
+
+def test_recipe_lifecycle_and_versioning_through_application(tmp_path: Path) -> None:
+    project = tmp_path / "pen-project"
+    shutil.copytree(PEN_PROJECT, project)
+    shutil.copytree(REPOSITORY_ROOT / "schemas", project / "schemas")
+    cell_path = project / "cell.yaml"
+    cell_path.write_text(
+        cell_path.read_text(encoding="utf-8").replace(
+            "schema: ../../schemas/recipe.schema.json",
+            "schema: schemas/recipe.schema.json",
+        ),
+        encoding="utf-8",
+        newline="\n",
+    )
+    application = create_default_application()
+    application.open_project(project)
+
+    # Approve version 1
+    snap_approved = application.transition_recipe_lifecycle(
+        "pen-aluminium-reference",
+        version=1,
+        target_status="APPROVED",
+    )
+    assert snap_approved.dirty is True
+    rec1 = next(
+        r for r in snap_approved.recipes if r.id == "pen-aluminium-reference" and r.version == 1
+    )
+    assert rec1.is_immutable is True
+
+    # Create version 2
+    snap_v2 = application.create_recipe_version(
+        "pen-aluminium-reference",
+        base_version=1,
+        overrides={"parameters": {"robot_speed_scale": 0.5}},
+    )
+    assert any(r.version == 2 for r in snap_v2.recipes if r.id == "pen-aluminium-reference")
+
+    # Inspect recipe
+    detail = application.inspect_recipe("pen-aluminium-reference", version=2)
+    assert detail is not None
+    assert detail.data["parameters"]["robot_speed_scale"] == 0.5
+
+    # Diff versions
+    diff = application.diff_recipes("pen-aluminium-reference", version_a=1, version_b=2)
+    assert diff is not None
+    assert any(d.key == "robot_speed_scale" for d in diff.differences)

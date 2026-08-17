@@ -458,7 +458,7 @@ class SpatialConfigurationService:
                         )
                     )
         for relative in contents.artifacts:
-            if relative not in declared:
+            if relative.startswith("calibration/") and relative not in declared:
                 findings.append(
                     _finding(
                         "studio.calibration-artifact-unreferenced",

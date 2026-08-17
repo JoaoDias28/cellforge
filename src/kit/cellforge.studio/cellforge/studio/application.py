@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from cellforge.studio.recipe_service import (
+        RecipeBrowserResult,
+        RecipeDetail,
+        RecipeDiffResult,
+        RecipeEditResult,
+        RecipeSummary,
+    )
+    from cellforge.studio.task_service import (
+        TaskBrowserResult,
+        TaskEditResult,
+        TaskNodeSpec,
+        TaskSummary,
+        TaskTreeModel,
+    )
 
 
 class StudioStatus(StrEnum):
@@ -348,6 +364,77 @@ class ProjectBackend(Protocol):
     ) -> SpatialEditResult:
         """Stage and bind one existing immutable calibration artifact in memory."""
 
+    def browse_tasks(self, project_path: Path, contents: ProjectContents) -> TaskBrowserResult:
+        """Return tasks and node manifests for current project sources."""
+
+    def set_task_tree(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        task_id: str,
+        tree: TaskTreeModel | str,
+    ) -> TaskEditResult:
+        """Edit a task's BehaviorTree XML in staged project artifacts."""
+
+    def browse_recipes(self, project_path: Path, contents: ProjectContents) -> RecipeBrowserResult:
+        """Return recipes and validation findings for current project sources."""
+
+    def inspect_recipe(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int | None = None,
+    ) -> RecipeDetail | None:
+        """Inspect specific recipe version fields and form schema metadata."""
+
+    def edit_recipe(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int,
+        data: Mapping[str, Any],
+    ) -> RecipeEditResult:
+        """Edit a draft recipe document in memory."""
+
+    def create_recipe_version(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        base_version: int | None = None,
+        overrides: Mapping[str, Any] | None = None,
+    ) -> RecipeEditResult:
+        """Create a new immutable recipe version without mutating its predecessor."""
+
+    def transition_recipe_lifecycle(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version: int,
+        target_status: str,
+        evidence: Sequence[str] | None = None,
+    ) -> RecipeEditResult:
+        """Transition a recipe version to a new lifecycle state."""
+
+    def diff_recipes(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        recipe_id: str,
+        version_a: int,
+        version_b: int,
+    ) -> RecipeDiffResult | None:
+        """Diff two recipe versions in the current project sources."""
+
 
 @dataclass(frozen=True, slots=True)
 class ProjectView:
@@ -391,6 +478,9 @@ class StudioSnapshot:
     connection_edges: tuple[ConnectionEdge, ...] = ()
     safety_disclaimer: str = ""
     mechanical_preview: MechanicalSnapPreview | None = None
+    tasks: tuple[TaskSummary, ...] = ()
+    available_node_specs: tuple[TaskNodeSpec, ...] = ()
+    recipes: tuple[RecipeSummary, ...] = ()
     can_undo: bool = False
     can_redo: bool = False
 
@@ -404,6 +494,9 @@ class _EditState:
     connection_edges: tuple[ConnectionEdge, ...]
     safety_disclaimer: str
     mechanical_preview: MechanicalSnapPreview | None
+    tasks: tuple[TaskSummary, ...] = ()
+    available_node_specs: tuple[TaskNodeSpec, ...] = ()
+    recipes: tuple[RecipeSummary, ...] = ()
 
 
 class StudioApplication:
@@ -479,6 +572,9 @@ class StudioApplication:
                 connection_edges=(),
                 safety_disclaimer="",
                 mechanical_preview=None,
+                tasks=(),
+                available_node_specs=(),
+                recipes=(),
                 can_undo=False,
                 can_redo=False,
                 logs=self._append_log(LogLevel.WARNING, "Project path was empty."),
@@ -915,6 +1011,9 @@ class StudioApplication:
             connection_edges=previous.connection_edges,
             safety_disclaimer=previous.safety_disclaimer,
             mechanical_preview=previous.mechanical_preview,
+            tasks=previous.tasks,
+            available_node_specs=previous.available_node_specs,
+            recipes=previous.recipes,
             can_undo=bool(self._undo_stack),
             can_redo=True,
             detail="Undid one linked component edit in memory.",
@@ -942,6 +1041,9 @@ class StudioApplication:
             connection_edges=next_state.connection_edges,
             safety_disclaimer=next_state.safety_disclaimer,
             mechanical_preview=next_state.mechanical_preview,
+            tasks=next_state.tasks,
+            available_node_specs=next_state.available_node_specs,
+            recipes=next_state.recipes,
             can_undo=True,
             can_redo=bool(self._redo_stack),
             detail="Redid one linked component edit in memory.",
@@ -1038,6 +1140,8 @@ class StudioApplication:
             )
             return self._snapshot
 
+        task_graph = self._task_graph(resolved_path, result.contents)
+        recipe_graph = self._recipe_graph(resolved_path, result.contents)
         project = result.project
         self._saved_contents = result.contents
         self._working_contents = result.contents
@@ -1064,6 +1168,9 @@ class StudioApplication:
             dirty=False,
             spatial_components=(),
             mechanical_preview=None,
+            tasks=task_graph.tasks,
+            available_node_specs=task_graph.available_node_specs,
+            recipes=recipe_graph.recipes,
             can_undo=False,
             can_redo=False,
             logs=self._append_log(LogLevel.INFO, f"{operation} project {project.name}."),
@@ -1088,6 +1195,186 @@ class StudioApplication:
         self._undo_stack.append(self._edit_state(contents, project))
         self._undo_stack = self._undo_stack[-100:]
         self._redo_stack.clear()
+
+    def set_task_tree(self, task_id: str, tree: TaskTreeModel | str) -> StudioSnapshot:
+        """Update or replace a task's BehaviorTree XML in staged project artifacts."""
+        return self._task_edit(
+            f"Task {task_id}",
+            lambda backend, path, contents: backend.set_task_tree(
+                path, contents, task_id=task_id, tree=tree
+            ),
+        )
+
+    def edit_recipe(self, recipe_id: str, version: int, data: Mapping[str, Any]) -> StudioSnapshot:
+        """Edit a draft recipe document in memory."""
+        return self._recipe_edit(
+            f"Recipe {recipe_id} v{version}",
+            lambda backend, path, contents: backend.edit_recipe(
+                path, contents, recipe_id=recipe_id, version=version, data=data
+            ),
+        )
+
+    def create_recipe_version(
+        self,
+        recipe_id: str,
+        base_version: int | None = None,
+        overrides: Mapping[str, Any] | None = None,
+    ) -> StudioSnapshot:
+        """Create a new immutable recipe version without mutating its predecessor."""
+        return self._recipe_edit(
+            f"New version of recipe {recipe_id}",
+            lambda backend, path, contents: backend.create_recipe_version(
+                path, contents, recipe_id=recipe_id, base_version=base_version, overrides=overrides
+            ),
+        )
+
+    def transition_recipe_lifecycle(
+        self,
+        recipe_id: str,
+        version: int,
+        target_status: str,
+        evidence: Sequence[str] | None = None,
+    ) -> StudioSnapshot:
+        """Transition a recipe version to a new lifecycle state."""
+        return self._recipe_edit(
+            f"Transition recipe {recipe_id} v{version} to {target_status}",
+            lambda backend, path, contents: backend.transition_recipe_lifecycle(
+                path,
+                contents,
+                recipe_id=recipe_id,
+                version=version,
+                target_status=target_status,
+                evidence=evidence,
+            ),
+        )
+
+    def refresh_tasks(self) -> StudioSnapshot:
+        """Refresh tasks and available node manifests for the open project."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None:
+            return self._snapshot
+        task_graph = self._task_graph(Path(project.path), contents)
+        self._snapshot = replace(
+            self._snapshot,
+            tasks=task_graph.tasks,
+            available_node_specs=task_graph.available_node_specs,
+            validation=task_graph.validation or self._snapshot.validation,
+        )
+        return self._snapshot
+
+    def refresh_recipes(self) -> StudioSnapshot:
+        """Refresh recipes and validation findings for the open project."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if project is None or contents is None:
+            return self._snapshot
+        recipe_graph = self._recipe_graph(Path(project.path), contents)
+        self._snapshot = replace(
+            self._snapshot,
+            recipes=recipe_graph.recipes,
+            project=replace(project, recipe_count=len(recipe_graph.recipes)),
+            validation=recipe_graph.validation or self._snapshot.validation,
+        )
+        return self._snapshot
+
+    def inspect_recipe(self, recipe_id: str, version: int | None = None) -> RecipeDetail | None:
+        """Inspect specific recipe version fields and form schema metadata."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None or project is None or contents is None:
+            return None
+        try:
+            return self._backend.inspect_recipe(
+                Path(project.path), contents, recipe_id=recipe_id, version=version
+            )
+        except Exception:
+            return None
+
+    def diff_recipes(
+        self, recipe_id: str, version_a: int, version_b: int
+    ) -> RecipeDiffResult | None:
+        """Diff two recipe versions in the current project sources."""
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None or project is None or contents is None:
+            return None
+        try:
+            return self._backend.diff_recipes(
+                Path(project.path),
+                contents,
+                recipe_id=recipe_id,
+                version_a=version_a,
+                version_b=version_b,
+            )
+        except Exception:
+            return None
+
+    def _task_edit(
+        self,
+        operation: str,
+        command: Callable[[ProjectBackend, Path, ProjectContents], TaskEditResult],
+    ) -> StudioSnapshot:
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot edit tasks without a valid project.")
+        try:
+            result = command(self._backend, Path(project.path), contents)
+        except Exception as error:
+            return self._operation_failure(operation, error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected(operation, result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        task_graph = self._task_graph(Path(project.path), self._working_contents)
+        self._snapshot = replace(
+            self._snapshot,
+            detail=f"{operation} updated task in memory; save explicitly to persist.",
+            tasks=task_graph.tasks,
+            available_node_specs=task_graph.available_node_specs,
+            validation=task_graph.validation,
+            dirty=self._working_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(LogLevel.INFO, f"{operation} updated task in memory."),
+        )
+        return self._snapshot
+
+    def _recipe_edit(
+        self,
+        operation: str,
+        command: Callable[[ProjectBackend, Path, ProjectContents], RecipeEditResult],
+    ) -> StudioSnapshot:
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot edit recipes without a valid project.")
+        try:
+            result = command(self._backend, Path(project.path), contents)
+        except Exception as error:
+            return self._operation_failure(operation, error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected(operation, result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        recipe_graph = self._recipe_graph(Path(project.path), self._working_contents)
+        self._snapshot = replace(
+            self._snapshot,
+            detail=f"{operation} updated recipe in memory; save explicitly to persist.",
+            recipes=recipe_graph.recipes,
+            project=replace(project, recipe_count=len(recipe_graph.recipes)),
+            validation=recipe_graph.validation,
+            dirty=self._working_contents != self._saved_contents,
+            can_undo=True,
+            can_redo=False,
+            logs=self._append_log(LogLevel.INFO, f"{operation} updated recipe in memory."),
+        )
+        return self._snapshot
 
     def _spatial_edit(
         self,
@@ -1132,7 +1419,34 @@ class StudioApplication:
             connection_edges=self._snapshot.connection_edges,
             safety_disclaimer=self._snapshot.safety_disclaimer,
             mechanical_preview=self._snapshot.mechanical_preview,
+            tasks=self._snapshot.tasks,
+            available_node_specs=self._snapshot.available_node_specs,
+            recipes=self._snapshot.recipes,
         )
+
+    def _task_graph(self, project_path: Path, contents: ProjectContents) -> TaskBrowserResult:
+        from cellforge.studio.task_service import TaskBrowserResult
+
+        if self._backend is None:
+            return TaskBrowserResult(
+                tasks=self._snapshot.tasks, available_node_specs=self._snapshot.available_node_specs
+            )
+        try:
+            return self._backend.browse_tasks(project_path, contents)
+        except Exception:
+            return TaskBrowserResult(
+                tasks=self._snapshot.tasks, available_node_specs=self._snapshot.available_node_specs
+            )
+
+    def _recipe_graph(self, project_path: Path, contents: ProjectContents) -> RecipeBrowserResult:
+        from cellforge.studio.recipe_service import RecipeBrowserResult
+
+        if self._backend is None:
+            return RecipeBrowserResult(recipes=self._snapshot.recipes)
+        try:
+            return self._backend.browse_recipes(project_path, contents)
+        except Exception:
+            return RecipeBrowserResult(recipes=self._snapshot.recipes)
 
     def _spatial_graph(self, project_path: Path, contents: ProjectContents) -> SpatialBrowserResult:
         if self._backend is None:

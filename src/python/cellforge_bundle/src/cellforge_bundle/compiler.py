@@ -60,7 +60,21 @@ _SEEDED_BLACKBOARD_KEYS = {
     "task_sha256",
     "trace_id",
 }
-_CONTROL_NODES = {"Sequence", "Fallback", "RetryUntilSuccessful", "Timeout", "SubTree"}
+_CONTROL_NODES = {
+    "Sequence",
+    "Fallback",
+    "Parallel",
+    "ReactiveSequence",
+    "ReactiveFallback",
+    "RetryUntilSuccessful",
+    "Repeat",
+    "Inverter",
+    "ForceSuccess",
+    "ForceFailure",
+    "Timeout",
+    "KeepRunningUntilFailure",
+    "SubTree",
+}
 _RUNTIME_EXECUTABLE_ROLES = {
     "adapter",
     "coordinator",
@@ -930,7 +944,7 @@ def _validate_behavior_tree_contract(
     available = _SEEDED_BLACKBOARD_KEYS | produced
     _validate_process_retry_policy(source, root, state)
     for element in root.iter():
-        if element.tag in {"root", "BehaviorTree"}:
+        if element.tag in {"root", "BehaviorTree", "TreeNodesModel"}:
             continue
         if element.tag in _CONTROL_NODES:
             continue
@@ -945,7 +959,10 @@ def _validate_behavior_tree_contract(
                 ),
             )
             continue
-        for attribute in sorted(set(element.attrib) - set(spec.ports) - {"name"}):
+        unknown_attributes = sorted(
+            a for a in set(element.attrib) - set(spec.ports) - {"name"} if not a.startswith("_")
+        )
+        for attribute in unknown_attributes:
             state.add(
                 CompilerStage.BEHAVIOR_TREE,
                 _finding(
