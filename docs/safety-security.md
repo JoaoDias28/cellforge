@@ -105,3 +105,18 @@ Each model release records:
 - model file hash.
 
 Model changes create new versioned evidence and cannot silently replace production inference.
+
+## 7. Cryptographic governance, dual-role approvals, and qualification boundaries
+
+Tasks 026, 032, and 033 establish end-to-end cryptographic and authorization controls:
+
+- **Detached Ed25519 signatures:** all release bundles and evidence snapshots are signed with Ed25519
+  keys and verified against provisioned trusted keys before compilation, preflight, or activation.
+- **Two-role recipe approval ledger:** production recipe release requires append-only approvals from
+  two distinct authorized roles (`process_engineer`, `automation_engineer`, `administrator`, `safety_engineer`),
+  strictly rejecting self-approval by recipe authors.
+- **Fail-closed evidence policy:** the compiler rejects unverified evidence, expired calibrations,
+  stale timestamps, or missing safety-review artifacts before emitting a production bundle.
+- **Strict safety disclaimer:** software release qualification verifies standard control, timing,
+  sequencing, and adapter contracts only; functional safety enforcement and standard conformity
+  remain strictly with external rated hardware.

@@ -12,6 +12,7 @@ from cellforge_bundle import (
     ManifestWriteError,
     assemble_bundle,
     compile_project,
+    run_software_release_qualification,
     write_manifest,
 )
 from cellforge_domain import (
@@ -22,6 +23,7 @@ from cellforge_domain import (
     ValidationFinding,
 )
 from cellforge_domain.example_validation import format_finding
+from cryptography.hazmat.primitives import serialization
 
 from cellforge_cli.exit_codes import ExitCode
 from cellforge_cli.projects import (
@@ -119,6 +121,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--signing-key", required=True, type=Path, help="external Ed25519 PEM private key"
     )
 
+    qualify = commands.add_parser(
+        "qualify", help="run complete automated software release qualification"
+    )
+    qualify.add_argument("project", type=Path)
+    qualify.add_argument(
+        "--signing-key", type=Path, help="optional external Ed25519 PEM private key"
+    )
+    qualify.add_argument(
+        "--output", type=Path, help="write signed qualification report JSON to file"
+    )
+
     schema = commands.add_parser("schema", help="work with canonical schemas")
     schema_commands = schema.add_subparsers(dest="schema_command", required=True)
     schema_commands.add_parser("list", help="list schema kinds and versions")
@@ -156,7 +169,7 @@ def _dispatch(arguments: argparse.Namespace) -> CommandResult:
 
     try:
         schema_directory: Path | CommandResult = resources.schema_directory
-        if command in {"validate", "inspect", "build", "bundle"}:
+        if command in {"validate", "inspect", "build", "bundle", "qualify"}:
             schema_directory = _verified_project_schemas(
                 command, Path(arguments.project), resources.schema_directory
             )
@@ -195,6 +208,13 @@ def _dispatch(arguments: argparse.Namespace) -> CommandResult:
             source_revision=str(arguments.source_revision),
             output=Path(arguments.output),
             signing_key=Path(arguments.signing_key),
+        )
+    if command == "qualify":
+        return _qualify(
+            Path(arguments.project),
+            schema_directory,
+            signing_key=Path(arguments.signing_key) if arguments.signing_key is not None else None,
+            output=Path(arguments.output) if arguments.output is not None else None,
         )
     if command == "schema":
         return _schema_list(registry)
@@ -453,6 +473,65 @@ def _example_copy(resources: CliResources, destination: Path) -> CommandResult:
     )
 
 
+def _qualify(
+    project: Path,
+    schema_directory: Path,
+    *,
+    signing_key: Path | None = None,
+    output: Path | None = None,
+) -> CommandResult:
+    priv_key = None
+    if signing_key is not None:
+        if not signing_key.is_file():
+            return _failure(
+                command="qualify",
+                exit_code=ExitCode.INPUT_NOT_FOUND,
+                code="cli.signing-key-not-found",
+                path=signing_key,
+                message=f"Signing key file '{signing_key}' not found.",
+            )
+        try:
+            priv_key = serialization.load_pem_private_key(signing_key.read_bytes(), password=None)
+        except Exception as err:
+            return _failure(
+                command="qualify",
+                exit_code=ExitCode.USAGE_ERROR,
+                code="cli.signing-key-invalid",
+                path=signing_key,
+                message=f"Could not load PEM private key: {err}",
+            )
+    try:
+        report = run_software_release_qualification(
+            project,
+            schema_directory,
+            signing_key=priv_key,  # type: ignore[arg-type]
+        )
+        report_data = report.as_dict()
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
+
+        exit_code = ExitCode.SUCCESS if report.overall_passed else ExitCode.VALIDATION_FAILED
+        return CommandResult(
+            command="qualify",
+            exit_code=exit_code,
+            message=(
+                "Software release qualification completed successfully."
+                if report.overall_passed
+                else "Software release qualification failed."
+            ),
+            data=report_data,
+        )
+    except Exception as error:
+        return _failure(
+            command="qualify",
+            exit_code=ExitCode.VALIDATION_FAILED,
+            code="cli.qualification-failed",
+            path=project,
+            message=str(error),
+        )
+
+
 def _verified_project_schemas(
     command: str,
     project: Path,
@@ -529,6 +608,12 @@ def _render(result: CommandResult, *, json_output: bool) -> None:
         print(f"bundle_id: {result.data['bundle_id']}", file=stream)
         if "output" in result.data:
             print(f"output: {result.data['output']}", file=stream)
+    elif result.ok and result.command == "qualify":
+        print(f"report_id: {result.data['report_id']}", file=stream)
+        print(f"overall_passed: {result.data['overall_passed']}", file=stream)
+        scenarios = result.data.get("scenarios", [])
+        if isinstance(scenarios, list):
+            print(f"scenarios_qualified: {len(scenarios)}", file=stream)
     elif result.ok and result.command == "inspect":
         for key in (
             "path",

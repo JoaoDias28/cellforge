@@ -94,3 +94,15 @@ motion-request events, stable fault code, aggregate counts, backend identity, ac
 and whether PhysX actually executed. Failed runs remain replayable by seed. CPU-model reports state
 that PhysX did not execute. Neither CPU nor Isaac reports qualify laser mark quality, real hardware,
 production parameters, or independent functional safety.
+
+## 9. Platform synchronization and software release qualification evidence
+
+Tasks 032 and 033 establish end-to-end evidence governance and synchronization:
+
+- **Evidence records:** content-addressed evidence records (simulation, calibration, commissioning,
+  safety-review, and production) are indexed and stored in `ArtifactStore` with SHA-256 integrity.
+- **Idempotent synchronization:** the production sync manager transmits jobs, traces, results, and
+  attachments to `POST /api/v1/sync/batch` using composite deduplication keys, allowing seamless
+  operation across platform outages without duplicate records.
+- **Signed qualification report:** captures complete Git revisions, bundle digests, scenario matrix
+  results, seed logs, and explicit safety boundaries into a single verifiable Ed25519-signed artifact.

@@ -13,6 +13,18 @@ from cellforge_bundle.assembly import AssemblyError, AssemblyResult, assemble_bu
 from cellforge_bundle.compiler import compile_project
 from cellforge_bundle.models import CompilationReport, CompilerStage, StageResult, StageStatus
 from cellforge_bundle.output import ManifestWriteError, write_manifest
+from cellforge_bundle.qualification import (
+    QUALIFICATION_DISCLAIMERS,
+    ParityVerificationResult,
+    PlatformQualificationResult,
+    QualificationCategory,
+    ScenarioQualificationResult,
+    SoftwareReleaseQualificationReport,
+    run_software_release_qualification,
+    sign_qualification_report,
+    verify_qualification_report,
+    verify_tree_and_recipe_parity,
+)
 
 __all__ = [
     "AgentError",
@@ -32,4 +44,14 @@ __all__ = [
     "preflight_target",
     "verify_bundle",
     "write_manifest",
+    "QUALIFICATION_DISCLAIMERS",
+    "ParityVerificationResult",
+    "PlatformQualificationResult",
+    "QualificationCategory",
+    "ScenarioQualificationResult",
+    "SoftwareReleaseQualificationReport",
+    "run_software_release_qualification",
+    "sign_qualification_report",
+    "verify_qualification_report",
+    "verify_tree_and_recipe_parity",
 ]

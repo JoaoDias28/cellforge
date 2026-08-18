@@ -112,3 +112,17 @@ ros2 launch cellforge_bringup integrated_runtime.launch.py \
 The launch is offline and loopback-only. For deterministic acceptance in a clean Jazzy environment,
 run `make integrated-runtime-check`. `launch_testing` is a ROS Jazzy test dependency, maintained by
 the ROS 2 project; removing the launch test removes that dependency without changing runtime code.
+
+## Software release qualification
+
+To run the complete software release qualification suite and generate a signed qualification report:
+
+```bash
+make release-qualification-check
+```
+
+Or using the `cellforge` CLI directly:
+
+```bash
+uv run --frozen cellforge qualify examples/pen_engraving --output /tmp/qualification_report.json
+```

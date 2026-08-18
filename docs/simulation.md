@@ -218,3 +218,18 @@ only fidelity levels their selected entrypoint can actually provide.
 
 Requesting L2 from the Task 025 bringup returns `bringup.fidelity.unavailable`; L0 behavior is never
 relabelled as L2. Genuine Isaac Sim L2 composition remains Task 027 scope.
+
+## 12. Task 033 software release qualification and simulation matrix
+
+Task 033 qualifies the complete simulation stack across L0 and L2 fidelity:
+
+- **Scenario matrix:** runs the complete 9-category scenario matrix (nominal, fault, cancel, timeout,
+  restart, corrupt-bundle, offline-platform, stale-device, uncertain-process) deterministically with
+  seed logging and trace event captures.
+- **Tree and recipe parity:** statically and dynamically proves that the Behavior Tree XML and
+  recipe YAML contain zero simulator-specific branches, executing identically across L0 and L2.
+- **Strict fidelity labeling:** enforces that L2 simulation requires NVIDIA CUDA GPU and PhysX
+  execution; CPU or mock execution is strictly labeled L0.
+- **Mandatory disclaimers:** simulation status and evidence are engineering verification data only.
+  Functional safety is independently enforced by rated hardware, and laser mark/material quality
+  qualification requires physical commissioning in Task 034.

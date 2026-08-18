@@ -404,3 +404,20 @@ The supported Isaac Sim 6 headless interaction/OpenUSD check is:
 
 The deterministic check validates contracts but does not substitute for the actual Kit viewport and
 OpenUSD interaction check.
+
+## 13. Task authoring, recipe management, and deployment evidence
+
+Tasks 029 and 030 complete the Studio authoring and deployment workflow:
+
+- **Task authoring:** inspects and edits BehaviorTree.CPP XML with realtime port matching and
+  frozen node registration validation, preventing malformed task trees before compilation.
+- **Recipe editor:** dynamic schema-driven form editing for versioned recipes, supporting
+  compatibility validation, product SKUs, process limits, and approval status tracking.
+- **Scenario runner & replay:** deterministic scenario execution with seed control, fault injection
+  scheduling, trace event capturing, and exact seed replay verification.
+- **Fidelity guard:** strictly enforces simulation fidelity labels, refusing to label L0 or CPU-only
+  execution as L2 without active CUDA GPU and PhysX execution.
+- **Signed bundle assembly:** exports immutable deployment bundles with detached Ed25519 signatures,
+  checksum inventories, and deployment profile target preflight verification.
+- **Software release qualification:** automated qualification workflow proving that all Studio
+  outputs feed directly into deterministic L0/L2 runtime execution.
