@@ -26,7 +26,7 @@ members = ["src/python/*"]
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config", "--strict-markers", "-ra"]
-testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_bundle/tests", "src/python/cellforge_cli/tests", "src/kit/cellforge.studio/tests", "tests"]
+testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_bundle/tests", "src/python/cellforge_cli/tests", "src/python/cellforge_platform/tests", "src/kit/cellforge.studio/tests", "tests"]
 pythonpath = ["src/kit/cellforge.studio"]
 
 [tool.ruff]

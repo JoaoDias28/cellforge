@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cellforge-platform"
+version = "0.1.0"
+description = "Central authenticated engineering metadata and content-addressed artifact platform services"
+requires-python = ">=3.12"
+dependencies = [
+    "cellforge-bundle==0.1.0",
+    "cellforge-domain==0.1.0",
+    "cryptography>=44,<45",
+    "fastapi>=0.100,<1",
+    "httpx>=0.27,<1",
+    "pydantic>=2,<3",
+    "pyyaml>=6,<7",
+    "uvicorn>=0.23,<1",
+]
+
+[project.scripts]
+cellforge-platform = "cellforge_platform.server:main"
+
+[tool.uv.sources]
+cellforge-domain = { workspace = true }
+cellforge-bundle = { workspace = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cellforge_platform"]

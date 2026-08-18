@@ -11,6 +11,7 @@ members = [
     "cellforge-bundle",
     "cellforge-cli",
     "cellforge-domain",
+    "cellforge-platform",
     "cellforge-workspace",
 ]
 
@@ -101,6 +102,33 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.25,<5" },
     { name = "pydantic", specifier = ">=2.11,<3" },
     { name = "pyyaml", specifier = ">=6,<7" },
+]
+
+[[package]]
+name = "cellforge-platform"
+version = "0.1.0"
+source = { editable = "src/python/cellforge_platform" }
+dependencies = [
+    { name = "cellforge-bundle" },
+    { name = "cellforge-domain" },
+    { name = "cryptography" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cellforge-bundle", editable = "src/python/cellforge_bundle" },
+    { name = "cellforge-domain", editable = "src/python/cellforge_domain" },
+    { name = "cryptography", specifier = ">=44,<45" },
+    { name = "fastapi", specifier = ">=0.100,<1" },
+    { name = "httpx", specifier = ">=0.27,<1" },
+    { name = "pydantic", specifier = ">=2,<3" },
+    { name = "pyyaml", specifier = ">=6,<7" },
+    { name = "uvicorn", specifier = ">=0.23,<1" },
 ]
 
 [[package]]
