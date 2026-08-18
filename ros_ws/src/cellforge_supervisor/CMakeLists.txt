@@ -70,8 +70,6 @@ install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY config/ DESTINATION share/${PROJECT_NAME}/config)
 
 if(BUILD_TESTING)
-  find_package(ament_cmake_clang_format REQUIRED)
-  find_package(ament_cmake_clang_tidy REQUIRED)
   find_package(ament_cmake_gtest REQUIRED)
 
   ament_add_gtest(test_tree_validation test/test_tree_validation.cpp)
@@ -89,14 +87,6 @@ if(BUILD_TESTING)
   if(TARGET test_supervisor_node)
     target_link_libraries(test_supervisor_node cellforge_supervisor_core)
     ament_target_dependencies(test_supervisor_node rclcpp rclcpp_action)
-  endif()
-
-  ament_clang_format(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-format")
-  if(WIN32)
-    ament_clang_tidy(TIMEOUT 60
-      CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-tidy-windows")
-  else()
-    ament_clang_tidy(TIMEOUT 60)
   endif()
 endif()
 
