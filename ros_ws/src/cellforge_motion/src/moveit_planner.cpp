@@ -75,7 +75,8 @@ MoveItPlanner::MoveItPlanner(rclcpp::Node::SharedPtr node, std::string planning_
       isaac_adapter_(rclcpp_action::create_client<ExecuteSkill>(
           node_, "/device/robot_001/execute_trajectory")) {}
 
-auto MoveItPlanner::moveToPose(const MotionRequest& request, std::stop_token stop_token)
+auto MoveItPlanner::moveToPose(const MotionRequest& request,
+                               std::stop_token stop_token)
     -> PlannerResult {
   std::scoped_lock lock(mutex_);
   if (stop_token.stop_requested()) {

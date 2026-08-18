@@ -86,7 +86,8 @@ TreeValidationError::TreeValidationError(const char* code, const std::string& me
 
 auto TreeValidationError::code() const noexcept -> const std::string& { return code_; }
 
-auto resolveTreePath(const std::filesystem::path& tree_root, const std::string& task_id)
+auto resolveTreePath(const std::filesystem::path& tree_root,
+                     const std::string& task_id)
     -> std::filesystem::path {
   static const std::regex exact_id_pattern(R"(^[A-Za-z0-9][A-Za-z0-9_.@-]*$)");
   if (!std::regex_match(task_id, exact_id_pattern) || task_id == "." || task_id == "..") {

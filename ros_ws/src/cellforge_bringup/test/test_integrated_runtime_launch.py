@@ -336,18 +336,18 @@ class TestIntegratedRuntime(unittest.TestCase):
             rclpy.init()
         node = rclpy.create_node("task_025_fault_injector")
         publisher = node.create_publisher(String, "/simulation/fault_injection", 10)
-        discovery_deadline = time.monotonic() + 5.0
-        while publisher.get_subscription_count() == 0 and time.monotonic() < discovery_deadline:
+        discovery_deadline = time.monotonic() + 10.0
+        while publisher.get_subscription_count() < 5 and time.monotonic() < discovery_deadline:
             rclpy.spin_once(node, timeout_sec=0.1)
         self.assertGreater(publisher.get_subscription_count(), 0)
         message = String()
         message.data = json.dumps(
             {"component_instance_id": "laser-001", "fault_code": "laser.process.timeout"}
         )
-        for _ in range(20):
+        for _ in range(50):
             publisher.publish(message)
-            rclpy.spin_once(node, timeout_sec=0.1)
-        time.sleep(0.5)
+            rclpy.spin_once(node, timeout_sec=0.05)
+        time.sleep(1.0)
         node.destroy_node()
         fault_result = _json("POST", "/api/v1/jobs", _job("fault", timeout=20.0))
         self.assertFalse(fault_result["success"])

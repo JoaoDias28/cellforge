@@ -25,9 +25,8 @@ struct LoadedBundlePlugin {
   std::filesystem::path node_manifest;
 };
 
-auto loadBundleDeclaredPlugins(BT::BehaviorTreeFactory& factory,
-                               const std::filesystem::path& bundle_manifest_path,
-                               const std::string& expected_bundle_id)
-    -> std::vector<LoadedBundlePlugin>;
+auto loadBundleDeclaredPlugins(
+    BT::BehaviorTreeFactory& factory, const std::filesystem::path& bundle_manifest_path,
+    const std::string& expected_bundle_id) -> std::vector<LoadedBundlePlugin>;
 
 }  // namespace cellforge_supervisor

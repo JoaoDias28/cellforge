@@ -93,10 +93,10 @@ if(BUILD_TESTING)
 
   ament_clang_format(CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-format")
   if(WIN32)
-    ament_clang_tidy(${CMAKE_BINARY_DIR}
+    ament_clang_tidy(TIMEOUT 60
       CONFIG_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../../../.clang-tidy-windows")
   else()
-    ament_clang_tidy(${CMAKE_BINARY_DIR})
+    ament_clang_tidy(TIMEOUT 60)
   endif()
 endif()
 

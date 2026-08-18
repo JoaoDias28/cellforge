@@ -70,8 +70,7 @@ auto portsFor(const std::string& node) -> BT::PortsList {
   return {};
 }
 
-auto scriptedTick(BT::TreeNode& node, const std::shared_ptr<ScenarioScript>& script)
-    -> BT::NodeStatus {
+auto scriptedTick(BT::TreeNode& node, const std::shared_ptr<ScenarioScript>& script) -> BT::NodeStatus {
   const auto name = node.registrationName();
   script->nodes.push_back(name);
   if (name == "CheckSafetyHealthy" && script->id == "pen-safety-unhealthy") {
