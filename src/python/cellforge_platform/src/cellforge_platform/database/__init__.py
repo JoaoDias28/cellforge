@@ -9,8 +9,11 @@ from cellforge_platform.database.repository import (
     ComponentRepository,
     ConflictError,
     DatabaseError,
+    EvidenceRepository,
     NotFoundError,
+    ProductionSyncRepository,
     ProjectRepository,
+    RecipeApprovalRepository,
     RecipeRepository,
 )
 
@@ -23,8 +26,11 @@ __all__ = [
     "DatabaseEngine",
     "DatabaseError",
     "DatabaseManager",
+    "EvidenceRepository",
     "Migration",
     "NotFoundError",
+    "ProductionSyncRepository",
     "ProjectRepository",
+    "RecipeApprovalRepository",
     "RecipeRepository",
 ]

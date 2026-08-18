@@ -34,8 +34,8 @@ def test_migrations_from_empty_to_latest_and_rollback() -> None:
         "schema_migrations",
     }.issubset(tables_v1)
 
-    # Migrate up to version 2 (latest)
-    applied_v2 = mgr.migrate_up()
+    # Migrate up to version 2
+    applied_v2 = mgr.migrate_up(target_version=2)
     assert applied_v2 == [2]
     assert mgr.current_version() == 2
     assert mgr.applied_versions() == [1, 2]
@@ -44,6 +44,33 @@ def test_migrations_from_empty_to_latest_and_rollback() -> None:
     cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
     tables_v2 = {row["name"] for row in cursor.fetchall()}
     assert "component_licenses" in tables_v2
+
+    # Migrate up to version 3
+    applied_v3 = mgr.migrate_up(target_version=3)
+    assert applied_v3 == [3]
+    assert mgr.current_version() == 3
+    assert mgr.applied_versions() == [1, 2, 3]
+
+    # Verify tables in v3
+    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+    tables_v3 = {row["name"] for row in cursor.fetchall()}
+    assert {"recipe_approvals", "evidence_records"}.issubset(tables_v3)
+
+    # Migrate up to version 4 (latest)
+    applied_v4 = mgr.migrate_up()
+    assert applied_v4 == [4]
+    assert mgr.current_version() == 4
+    assert mgr.applied_versions() == [1, 2, 3, 4]
+
+    # Verify tables in v4
+    cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+    tables_v4 = {row["name"] for row in cursor.fetchall()}
+    assert {
+        "production_jobs",
+        "production_traces",
+        "production_results",
+        "production_attachments",
+    }.issubset(tables_v4)
 
     # Insert test data into tables
     conn.execute(
@@ -63,7 +90,69 @@ def test_migrations_from_empty_to_latest_and_rollback() -> None:
         VALUES ('c1', 'Apache-2.0', 1, '2026-01-01T00:00:00Z');
         """
     )
+    conn.execute(
+        """
+        INSERT INTO recipes (
+            id, project_id, recipe_id, version, name, status,
+            schema_sha256, recipe_sha256, recipe_json, created_at
+        ) VALUES (
+            'r1', 'p1', 'rec1', 1, 'Engrave Rec', 'DRAFT',
+            'schema_hash', 'rec_hash', '{}', '2026-01-01T00:00:00Z'
+        );
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO recipe_approvals (
+            id, recipe_record_id, project_id, recipe_id, version,
+            recipe_sha256, role, approver_id, decision, created_at
+        ) VALUES (
+            'a1', 'r1', 'p1', 'rec1', 1,
+            'rec_hash', 'process_engineer', 'alice', 'approved', '2026-01-01T00:00:00Z'
+        );
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO production_jobs (
+            idempotency_key, cell_id, job_id, request_hash, status,
+            frozen_json, synced_at, created_at
+        ) VALUES (
+            'k1', 'cell1', 'job1', 'req1', 'COMPLETED',
+            '{}', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+        );
+
+        """
+    )
     conn.commit()
+
+    # Roll back to version 3
+    rolled_back_to_3 = mgr.migrate_down(target_version=3)
+    assert rolled_back_to_3 == [4]
+    assert mgr.current_version() == 3
+    assert mgr.applied_versions() == [1, 2, 3]
+
+    # Verify v4 tables dropped and v3 data preserved
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='production_jobs';"
+    )
+    assert cursor.fetchone() is None
+    cursor = conn.execute("SELECT id, approver_id FROM recipe_approvals WHERE id = 'a1';")
+    assert cursor.fetchone() is not None
+
+    # Roll back to version 2
+    rolled_back_to_2 = mgr.migrate_down(target_version=2)
+    assert rolled_back_to_2 == [3]
+    assert mgr.current_version() == 2
+    assert mgr.applied_versions() == [1, 2]
+
+    # Verify v3 tables dropped and v2 data preserved
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='recipe_approvals';"
+    )
+    assert cursor.fetchone() is None
+    cursor = conn.execute("SELECT id FROM component_licenses WHERE component_id = 'c1';")
+    assert cursor.fetchone() is not None
 
     # Roll back to version 1
     rolled_back_to_1 = mgr.migrate_down(target_version=1)
@@ -91,6 +180,6 @@ def test_migrations_from_empty_to_latest_and_rollback() -> None:
 
     # Re-apply all migrations from 0 to latest
     reapplied = mgr.migrate_up()
-    assert reapplied == [1, 2]
-    assert mgr.current_version() == 2
-    assert mgr.applied_versions() == [1, 2]
+    assert reapplied == [1, 2, 3, 4]
+    assert mgr.current_version() == 4
+    assert mgr.applied_versions() == [1, 2, 3, 4]

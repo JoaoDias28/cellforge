@@ -12,8 +12,17 @@ from cellforge_platform.models import (
     BundleRecord,
     ComponentDetail,
     ComponentSummary,
+    EvidenceRecord,
+    EvidenceRecordCreate,
+    ProductionAttachmentRecord,
+    ProductionJobRecord,
+    ProductionResultRecord,
+    ProductionTraceRecord,
     ProjectRecord,
+    RecipeApprovalRecord,
+    RecipeApprovalSummary,
     RecipeRecord,
+    SyncBatchResponse,
 )
 
 
@@ -659,3 +668,610 @@ class AuditRepository:
             (event_type, entity_type, entity_id, json.dumps(details), performed_by, now),
         )
         self.conn.commit()
+
+
+AUTHORIZED_APPROVAL_ROLES: frozenset[str] = frozenset(
+    {"process_engineer", "automation_engineer", "administrator", "safety_engineer"}
+)
+
+
+class RecipeApprovalRepository:
+    """Repository for append-only recipe approval ledger and two-role production authorization."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def record_approval(
+        self,
+        *,
+        project_id: str,
+        recipe_id: str,
+        version: int,
+        role: str,
+        approver_id: str,
+        decision: str = "approved",
+        comments: str | None = None,
+        signature: str | None = None,
+    ) -> tuple[RecipeApprovalRecord, RecipeApprovalSummary]:
+        # Fetch recipe record
+        cursor = self.conn.execute(
+            """
+            SELECT id, project_id, recipe_id, version, name, status,
+                   schema_sha256, recipe_sha256, recipe_json, created_at, created_by
+            FROM recipes
+            WHERE project_id = ? AND recipe_id = ? AND version = ?;
+            """,
+            (project_id, recipe_id, version),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise NotFoundError(
+                f"Recipe '{recipe_id}' version '{version}' not found in project '{project_id}'."
+            )
+
+        recipe_record_id = row["id"]
+        recipe_sha256 = row["recipe_sha256"]
+        recipe_status = row["status"]
+
+        approval_id = str(uuid4())
+
+        now = datetime.now(UTC).isoformat()
+
+        self.conn.execute(
+            """
+            INSERT INTO recipe_approvals (
+                id, recipe_record_id, project_id, recipe_id, version, recipe_sha256,
+                role, approver_id, decision, comments, signature, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            (
+                approval_id,
+                recipe_record_id,
+                project_id,
+                recipe_id,
+                version,
+                recipe_sha256,
+                role,
+                approver_id,
+                decision,
+                comments,
+                signature,
+                now,
+            ),
+        )
+        self.conn.commit()
+
+        approval_record = RecipeApprovalRecord(
+            id=approval_id,
+            recipe_record_id=recipe_record_id,
+            project_id=project_id,
+            recipe_id=recipe_id,
+            version=version,
+            recipe_sha256=recipe_sha256,
+            role=role,
+            approver_id=approver_id,
+            decision=decision,
+            comments=comments,
+            signature=signature,
+            created_at=now,
+        )
+
+        summary = self.get_approval_summary(project_id, recipe_id, version)
+        if summary.is_approved_for_production and recipe_status != "APPROVED":
+            self.conn.execute(
+                "UPDATE recipes SET status = 'APPROVED' WHERE id = ?;",
+                (recipe_record_id,),
+            )
+            self.conn.commit()
+            summary = self.get_approval_summary(project_id, recipe_id, version)
+
+        return approval_record, summary
+
+    def list_approvals(
+        self, project_id: str, recipe_id: str, version: int
+    ) -> list[RecipeApprovalRecord]:
+        cursor = self.conn.execute(
+            """
+            SELECT id, recipe_record_id, project_id, recipe_id, version, recipe_sha256,
+                   role, approver_id, decision, comments, signature, created_at
+            FROM recipe_approvals
+            WHERE project_id = ? AND recipe_id = ? AND version = ?
+            ORDER BY created_at ASC;
+            """,
+            (project_id, recipe_id, version),
+        )
+        records: list[RecipeApprovalRecord] = []
+        for row in cursor.fetchall():
+            records.append(
+                RecipeApprovalRecord(
+                    id=row["id"],
+                    recipe_record_id=row["recipe_record_id"],
+                    project_id=row["project_id"],
+                    recipe_id=row["recipe_id"],
+                    version=row["version"],
+                    recipe_sha256=row["recipe_sha256"],
+                    role=row["role"],
+                    approver_id=row["approver_id"],
+                    decision=row["decision"],
+                    comments=row["comments"],
+                    signature=row["signature"],
+                    created_at=row["created_at"],
+                )
+            )
+        return records
+
+    def get_approval_summary(
+        self, project_id: str, recipe_id: str, version: int
+    ) -> RecipeApprovalSummary:
+        cursor = self.conn.execute(
+            """
+            SELECT id, name, status, recipe_sha256, created_by
+            FROM recipes
+            WHERE project_id = ? AND recipe_id = ? AND version = ?;
+            """,
+            (project_id, recipe_id, version),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise NotFoundError(
+                f"Recipe '{recipe_id}' version '{version}' not found in project '{project_id}'."
+            )
+
+        approvals = self.list_approvals(project_id, recipe_id, version)
+        created_by = row["created_by"]
+
+        # Evaluate dual-role production approval:
+        # 1. Decision must be 'approved'
+        # 2. Role must be in authorized set
+        # 3. No self-approval: approver_id cannot be the recipe author (created_by)
+        # 4. Must have >= 2 distinct approvers with >= 2 distinct roles
+        valid_role_approvers: dict[str, str] = {}  # approver_id -> role
+        distinct_roles: set[str] = set()
+
+        for app in approvals:
+            if app.decision.lower() == "approved" and app.role in AUTHORIZED_APPROVAL_ROLES:
+                if created_by and app.approver_id == created_by:
+                    # Self-approval by author is rejected from counting towards
+                    # dual-role certification
+                    continue
+
+                if app.approver_id not in valid_role_approvers:
+                    valid_role_approvers[app.approver_id] = app.role
+                    distinct_roles.add(app.role)
+
+        is_approved_for_prod = len(valid_role_approvers) >= 2 and len(distinct_roles) >= 2
+
+        return RecipeApprovalSummary(
+            recipe_id=recipe_id,
+            version=version,
+            name=row["name"],
+            status=row["status"],
+            recipe_sha256=row["recipe_sha256"],
+            created_by=created_by,
+            approvals=approvals,
+            is_approved_for_production=is_approved_for_prod,
+        )
+
+
+class EvidenceRepository:
+    """Repository for content-addressed evidence records."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def create(self, record: EvidenceRecordCreate, created_by: str | None = None) -> EvidenceRecord:
+        existing = self.get(record.evidence_id)
+        if existing is not None:
+            if existing.artifact_sha256 == record.artifact_sha256 and existing.kind == record.kind:
+                return existing
+            raise ConflictError(
+                f"Evidence record '{record.evidence_id}' already exists with different content."
+            )
+
+        now = datetime.now(UTC).isoformat()
+        self.conn.execute(
+            """
+            INSERT INTO evidence_records (
+                id, schema_version, kind, cell_id, subject_json, artifact_sha256,
+                issuer, valid_until, signature, metadata_json, created_at, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """,
+            (
+                record.evidence_id,
+                record.schema_version,
+                record.kind,
+                record.cell_id,
+                json.dumps(record.subject, sort_keys=True),
+                record.artifact_sha256.lower().strip(),
+                record.issuer,
+                record.valid_until,
+                record.signature,
+                json.dumps(record.metadata, sort_keys=True),
+                now,
+                created_by,
+            ),
+        )
+        self.conn.commit()
+        return self.get(record.evidence_id)  # type: ignore[return-value]
+
+    def get(self, evidence_id: str) -> EvidenceRecord | None:
+        cursor = self.conn.execute(
+            """
+            SELECT id, schema_version, kind, cell_id, subject_json, artifact_sha256,
+                   issuer, valid_until, signature, metadata_json, created_at, created_by
+            FROM evidence_records
+            WHERE id = ?;
+            """,
+            (evidence_id,),
+        )
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return EvidenceRecord(
+            id=row["id"],
+            schema_version=row["schema_version"],
+            kind=row["kind"],
+            cell_id=row["cell_id"],
+            subject=json.loads(row["subject_json"]),
+            artifact_sha256=row["artifact_sha256"],
+            issuer=row["issuer"],
+            valid_until=row["valid_until"],
+            signature=row["signature"],
+            metadata=json.loads(row["metadata_json"]),
+            created_at=row["created_at"],
+            created_by=row["created_by"],
+        )
+
+    def list(
+        self,
+        *,
+        cell_id: str | None = None,
+        kind: str | None = None,
+        artifact_sha256: str | None = None,
+    ) -> list[EvidenceRecord]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if cell_id is not None:
+            clauses.append("cell_id = ?")
+            params.append(cell_id)
+        if kind is not None:
+            clauses.append("kind = ?")
+            params.append(kind)
+        if artifact_sha256 is not None:
+            clauses.append("artifact_sha256 = ?")
+            params.append(artifact_sha256.lower().strip())
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        sql = f"""
+            SELECT id, schema_version, kind, cell_id, subject_json, artifact_sha256,
+                   issuer, valid_until, signature, metadata_json, created_at, created_by
+            FROM evidence_records
+            {where}
+            ORDER BY created_at DESC;
+        """
+        cursor = self.conn.execute(sql, tuple(params))
+        records: list[EvidenceRecord] = []
+        for row in cursor.fetchall():
+            records.append(
+                EvidenceRecord(
+                    id=row["id"],
+                    schema_version=row["schema_version"],
+                    kind=row["kind"],
+                    cell_id=row["cell_id"],
+                    subject=json.loads(row["subject_json"]),
+                    artifact_sha256=row["artifact_sha256"],
+                    issuer=row["issuer"],
+                    valid_until=row["valid_until"],
+                    signature=row["signature"],
+                    metadata=json.loads(row["metadata_json"]),
+                    created_at=row["created_at"],
+                    created_by=row["created_by"],
+                )
+            )
+        return records
+
+
+class ProductionSyncRepository:
+    """Repository for idempotent synchronization of locally authoritative production records."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self.conn = conn
+
+    def sync_batch(
+        self,
+        *,
+        cell_id: str,
+        jobs: list[ProductionJobRecord],
+        traces: list[ProductionTraceRecord],
+        results: list[ProductionResultRecord],
+        attachments: list[ProductionAttachmentRecord],
+    ) -> SyncBatchResponse:
+        now = datetime.now(UTC).isoformat()
+        ack_jobs: list[str] = []
+        ack_traces: list[str] = []
+        ack_results: list[str] = []
+        ack_attachments: list[str] = []
+
+        # 1. Sync Jobs
+        for job in jobs:
+            self.conn.execute(
+                """
+                INSERT INTO production_jobs (
+                    idempotency_key, cell_id, job_id, request_hash, status,
+                    frozen_json, result_json, synced_at, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (idempotency_key) DO UPDATE SET
+                    status = excluded.status,
+                    result_json = coalesce(excluded.result_json, production_jobs.result_json),
+                    synced_at = excluded.synced_at;
+                """,
+                (
+                    job.idempotency_key,
+                    job.cell_id,
+                    job.job_id,
+                    job.request_hash,
+                    job.status,
+                    job.frozen_json,
+                    job.result_json,
+                    now,
+                    job.created_at,
+                ),
+            )
+            ack_jobs.append(job.idempotency_key)
+
+        # 2. Sync Traces
+        for trace in traces:
+            trace_key = f"{trace.trace_id}:{trace.sequence}"
+            self.conn.execute(
+                """
+                INSERT INTO production_traces (
+                    id, trace_id, sequence, cell_id, job_id, component_instance_id,
+                    command_id, event_type, severity, bundle_id, source_revision,
+                    recipe_id, recipe_version, recipe_sha256, task_id, task_sha256,
+                    execution_mode, payload_json, timestamp, synced_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO NOTHING;
+                """,
+                (
+                    trace_key,
+                    trace.trace_id,
+                    trace.sequence,
+                    trace.cell_id,
+                    trace.job_id,
+                    trace.component_instance_id,
+                    trace.command_id,
+                    trace.event_type,
+                    trace.severity,
+                    trace.bundle_id,
+                    trace.source_revision,
+                    trace.recipe_id,
+                    trace.recipe_version,
+                    trace.recipe_sha256,
+                    trace.task_id,
+                    trace.task_sha256,
+                    trace.execution_mode,
+                    json.dumps(trace.payload, sort_keys=True),
+                    trace.timestamp,
+                    now,
+                ),
+            )
+            ack_traces.append(trace.trace_id)
+
+        # 3. Sync Results
+        for result in results:
+            result_key = f"{result.cell_id}:{result.job_id}:{result.trace_id}"
+            self.conn.execute(
+                """
+                INSERT INTO production_results (
+                    id, cell_id, job_id, trace_id, success, result_code,
+                    result_message, output_payload_json, completed_at, synced_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO NOTHING;
+                """,
+                (
+                    result_key,
+                    result.cell_id,
+                    result.job_id,
+                    result.trace_id,
+                    1 if result.success else 0,
+                    result.result_code,
+                    result.result_message,
+                    result.output_payload_json,
+                    result.completed_at,
+                    now,
+                ),
+            )
+            ack_results.append(result.trace_id)
+
+        # 4. Sync Attachments
+        for att in attachments:
+            att_key = f"{att.digest}:{att.trace_id}:{att.filename}"
+            self.conn.execute(
+                """
+                INSERT INTO production_attachments (
+                    id, digest, cell_id, job_id, trace_id, filename,
+                    media_type, size_bytes, synced_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO NOTHING;
+                """,
+                (
+                    att_key,
+                    att.digest.lower().strip(),
+                    att.cell_id,
+                    att.job_id,
+                    att.trace_id,
+                    att.filename,
+                    att.media_type,
+                    att.size_bytes,
+                    now,
+                ),
+            )
+            ack_attachments.append(att_key)
+
+        self.conn.commit()
+
+        return SyncBatchResponse(
+            acknowledged_job_keys=list(dict.fromkeys(ack_jobs)),
+            acknowledged_trace_ids=list(dict.fromkeys(ack_traces)),
+            acknowledged_result_ids=list(dict.fromkeys(ack_results)),
+            acknowledged_attachment_ids=list(dict.fromkeys(ack_attachments)),
+            server_timestamp=now,
+        )
+
+    def list_jobs(
+        self, *, cell_id: str | None = None, job_id: str | None = None
+    ) -> list[ProductionJobRecord]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if cell_id is not None:
+            clauses.append("cell_id = ?")
+            params.append(cell_id)
+        if job_id is not None:
+            clauses.append("job_id = ?")
+            params.append(job_id)
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        sql = f"""
+            SELECT idempotency_key, cell_id, job_id, request_hash, status,
+                   frozen_json, result_json, created_at
+            FROM production_jobs
+            {where}
+            ORDER BY created_at DESC;
+        """
+        cursor = self.conn.execute(sql, tuple(params))
+        jobs: list[ProductionJobRecord] = []
+        for row in cursor.fetchall():
+            jobs.append(
+                ProductionJobRecord(
+                    idempotency_key=row["idempotency_key"],
+                    cell_id=row["cell_id"],
+                    job_id=row["job_id"],
+                    request_hash=row["request_hash"],
+                    status=row["status"],
+                    frozen_json=row["frozen_json"],
+                    result_json=row["result_json"],
+                    created_at=row["created_at"],
+                )
+            )
+        return jobs
+
+    def list_traces(
+        self, *, trace_id: str | None = None, cell_id: str | None = None
+    ) -> list[ProductionTraceRecord]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if trace_id is not None:
+            clauses.append("trace_id = ?")
+            params.append(trace_id)
+        if cell_id is not None:
+            clauses.append("cell_id = ?")
+            params.append(cell_id)
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        sql = f"""
+            SELECT trace_id, sequence, cell_id, job_id, component_instance_id, command_id,
+                   event_type, severity, bundle_id, source_revision, recipe_id,
+                   recipe_version, recipe_sha256, task_id, task_sha256, execution_mode,
+                   payload_json, timestamp
+            FROM production_traces
+            {where}
+            ORDER BY sequence ASC;
+        """
+        cursor = self.conn.execute(sql, tuple(params))
+        traces: list[ProductionTraceRecord] = []
+        for row in cursor.fetchall():
+            traces.append(
+                ProductionTraceRecord(
+                    trace_id=row["trace_id"],
+                    sequence=row["sequence"],
+                    cell_id=row["cell_id"],
+                    job_id=row["job_id"],
+                    component_instance_id=row["component_instance_id"],
+                    command_id=row["command_id"],
+                    event_type=row["event_type"],
+                    severity=row["severity"],
+                    bundle_id=row["bundle_id"] or "",
+                    source_revision=row["source_revision"] or "",
+                    recipe_id=row["recipe_id"] or "",
+                    recipe_version=row["recipe_version"] or 0,
+                    recipe_sha256=row["recipe_sha256"] or "",
+                    task_id=row["task_id"] or "",
+                    task_sha256=row["task_sha256"] or "",
+                    execution_mode=row["execution_mode"] or "",
+                    payload=json.loads(row["payload_json"]),
+                    timestamp=row["timestamp"],
+                )
+            )
+        return traces
+
+    def list_results(
+        self, *, cell_id: str | None = None, trace_id: str | None = None
+    ) -> list[ProductionResultRecord]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if cell_id is not None:
+            clauses.append("cell_id = ?")
+            params.append(cell_id)
+        if trace_id is not None:
+            clauses.append("trace_id = ?")
+            params.append(trace_id)
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        sql = f"""
+            SELECT cell_id, job_id, trace_id, success, result_code,
+                   result_message, output_payload_json, completed_at
+            FROM production_results
+            {where}
+            ORDER BY completed_at DESC;
+        """
+        cursor = self.conn.execute(sql, tuple(params))
+        results: list[ProductionResultRecord] = []
+        for row in cursor.fetchall():
+            results.append(
+                ProductionResultRecord(
+                    cell_id=row["cell_id"],
+                    job_id=row["job_id"],
+                    trace_id=row["trace_id"],
+                    success=bool(row["success"]),
+                    result_code=row["result_code"],
+                    result_message=row["result_message"],
+                    output_payload_json=row["output_payload_json"],
+                    completed_at=row["completed_at"],
+                )
+            )
+        return results
+
+    def list_attachments(
+        self, *, cell_id: str | None = None, trace_id: str | None = None
+    ) -> list[ProductionAttachmentRecord]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if cell_id is not None:
+            clauses.append("cell_id = ?")
+            params.append(cell_id)
+        if trace_id is not None:
+            clauses.append("trace_id = ?")
+            params.append(trace_id)
+
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        sql = f"""
+            SELECT digest, cell_id, job_id, trace_id, filename, media_type, size_bytes
+            FROM production_attachments
+            {where}
+            ORDER BY synced_at DESC;
+        """
+        cursor = self.conn.execute(sql, tuple(params))
+        attachments: list[ProductionAttachmentRecord] = []
+        for row in cursor.fetchall():
+            attachments.append(
+                ProductionAttachmentRecord(
+                    digest=row["digest"],
+                    cell_id=row["cell_id"],
+                    job_id=row["job_id"],
+                    trace_id=row["trace_id"],
+                    filename=row["filename"],
+                    media_type=row["media_type"],
+                    size_bytes=row["size_bytes"],
+                )
+            )
+        return attachments
