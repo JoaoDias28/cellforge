@@ -11,10 +11,19 @@ from cellforge_platform.models import (
     BundleRecord,
     ComponentDetail,
     ComponentSummary,
+    EvidenceRecord,
+    EvidenceRecordCreate,
+    EvidenceSnapshot,
     HealthResponse,
+    ProductionAttachmentRecord,
+    ProductionJobRecord,
+    ProductionResultRecord,
+    ProductionTraceRecord,
     ProjectRecord,
+    RecipeApprovalSummary,
     RecipeRecord,
     ResolutionResponse,
+    SyncBatchResponse,
 )
 
 
@@ -49,6 +58,7 @@ class PlatformClient:
         self._auth_token = auth_token
         self._dev_user = dev_user
         self._dev_role = dev_role
+        self.app = app
 
         headers: dict[str, str] = {}
         if auth_token:
@@ -354,3 +364,177 @@ class PlatformClient:
         resp = self._client.post(f"{self.api_prefix}/resolve", json=payload)
         data = self._handle_response(resp)
         return ResolutionResponse.model_validate(data)
+
+    # -------------------------------------------------------------------------
+    # Recipe Approvals
+    # -------------------------------------------------------------------------
+
+    def approve_recipe(
+        self,
+        cell_id: str,
+        recipe_id: str,
+        version: int,
+        role: str,
+        decision: str = "approved",
+        comments: str | None = None,
+        signature: str | None = None,
+    ) -> RecipeApprovalSummary:
+        payload = {
+            "role": role,
+            "decision": decision,
+            "comments": comments,
+            "signature": signature,
+        }
+        resp = self._client.post(
+            f"{self.api_prefix}/projects/{cell_id}/recipes/{recipe_id}/{version}/approve",
+            json=payload,
+        )
+        data = self._handle_response(resp)
+        return RecipeApprovalSummary.model_validate(data)
+
+    def get_recipe_approvals(
+        self,
+        cell_id: str,
+        recipe_id: str,
+        version: int,
+    ) -> RecipeApprovalSummary:
+        resp = self._client.get(
+            f"{self.api_prefix}/projects/{cell_id}/recipes/{recipe_id}/{version}/approvals"
+        )
+        data = self._handle_response(resp)
+        return RecipeApprovalSummary.model_validate(data)
+
+    # -------------------------------------------------------------------------
+    # Evidence & Signed Snapshots
+    # -------------------------------------------------------------------------
+
+    def create_evidence(self, record: EvidenceRecordCreate) -> EvidenceRecord:
+        resp = self._client.post(
+            f"{self.api_prefix}/evidence",
+            json=record.model_dump(mode="json"),
+        )
+        data = self._handle_response(resp)
+        return EvidenceRecord.model_validate(data)
+
+    def get_evidence(self, evidence_id: str) -> EvidenceRecord:
+        resp = self._client.get(f"{self.api_prefix}/evidence/{evidence_id}")
+        data = self._handle_response(resp)
+        return EvidenceRecord.model_validate(data)
+
+    def list_evidence(
+        self,
+        *,
+        cell_id: str | None = None,
+        kind: str | None = None,
+        artifact_sha256: str | None = None,
+    ) -> list[EvidenceRecord]:
+        params: dict[str, Any] = {}
+        if cell_id is not None:
+            params["cell_id"] = cell_id
+        if kind is not None:
+            params["kind"] = kind
+        if artifact_sha256 is not None:
+            params["artifact_sha256"] = artifact_sha256
+        resp = self._client.get(f"{self.api_prefix}/evidence", params=params)
+        data = self._handle_response(resp)
+        return [EvidenceRecord.model_validate(item) for item in data]
+
+    def generate_evidence_snapshot(
+        self,
+        cell_id: str,
+        *,
+        valid_until: str | None = None,
+        key_id: str | None = None,
+    ) -> EvidenceSnapshot:
+        payload = {
+            "cell_id": cell_id,
+            "valid_until": valid_until,
+            "key_id": key_id,
+        }
+        resp = self._client.post(f"{self.api_prefix}/evidence/snapshots", json=payload)
+        data = self._handle_response(resp)
+        return EvidenceSnapshot.model_validate(data)
+
+    # -------------------------------------------------------------------------
+    # Production Synchronization
+    # -------------------------------------------------------------------------
+
+    def sync_batch(
+        self,
+        cell_id: str,
+        *,
+        jobs: list[ProductionJobRecord] | None = None,
+        traces: list[ProductionTraceRecord] | None = None,
+        results: list[ProductionResultRecord] | None = None,
+        attachments: list[ProductionAttachmentRecord] | None = None,
+    ) -> SyncBatchResponse:
+        payload = {
+            "cell_id": cell_id,
+            "jobs": [j.model_dump(mode="json") for j in (jobs or [])],
+            "traces": [t.model_dump(mode="json") for t in (traces or [])],
+            "results": [r.model_dump(mode="json") for r in (results or [])],
+            "attachments": [a.model_dump(mode="json") for a in (attachments or [])],
+        }
+        resp = self._client.post(f"{self.api_prefix}/sync/batch", json=payload)
+        data = self._handle_response(resp)
+        return SyncBatchResponse.model_validate(data)
+
+    def list_production_jobs(
+        self,
+        *,
+        cell_id: str | None = None,
+        job_id: str | None = None,
+    ) -> list[ProductionJobRecord]:
+        params: dict[str, Any] = {}
+        if cell_id is not None:
+            params["cell_id"] = cell_id
+        if job_id is not None:
+            params["job_id"] = job_id
+        resp = self._client.get(f"{self.api_prefix}/production/jobs", params=params)
+        data = self._handle_response(resp)
+        return [ProductionJobRecord.model_validate(item) for item in data]
+
+    def list_production_traces(
+        self,
+        *,
+        trace_id: str | None = None,
+        cell_id: str | None = None,
+    ) -> list[ProductionTraceRecord]:
+        params: dict[str, Any] = {}
+        if trace_id is not None:
+            params["trace_id"] = trace_id
+        if cell_id is not None:
+            params["cell_id"] = cell_id
+        resp = self._client.get(f"{self.api_prefix}/production/traces", params=params)
+        data = self._handle_response(resp)
+        return [ProductionTraceRecord.model_validate(item) for item in data]
+
+    def list_production_results(
+        self,
+        *,
+        cell_id: str | None = None,
+        trace_id: str | None = None,
+    ) -> list[ProductionResultRecord]:
+        params: dict[str, Any] = {}
+        if cell_id is not None:
+            params["cell_id"] = cell_id
+        if trace_id is not None:
+            params["trace_id"] = trace_id
+        resp = self._client.get(f"{self.api_prefix}/production/results", params=params)
+        data = self._handle_response(resp)
+        return [ProductionResultRecord.model_validate(item) for item in data]
+
+    def list_production_attachments(
+        self,
+        *,
+        cell_id: str | None = None,
+        trace_id: str | None = None,
+    ) -> list[ProductionAttachmentRecord]:
+        params: dict[str, Any] = {}
+        if cell_id is not None:
+            params["cell_id"] = cell_id
+        if trace_id is not None:
+            params["trace_id"] = trace_id
+        resp = self._client.get(f"{self.api_prefix}/production/attachments", params=params)
+        data = self._handle_response(resp)
+        return [ProductionAttachmentRecord.model_validate(item) for item in data]

@@ -5,7 +5,9 @@ import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from xml.etree import ElementTree
 
 from cellforge_domain import (
@@ -40,7 +42,9 @@ from cellforge_domain.example_validation import validate_example_tree
 from cellforge_bundle.models import CompilationReport, CompilerStage, StageResult, StageStatus
 
 _GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 _OPERATOR_ID = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
+
 _USD_PRIM = re.compile(r'\b(?:def|over|class)\s+\w+\s+"([^"\\]+)"')
 _STAGE_ORDER = tuple(CompilerStage)
 _BLACKBOARD_POINTER = re.compile(r"^\{([A-Za-z_][A-Za-z0-9_.-]*)\}$")
@@ -216,6 +220,9 @@ def compile_project(
     target_profile: str,
     mode: ExecutionMode,
     source_revision: str,
+    evidence_snapshot: str | Path | dict[str, Any] | None = None,
+    platform_public_keys: dict[str, Any] | None = None,
+    current_time: datetime | str | None = None,
 ) -> CompilationReport:
     """Compile a source tree into an immutable plan without building or installing it."""
 
@@ -339,19 +346,15 @@ def compile_project(
         inventory,
     )
 
-    state.attempt(CompilerStage.EVIDENCE)
-    if mode == ExecutionMode.PRODUCTION:
-        state.add(
-            CompilerStage.EVIDENCE,
-            _finding(
-                "compiler.production-evidence-unverified",
-                "evidence-summary.json#",
-                (
-                    "Production evidence is required, but evidence verification is not "
-                    "implemented; compilation fails closed."
-                ),
-            ),
-        )
+    evidence_summary = _validate_evidence_stage(
+        cell=cell,
+        recipes=recipes,
+        mode=mode,
+        evidence_snapshot=evidence_snapshot,
+        platform_public_keys=platform_public_keys,
+        current_time=current_time,
+        state=state,
+    )
 
     if profile is None or profile_path is None:
         return _report(state, resolution=resolution)
@@ -389,7 +392,7 @@ def compile_project(
         containers=tuple(sorted(profile.runtime.containers)),
         external_prerequisites=tuple(sorted(profile.external_prerequisites)),
         runtime=runtime,
-        evidence=BundleEvidenceSummary(required=False, status="not-required"),
+        evidence=evidence_summary,
         files=files,
     )
     hash_input = draft.model_dump(mode="json", by_alias=True, exclude={"bundle_id"})
@@ -1445,3 +1448,393 @@ def _duplicates(values: Iterable[str]) -> set[str]:
             duplicates.add(value)
         seen.add(value)
     return duplicates
+
+
+def _validate_evidence_stage(
+    cell: CellProject,
+    recipes: tuple[BundleRecipeReference, ...],
+    mode: ExecutionMode,
+    evidence_snapshot: str | Path | dict[str, Any] | None,
+    platform_public_keys: dict[str, Any] | None,
+    current_time: datetime | str | None,
+    state: _CompilerState,
+) -> BundleEvidenceSummary:
+    state.attempt(CompilerStage.EVIDENCE)
+
+    if mode != ExecutionMode.PRODUCTION:
+        if evidence_snapshot is None:
+            return BundleEvidenceSummary(required=False, status="not-required")
+
+    if evidence_snapshot is None:
+        state.add(
+            CompilerStage.EVIDENCE,
+            _finding(
+                "compiler.production-evidence-unverified",
+                "evidence-summary.json#",
+                (
+                    "Production evidence is required, but evidence verification is not "
+                    "implemented; compilation fails closed."
+                ),
+            ),
+        )
+        state.add(
+            CompilerStage.EVIDENCE,
+            _finding(
+                "compiler.production-evidence-missing",
+                "evidence-summary.json#",
+                (
+                    "Production execution mode requires a signed evidence snapshot; "
+                    "none was provided."
+                ),
+            ),
+        )
+        return BundleEvidenceSummary(required=True, status="missing")
+
+    # Load snapshot dictionary
+    snapshot_doc: dict[str, Any]
+    if isinstance(evidence_snapshot, (str, Path)):
+        snap_path = Path(evidence_snapshot)
+        if not snap_path.is_file():
+            try:
+                snapshot_doc = json.loads(str(evidence_snapshot))
+            except Exception:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.snapshot-not-found",
+                        "evidence-summary.json#",
+                        f"Evidence snapshot file not found: {snap_path}",
+                    ),
+                )
+                return BundleEvidenceSummary(required=True, status="failed")
+        else:
+            try:
+                snapshot_doc = json.loads(snap_path.read_bytes())
+            except Exception as err:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.snapshot-invalid-json",
+                        "evidence-summary.json#",
+                        f"Evidence snapshot contains invalid JSON: {err}",
+                    ),
+                )
+                return BundleEvidenceSummary(required=True, status="failed")
+    else:
+        snapshot_doc = dict(evidence_snapshot)
+
+    # 1. Signature check
+    sig = snapshot_doc.get("signature")
+    key_id = snapshot_doc.get("key_id")
+    if not sig or not isinstance(sig, str) or not sig.strip():
+        state.add(
+            CompilerStage.EVIDENCE,
+            _finding(
+                "compiler.evidence.unsigned-snapshot",
+                "evidence-summary.json#/signature",
+                "Evidence snapshot is unsigned or has an empty signature.",
+            ),
+        )
+    elif not key_id or not isinstance(key_id, str):
+        state.add(
+            CompilerStage.EVIDENCE,
+            _finding(
+                "compiler.evidence.invalid-signature",
+                "evidence-summary.json#/key_id",
+                "Evidence snapshot is missing key_id for signature verification.",
+            ),
+        )
+    elif platform_public_keys is not None:
+        try:
+            from cellforge_platform.auth.signing import PlatformVerifier
+
+            verifier = PlatformVerifier(platform_public_keys)
+            if not verifier.verify_document(snapshot_doc, sig, key_id):
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.invalid-signature",
+                        "evidence-summary.json#/signature",
+                        (f"Evidence snapshot signature verification failed for key_id '{key_id}'."),
+                    ),
+                )
+        except Exception as err:
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.invalid-signature",
+                    "evidence-summary.json#/signature",
+                    f"Error verifying evidence snapshot signature: {err}",
+                ),
+            )
+
+    # 2. Cell ID check
+    snap_cell_id = snapshot_doc.get("cell_id")
+    if not snap_cell_id or str(snap_cell_id) != str(cell.cell.id):
+        state.add(
+            CompilerStage.EVIDENCE,
+            _finding(
+                "compiler.evidence.cell-mismatch",
+                "evidence-summary.json#/cell_id",
+                (
+                    f"Evidence snapshot cell ID '{snap_cell_id}' does not match compiled "
+                    f"cell '{cell.cell.id}'."
+                ),
+            ),
+        )
+
+    # 3. Staleness check
+    now_dt: datetime
+    if current_time is None:
+        now_dt = datetime.now(UTC)
+    elif isinstance(current_time, str):
+        now_dt = datetime.fromisoformat(current_time)
+        if now_dt.tzinfo is None:
+            now_dt = now_dt.replace(tzinfo=UTC)
+    else:
+        now_dt = current_time
+        if now_dt.tzinfo is None:
+            now_dt = now_dt.replace(tzinfo=UTC)
+
+    valid_until_str = snapshot_doc.get("valid_until")
+    if valid_until_str and isinstance(valid_until_str, str):
+        try:
+            valid_until_dt = datetime.fromisoformat(valid_until_str)
+            if valid_until_dt.tzinfo is None:
+                valid_until_dt = valid_until_dt.replace(tzinfo=UTC)
+            if now_dt > valid_until_dt:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.stale-snapshot",
+                        "evidence-summary.json#/valid_until",
+                        f"Evidence snapshot expired at '{valid_until_str}'.",
+                    ),
+                )
+        except Exception:
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.invalid-valid-until",
+                    "evidence-summary.json#/valid_until",
+                    (
+                        f"Evidence snapshot valid_until timestamp '{valid_until_str}' is "
+                        "invalid ISO format."
+                    ),
+                ),
+            )
+
+    # 4. Recipe approvals check (two distinct roles, non-self)
+    snap_recipes = snapshot_doc.get("recipes", [])
+    if not isinstance(snap_recipes, list):
+        snap_recipes = []
+    recipes_by_id_ver = {
+        (str(r.get("recipe_id")), int(r.get("version", 0))): r
+        for r in snap_recipes
+        if isinstance(r, dict)
+    }
+
+    authorized_roles = {
+        "process_engineer",
+        "automation_engineer",
+        "administrator",
+        "safety_engineer",
+    }
+
+    for recipe_ref in recipes:
+        key = (recipe_ref.id, recipe_ref.version)
+        if key not in recipes_by_id_ver:
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.recipe-not-found",
+                    f"evidence-summary.json#/recipes/{recipe_ref.id}",
+                    (
+                        f"Approved recipe record for '{recipe_ref.id}' v{recipe_ref.version} "
+                        "is missing from evidence snapshot."
+                    ),
+                ),
+            )
+            continue
+
+        snap_rec = recipes_by_id_ver[key]
+        if snap_rec.get("status") != "APPROVED":
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.recipe-not-approved",
+                    f"evidence-summary.json#/recipes/{recipe_ref.id}/status",
+                    (
+                        f"Recipe '{recipe_ref.id}' v{recipe_ref.version} status is "
+                        f"'{snap_rec.get('status')}', but 'APPROVED' is required for production."
+                    ),
+                ),
+            )
+
+        if recipe_ref.sha256 and snap_rec.get("recipe_sha256") != recipe_ref.sha256:
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.recipe-digest-mismatch",
+                    f"evidence-summary.json#/recipes/{recipe_ref.id}/recipe_sha256",
+                    (
+                        f"Recipe '{recipe_ref.id}' v{recipe_ref.version} SHA-256 digest in "
+                        f"snapshot '{snap_rec.get('recipe_sha256')}' does not match "
+                        f"compiled recipe digest '{recipe_ref.sha256}'."
+                    ),
+                ),
+            )
+
+        approvals = snap_rec.get("approvals", [])
+        author = snap_rec.get("created_by")
+        valid_approvers: dict[str, str] = {}  # approver_id -> role
+        has_self_approval = False
+
+        if isinstance(approvals, list):
+            for app in approvals:
+                if isinstance(app, dict) and app.get("decision", "").lower() == "approved":
+                    role = str(app.get("role", ""))
+                    approver = str(app.get("approver_id", ""))
+                    if role in authorized_roles and approver:
+                        if author and approver == author:
+                            has_self_approval = True
+                        else:
+                            if approver not in valid_approvers:
+                                valid_approvers[approver] = role
+
+        distinct_roles = set(valid_approvers.values())
+        if len(valid_approvers) < 2 or len(distinct_roles) < 2:
+            if has_self_approval:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.self-approved-recipe",
+                        f"evidence-summary.json#/recipes/{recipe_ref.id}/approvals",
+                        (
+                            f"Recipe '{recipe_ref.id}' v{recipe_ref.version} was self-approved "
+                            f"by author '{author}' without required independent "
+                            "dual-role approvals."
+                        ),
+                    ),
+                )
+            else:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.insufficient-approvals",
+                        f"evidence-summary.json#/recipes/{recipe_ref.id}/approvals",
+                        (
+                            f"Recipe '{recipe_ref.id}' v{recipe_ref.version} requires at least "
+                            f"two distinct authorized role approvals; found {len(valid_approvers)} "
+                            f"approver(s) with {len(distinct_roles)} role(s)."
+                        ),
+                    ),
+                )
+
+    # 5. Hardware evidence check
+    snap_evidence = snapshot_doc.get("evidence", [])
+    if not isinstance(snap_evidence, list):
+        snap_evidence = []
+
+    found_kinds: set[str] = set()
+    cell_instance_ids = {c.id for c in cell.components}
+
+    for ev in snap_evidence:
+        if not isinstance(ev, dict):
+            continue
+        ev_id = ev.get("evidence_id") or "unknown"
+        ev_kind = ev.get("kind", "")
+        ev_digest = str(ev.get("artifact_sha256", "")).lower().strip()
+        ev_subject = ev.get("subject", {})
+
+        if not _SHA256_HEX.fullmatch(ev_digest):
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.tampered-artifact",
+                    f"evidence-summary.json#/evidence/{ev_id}/artifact_sha256",
+                    (
+                        f"Evidence artifact digest '{ev_digest}' for record '{ev_id}' is "
+                        "invalid or tampered."
+                    ),
+                ),
+            )
+            continue
+
+        ev_valid_until = ev.get("valid_until")
+        if ev_valid_until and isinstance(ev_valid_until, str):
+            try:
+                ev_vu_dt = datetime.fromisoformat(ev_valid_until)
+                if ev_vu_dt.tzinfo is None:
+                    ev_vu_dt = ev_vu_dt.replace(tzinfo=UTC)
+                if now_dt > ev_vu_dt:
+                    state.add(
+                        CompilerStage.EVIDENCE,
+                        _finding(
+                            "compiler.evidence.stale-evidence",
+                            f"evidence-summary.json#/evidence/{ev_id}/valid_until",
+                            (
+                                f"Evidence record '{ev_id}' of kind '{ev_kind}' expired at "
+                                f"'{ev_valid_until}'."
+                            ),
+                        ),
+                    )
+                    continue
+            except Exception:
+                pass
+
+        ev_cell = ev.get("cell_id") or (
+            ev_subject.get("cell_id") if isinstance(ev_subject, dict) else None
+        )
+        if ev_cell and str(ev_cell) != str(cell.cell.id):
+            state.add(
+                CompilerStage.EVIDENCE,
+                _finding(
+                    "compiler.evidence.wrong-cell",
+                    f"evidence-summary.json#/evidence/{ev_id}/cell_id",
+                    (
+                        f"Evidence record '{ev_id}' subject cell ID '{ev_cell}' does not match "
+                        f"project cell ID '{cell.cell.id}'."
+                    ),
+                ),
+            )
+            continue
+
+        if isinstance(ev_subject, dict) and "component_instance_id" in ev_subject:
+            comp_inst = ev_subject["component_instance_id"]
+            if comp_inst not in cell_instance_ids:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.wrong-component",
+                        f"evidence-summary.json#/evidence/{ev_id}/subject/component_instance_id",
+                        (
+                            f"Evidence record '{ev_id}' references component instance "
+                            f"'{comp_inst}' not present in cell."
+                        ),
+                    ),
+                )
+                continue
+
+        found_kinds.add(ev_kind)
+
+    # In production mode, check required hardware evidence kinds
+    if mode == ExecutionMode.PRODUCTION:
+        required_evidence_kinds = ("simulation", "calibration", "commissioning", "safety_review")
+        for req_kind in required_evidence_kinds:
+            if req_kind not in found_kinds:
+                state.add(
+                    CompilerStage.EVIDENCE,
+                    _finding(
+                        "compiler.evidence.missing-hardware-evidence",
+                        f"evidence-summary.json#/evidence/{req_kind}",
+                        (
+                            f"Production execution mode requires verified hardware evidence of "
+                            f"kind '{req_kind}', but none was found."
+                        ),
+                    ),
+                )
+
+    if state.has_errors():
+        return BundleEvidenceSummary(required=True, status="failed")
+    return BundleEvidenceSummary(required=True, status="verified")

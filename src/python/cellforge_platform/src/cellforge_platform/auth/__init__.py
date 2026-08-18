@@ -11,6 +11,7 @@ from cellforge_platform.auth.models import (
     AuthContext,
     CellForgeRole,
 )
+from cellforge_platform.auth.signing import PlatformSigner, PlatformVerifier
 from cellforge_platform.auth.verifier import AuthError, OidcTokenVerifier
 
 __all__ = [
@@ -19,6 +20,8 @@ __all__ = [
     "AuthError",
     "CellForgeRole",
     "OidcTokenVerifier",
+    "PlatformSigner",
+    "PlatformVerifier",
     "get_current_auth",
     "get_token_verifier",
     "require_authenticated",

@@ -143,6 +143,155 @@ MIGRATIONS: tuple[Migration, ...] = (
         DROP TABLE IF EXISTS component_licenses;
         """,
     ),
+    Migration(
+        version=3,
+        name="003_recipe_approvals_and_evidence",
+        up_sql="""
+        CREATE TABLE IF NOT EXISTS recipe_approvals (
+            id TEXT PRIMARY KEY,
+            recipe_record_id TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            recipe_id TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            recipe_sha256 TEXT NOT NULL,
+            role TEXT NOT NULL,
+            approver_id TEXT NOT NULL,
+            decision TEXT NOT NULL,
+            comments TEXT,
+            signature TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (recipe_record_id) REFERENCES recipes(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_rec_app_proj_rec
+            ON recipe_approvals(project_id, recipe_id, version);
+        CREATE INDEX IF NOT EXISTS idx_rec_app_sha ON recipe_approvals(recipe_sha256);
+        CREATE INDEX IF NOT EXISTS idx_rec_app_approver ON recipe_approvals(approver_id);
+
+
+        CREATE TABLE IF NOT EXISTS evidence_records (
+            id TEXT PRIMARY KEY,
+            schema_version TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            cell_id TEXT NOT NULL,
+            subject_json TEXT NOT NULL,
+            artifact_sha256 TEXT NOT NULL,
+            issuer TEXT NOT NULL,
+            valid_until TEXT,
+            signature TEXT,
+            metadata_json TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            created_by TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_evidence_cell ON evidence_records(cell_id);
+        CREATE INDEX IF NOT EXISTS idx_evidence_kind ON evidence_records(kind);
+        CREATE INDEX IF NOT EXISTS idx_evidence_artifact ON evidence_records(artifact_sha256);
+        """,
+        down_sql="""
+        DROP INDEX IF EXISTS idx_evidence_artifact;
+        DROP INDEX IF EXISTS idx_evidence_kind;
+        DROP INDEX IF EXISTS idx_evidence_cell;
+        DROP TABLE IF EXISTS evidence_records;
+        DROP INDEX IF EXISTS idx_rec_app_approver;
+        DROP INDEX IF EXISTS idx_rec_app_sha;
+        DROP INDEX IF EXISTS idx_rec_app_proj_rec;
+        DROP TABLE IF EXISTS recipe_approvals;
+        """,
+    ),
+    Migration(
+        version=4,
+        name="004_production_sync_records",
+        up_sql="""
+        CREATE TABLE IF NOT EXISTS production_jobs (
+            idempotency_key TEXT PRIMARY KEY,
+            cell_id TEXT NOT NULL,
+            job_id TEXT NOT NULL,
+            request_hash TEXT NOT NULL,
+            status TEXT NOT NULL,
+            frozen_json TEXT NOT NULL,
+            result_json TEXT,
+            synced_at TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_prod_jobs_cell ON production_jobs(cell_id);
+        CREATE INDEX IF NOT EXISTS idx_prod_jobs_job ON production_jobs(job_id);
+
+        CREATE TABLE IF NOT EXISTS production_traces (
+            id TEXT PRIMARY KEY,
+            trace_id TEXT NOT NULL,
+            sequence INTEGER NOT NULL,
+            cell_id TEXT NOT NULL,
+            job_id TEXT NOT NULL,
+            component_instance_id TEXT NOT NULL,
+            command_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            bundle_id TEXT,
+            source_revision TEXT,
+            recipe_id TEXT,
+            recipe_version INTEGER,
+            recipe_sha256 TEXT,
+            task_id TEXT,
+            task_sha256 TEXT,
+            execution_mode TEXT,
+            payload_json TEXT NOT NULL,
+            timestamp TEXT NOT NULL,
+            synced_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_prod_traces_trace_seq
+            ON production_traces(trace_id, sequence);
+        CREATE INDEX IF NOT EXISTS idx_prod_traces_cell ON production_traces(cell_id);
+
+        CREATE INDEX IF NOT EXISTS idx_prod_traces_job ON production_traces(job_id);
+
+        CREATE TABLE IF NOT EXISTS production_results (
+            id TEXT PRIMARY KEY,
+            cell_id TEXT NOT NULL,
+            job_id TEXT NOT NULL,
+            trace_id TEXT NOT NULL,
+            success INTEGER NOT NULL,
+            result_code TEXT NOT NULL,
+            result_message TEXT NOT NULL,
+            output_payload_json TEXT NOT NULL,
+            completed_at TEXT NOT NULL,
+            synced_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_prod_results_cell ON production_results(cell_id);
+        CREATE INDEX IF NOT EXISTS idx_prod_results_job ON production_results(job_id);
+        CREATE INDEX IF NOT EXISTS idx_prod_results_trace ON production_results(trace_id);
+
+        CREATE TABLE IF NOT EXISTS production_attachments (
+            id TEXT PRIMARY KEY,
+            digest TEXT NOT NULL,
+            cell_id TEXT NOT NULL,
+            job_id TEXT,
+            trace_id TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            media_type TEXT NOT NULL,
+            size_bytes INTEGER NOT NULL,
+            synced_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_prod_attachments_trace ON production_attachments(trace_id);
+        CREATE INDEX IF NOT EXISTS idx_prod_attachments_cell ON production_attachments(cell_id);
+        CREATE INDEX IF NOT EXISTS idx_prod_attachments_digest ON production_attachments(digest);
+        """,
+        down_sql="""
+        DROP INDEX IF EXISTS idx_prod_attachments_digest;
+        DROP INDEX IF EXISTS idx_prod_attachments_cell;
+        DROP INDEX IF EXISTS idx_prod_attachments_trace;
+        DROP TABLE IF EXISTS production_attachments;
+        DROP INDEX IF EXISTS idx_prod_results_trace;
+        DROP INDEX IF EXISTS idx_prod_results_job;
+        DROP INDEX IF EXISTS idx_prod_results_cell;
+        DROP TABLE IF EXISTS production_results;
+        DROP INDEX IF EXISTS idx_prod_traces_job;
+        DROP INDEX IF EXISTS idx_prod_traces_cell;
+        DROP INDEX IF EXISTS idx_prod_traces_trace_seq;
+        DROP TABLE IF EXISTS production_traces;
+        DROP INDEX IF EXISTS idx_prod_jobs_job;
+        DROP INDEX IF EXISTS idx_prod_jobs_cell;
+        DROP TABLE IF EXISTS production_jobs;
+        """,
+    ),
 )
 
 
