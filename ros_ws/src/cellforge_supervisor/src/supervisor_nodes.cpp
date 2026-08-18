@@ -215,8 +215,7 @@ void ExecuteSkillAction::requestCancellation(const std::shared_ptr<AsyncState>& 
   }
 }
 
-auto ExecuteSkillAction::fail(const std::string& code, const std::string& message)
-    -> BT::NodeStatus {
+auto ExecuteSkillAction::fail(const std::string& code, const std::string& message) -> BT::NodeStatus {
   (void)setOutput("result_code", code);
   (void)setOutput("result_message", message);
   (void)setOutput("output_payload_json", "{}");

@@ -72,7 +72,8 @@ void requireIdentifier(const std::string& value, const char* field) {
   }
 }
 
-auto containedPath(const std::filesystem::path& root, const std::string& reference)
+auto containedPath(const std::filesystem::path& root,
+                   const std::string& reference)
     -> std::filesystem::path {
   const auto raw = std::filesystem::path(reference);
   const auto normalized_root = std::filesystem::weakly_canonical(root);
