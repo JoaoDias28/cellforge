@@ -1,0 +1,380 @@
+{
+  "schema_version": "0.1.0",
+  "report_id": "3dbb4f7d-a44a-43ae-b4fa-c81d37fcc86b",
+  "timestamp": "2026-08-18T22:44:55.567574+00:00",
+  "suite_version": "0.1.0",
+  "qualifier_identity": "CellForge Automated Release Qualification Suite v0.1.0",
+  "git_revision": "299e3dc45e7b508a5cb44a4921174752c33184a0",
+  "git_tree_sha": "88a33149f771a1af1d2a98d0dff516f8b7d6d21d",
+  "git_clean": false,
+  "cell_id": "0d3c6b63-a57f-4207-8638-e4cf76efec90",
+  "cell_name": "Pen Engraving Reference Cell",
+  "cell_yaml_sha256": "561a11c286578dc296a4e705ef1502b2a19f4b8b300450d2a1b0b415456f4fca",
+  "scene_sha256": "749a30c86ccb177ae11de556ded643ff3fecbfd629f62b212e79566dc54296ca",
+  "components": [
+    {
+      "id": "robot-001",
+      "alias": "robot",
+      "component": "generic.six_axis_robot.reference",
+      "version": "0.1.0",
+      "support_level": "simulated"
+    },
+    {
+      "id": "gripper-001",
+      "alias": "pen_gripper",
+      "component": "generic.parallel_gripper.pen",
+      "version": "0.1.0",
+      "support_level": "simulated"
+    },
+    {
+      "id": "laser-001",
+      "alias": "laser",
+      "component": "generic.laser_marker.reference",
+      "version": "0.1.0",
+      "support_level": "simulated"
+    },
+    {
+      "id": "camera-001",
+      "alias": "vision_camera",
+      "component": "generic.vision_camera.reference",
+      "version": "0.1.0",
+      "support_level": "simulated"
+    },
+    {
+      "id": "fixture-001",
+      "alias": "pen_fixture",
+      "component": "generic.pen_fixture.reference",
+      "version": "0.1.0",
+      "support_level": "simulated"
+    },
+    {
+      "id": "safety-status-001",
+      "alias": "safety_status",
+      "component": "generic.external_safety_status.reference",
+      "version": "0.1.0",
+      "support_level": "simulated"
+    }
+  ],
+  "recipe": {
+    "id": "pen-aluminium-reference",
+    "version": 1,
+    "sha256": "e7ea92b531dc7aa1fe6a22dc88be74f60ab0bea4863969c76ca066d6c891f2fc",
+    "status": "APPROVED",
+    "approvals": [
+      {
+        "role": "process_engineer",
+        "approver": "alice"
+      },
+      {
+        "role": "automation_engineer",
+        "approver": "bob"
+      }
+    ]
+  },
+  "bundles": {
+    "l0_sim": {
+      "target_profile": "pen-sim-amd64",
+      "fidelity": "L0",
+      "bundle_id": "eb8f5f6ec1b50cdfb835141a11bdfdac0782918e70101727fbdb6fab549e7339"
+    },
+    "l2_isaac": {
+      "target_profile": "pen-isaac-l2-win64",
+      "fidelity": "L2",
+      "bundle_id": "713906c8b043faf7a954fcd360392164dc780c1b2440c342ab7d33be1ecc5674"
+    }
+  },
+  "scenarios": [
+    {
+      "scenario_id": "pen-nominal-l0",
+      "category": "nominal",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1001,
+      "duration_seconds": 0.05,
+      "trace_event_count": 14,
+      "final_status": "SUCCESS",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "vision.locate.completed",
+        "motion.pick.completed",
+        "fixture.seat.completed",
+        "process.cycle.completed",
+        "vision.inspect.completed",
+        "motion.unload.completed",
+        "job.completed"
+      ]
+    },
+    {
+      "scenario_id": "pen-nominal-l2",
+      "category": "nominal",
+      "requested_fidelity": "L2",
+      "achieved_fidelity": "L2",
+      "seed": 1001,
+      "duration_seconds": 0.12,
+      "trace_event_count": 18,
+      "final_status": "SUCCESS",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "vision.locate.completed",
+        "motion.pick.completed",
+        "fixture.seating.true",
+        "process.cycle.completed",
+        "vision.inspect.completed",
+        "motion.unload.completed",
+        "cycle.completed",
+        "job.completed"
+      ]
+    },
+    {
+      "scenario_id": "pen-fixture-not-seated",
+      "category": "fault",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1002,
+      "duration_seconds": 0.08,
+      "trace_event_count": 9,
+      "final_status": "RECOVERABLE_FAULT",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "simulation.fault.injected:fixture.sensor.seating_failed",
+        "fault.fixture.sensor.seating_failed",
+        "job.failed"
+      ]
+    },
+    {
+      "scenario_id": "pen-inspection-text-mismatch",
+      "category": "fault",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1002,
+      "duration_seconds": 0.08,
+      "trace_event_count": 9,
+      "final_status": "RECOVERABLE_FAULT",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "simulation.fault.injected:vision.inspection.mismatch",
+        "fault.vision.inspection.mismatch",
+        "job.failed"
+      ]
+    },
+    {
+      "scenario_id": "pen-dropped-l2",
+      "category": "fault",
+      "requested_fidelity": "L2",
+      "achieved_fidelity": "L2",
+      "seed": 1002,
+      "duration_seconds": 0.08,
+      "trace_event_count": 9,
+      "final_status": "RECOVERABLE_FAULT",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "simulation.fault.injected:simulation.pen.dropped",
+        "fault.simulation.pen.dropped",
+        "job.failed"
+      ]
+    },
+    {
+      "scenario_id": "pen-collision-l2",
+      "category": "fault",
+      "requested_fidelity": "L2",
+      "achieved_fidelity": "L2",
+      "seed": 1002,
+      "duration_seconds": 0.08,
+      "trace_event_count": 9,
+      "final_status": "RECOVERABLE_FAULT",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "simulation.fault.injected:motion.plan.collision",
+        "fault.motion.plan.collision",
+        "job.failed"
+      ]
+    },
+    {
+      "scenario_id": "pen-no-pen",
+      "category": "fault",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1002,
+      "duration_seconds": 0.08,
+      "trace_event_count": 9,
+      "final_status": "RECOVERABLE_FAULT",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "simulation.fault.injected:vision.product.not_found",
+        "fault.vision.product.not_found",
+        "job.failed"
+      ]
+    },
+    {
+      "scenario_id": "pen-operator-cancel",
+      "category": "cancel",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1003,
+      "duration_seconds": 0.06,
+      "trace_event_count": 8,
+      "final_status": "CANCELLED",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "operator.action.requested:CANCEL",
+        "motion.trajectory.halted",
+        "job.cancelled"
+      ]
+    },
+    {
+      "scenario_id": "pen-laser-timeout",
+      "category": "timeout",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1004,
+      "duration_seconds": 0.07,
+      "trace_event_count": 9,
+      "final_status": "RECOVERABLE_FAULT",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "simulation.started",
+        "process.command.requested",
+        "laser.process.timeout",
+        "job.failed"
+      ]
+    },
+    {
+      "scenario_id": "runtime-service-restart",
+      "category": "restart",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1005,
+      "duration_seconds": 0.1,
+      "trace_event_count": 7,
+      "final_status": "SUCCESS",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "runtime.restarting",
+        "bundle.reloaded",
+        "state.restored:READY",
+        "job.accepted"
+      ]
+    },
+    {
+      "scenario_id": "bundle-tampering-rejection",
+      "category": "corrupt_bundle",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 0,
+      "duration_seconds": 0.04,
+      "trace_event_count": 4,
+      "final_status": "REJECTED",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "agent.verify.started",
+        "agent.verify.checksum_mismatch",
+        "agent.verify.signature_invalid",
+        "agent.install.rejected"
+      ]
+    },
+    {
+      "scenario_id": "offline-runtime-buffering",
+      "category": "offline_platform",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1006,
+      "duration_seconds": 0.15,
+      "trace_event_count": 12,
+      "final_status": "SUCCESS",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "platform.offline",
+        "job.executed_locally",
+        "trace.buffered_locally",
+        "platform.reconnected",
+        "sync.batch.acknowledged"
+      ]
+    },
+    {
+      "scenario_id": "pen-stale-device-unready",
+      "category": "stale_device",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1007,
+      "duration_seconds": 0.05,
+      "trace_event_count": 6,
+      "final_status": "REJECTED",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "device.heartbeat.stale:laser-001",
+        "cell.state.unready",
+        "job.rejected:device_unready"
+      ]
+    },
+    {
+      "scenario_id": "pen-process-outcome-unknown",
+      "category": "uncertain_process",
+      "requested_fidelity": "L0",
+      "achieved_fidelity": "L0",
+      "seed": 1008,
+      "duration_seconds": 0.08,
+      "trace_event_count": 8,
+      "final_status": "OUTCOME_UNKNOWN",
+      "passed": true,
+      "failure_reasons": [],
+      "trace_events_summary": [
+        "process.command.requested",
+        "laser.comm.dropped",
+        "process.outcome_unknown",
+        "job.held:no_retry"
+      ]
+    }
+  ],
+  "parity": {
+    "tree_path": "C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\examples\\pen_engraving\\behavior_tree.xml",
+    "recipe_path": "C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\examples\\pen_engraving\\recipe.yaml",
+    "tree_valid": true,
+    "recipe_valid": true,
+    "has_simulator_branches": false,
+    "forbidden_branch_nodes": [],
+    "l0_event_count": 12,
+    "l2_event_count": 12,
+    "events_equivalent": true,
+    "passed": true,
+    "details": "Tree and recipe use uniform capability contracts across L0 and L2 with zero simulator-specific branches."
+  },
+  "platform": {
+    "migrations_passed": true,
+    "schema_version": 4,
+    "dual_role_approval_verified": true,
+    "self_approval_rejected": true,
+    "evidence_records_verified": true,
+    "offline_buffering_verified": true,
+    "idempotent_sync_verified": true,
+    "passed": true
+  },
+  "limitations": {
+    "functional_safety": "Simulation and runtime software status are standard-control engineering data only. Functional safety remains independently enforced and validated by external rated hardware.",
+    "laser_process_simulation": "Laser simulation validates sequencing, protocol handshakes, and timing only. Physical laser beam/material interaction and mark quality qualification remain required.",
+    "hardware_qualification": "Physical hardware adapters, electrical I/O, on-cell commissioning, and production acceptance testing are deferred to Task 034."
+  },
+  "overall_passed": true,
+  "signature": "dTNK53xZOnNmI1rhHr2ZV9MiSNRDYFgo3Xc6cEt0fGPWKmiDwHTXdJTOgObGyE7fNfDWkdsFTDTFL9ZMxPSEAg==",
+  "key_id": "cellforge-task033-qualification-key"
+}

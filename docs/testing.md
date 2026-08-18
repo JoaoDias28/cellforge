@@ -182,3 +182,23 @@ signature, and installs two assembled releases through the real bundle-agent flo
 forces candidate health failure and verifies that the former release and its generated environment
 are restored. These checks are deterministic unit/integration evidence, not a real systemd or
 hardware qualification.
+
+## 10. Task 033 software release qualification acceptance
+
+`make release-qualification-check` executes the automated end-to-end qualification workflow
+exercising the full Studio-to-L0/L2-to-evidence-to-signed-bundle-to-runtime pipeline:
+
+1. Statically and dynamically verifies Behavior Tree XML and recipe YAML parity across L0 and L2,
+   confirming zero simulator-specific branches or conditionals.
+2. Executes the complete 9-category scenario qualification matrix:
+   - `nominal`: complete pen engraving cycles in L0 and L2;
+   - `fault`: injected equipment, sensor, drop, and collision faults;
+   - `cancel`: mid-cycle operator cancellation with safe halt and resource cleanup;
+   - `timeout`: watchdog timer expiry and bounded recoverable fault handling;
+   - `restart`: clean service and supervisor restart/recovery;
+   - `corrupt-bundle`: fail-closed rejection of tampered files, digests, or signatures;
+   - `offline-platform`: offline local SQLite persistence and idempotent batch synchronization;
+   - `stale-device`: fail-closed handling of lost heartbeats and unready devices;
+   - `uncertain-process`: irreversible process communication drop entering `OUTCOME_UNKNOWN` without auto-retry.
+3. Generates and cryptographically verifies an Ed25519-signed `SoftwareReleaseQualificationReport`
+   document with Git revision provenance, cell/component versions, seeds, and explicit limitations.

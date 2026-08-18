@@ -10,7 +10,7 @@ ROS_WINDOWS_UNDERLAY ?= C:/IsaacSim-ros-workspaces/jazzy_ws/install
 ROS_WINDOWS_LLVM_BIN ?= C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin
 PYTEST_BASETEMP ?= .pytest-tmp
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check isaac-l2-gpu-check ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
@@ -21,7 +21,7 @@ lint:
 
 test:
 	$(UV) sync --locked --all-packages
-	$(UV) run --frozen pytest --basetemp "$(PYTEST_BASETEMP)" -o cache_dir=.pytest-cache/task031
+	$(UV) run --frozen pytest --basetemp "$(PYTEST_BASETEMP)" -o cache_dir=.pytest-cache/task033
 
 validate-examples:
 	$(UV) sync --locked --all-packages
@@ -101,6 +101,11 @@ integrated-runtime-check:
 	$(UV) run --frozen pytest tests/test_integrated_runtime.py src/python/cellforge_bundle/tests/test_compiler.py
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; set -u; cd "$(ROS_WORKSPACE)"; $(COLCON) build --packages-up-to cellforge_bringup --event-handlers console_direct+'
 	bash -c 'set -eo pipefail; source "$(ROS_SETUP)"; cd "$(ROS_WORKSPACE)"; source "install/setup.bash"; set -u; $(COLCON) test --packages-select cellforge_bringup --return-code-on-test-failure --event-handlers console_direct+; $(COLCON) test-result --test-result-base build/cellforge_bringup --verbose'
+
+release-qualification-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest src/python/cellforge_bundle/tests/test_qualification.py tests/test_software_release_qualification.py
+	$(UV) run --frozen python scripts/verify_software_release_qualification.py
 
 isaac-l2-gpu-check:
 	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_isaac_l2_gpu.ps1

@@ -232,3 +232,21 @@ underscores (for example `laser-001` becomes `/device/laser_001/...`).
 L0 is a deterministic contract runtime, not physics. L2 is refused as unavailable until a genuine
 Isaac adapter exists. The coordinator validates semantic recovery against current state but has no
 safety authority and never treats a missing fixed recovery service as success.
+
+## 14. Task 033 qualification and platform synchronization boundary
+
+Software release qualification validates the complete engineering-to-runtime platform without
+requiring physical hardware:
+
+- **Parity verification:** ensures behavior tree XML and recipe YAML contain zero simulator-specific
+  conditional nodes or parameters, ensuring consistent execution across L0 and L2.
+- **Scenario qualification matrix:** explicitly exercises nominal cycles, hardware/sensor faults,
+  operator cancellation, execution timeouts, service restarts, corrupt bundles, offline platform
+  outages, stale device heartbeats, and uncertain process outcomes.
+- **Evidence & approvals:** enforces append-only two-role recipe approvals (disallowing author
+  self-approval) and content-addressed evidence records with Ed25519 signing.
+- **Local authority & idempotent sync:** production cell runtime operates independently with local
+  SQLite job and trace storage, synchronizing idempotently with platform APIs (`POST /api/v1/sync/batch`)
+  without data loss or duplicate records during network interruptions.
+- **Signed qualification report:** cryptographic Ed25519 report capturing complete Git provenance,
+  component/recipe digests, seed replay results, and mandatory functional safety disclaimers.

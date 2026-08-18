@@ -38,6 +38,8 @@ jobs:
         run: make bundle-agent-check
       - name: Run Task 022 local operator API checks
         run: make operator-api-check
+      - name: Run Task 033 software release qualification checks
+        run: make release-qualification-check
 
   ros-jazzy:
     name: ROS 2 Jazzy build and test

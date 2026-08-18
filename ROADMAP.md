@@ -72,21 +72,21 @@ Outcome: collision-aware simulated pick/load/unload.
 
 Exit: repeated simulated cycles meet scenario and collision requirements.
 
-## Phase 5 — Pre-hardware software integration and qualification
+## Phase 5 — Pre-hardware software integration and qualification (COMPLETE)
 
 Outcome: the complete engineering-to-runtime workflow operates with L0 mocks and genuine Isaac
 Sim L2 adapters before physical equipment is selected.
 
-- unified frozen-job and trace identity;
-- canonical BehaviorTree.CPP pen execution;
-- integrated offline runtime bringup;
-- signed installable bundle assembly;
-- genuine Isaac Sim 6 L2 execution;
-- complete Studio spatial, task, recipe, deployment, and evidence workflows;
-- platform registry, artifacts, approvals, evidence, and result synchronization;
-- clean-environment software release qualification.
+- unified frozen-job and trace identity (Task 023);
+- canonical BehaviorTree.CPP pen execution (Task 024);
+- integrated offline runtime bringup (Task 025);
+- signed installable bundle assembly (Task 026);
+- genuine Isaac Sim 6 L2 execution (Task 027);
+- complete Studio spatial, task, recipe, deployment, and evidence workflows (Tasks 028, 029, 030);
+- platform registry, artifacts, approvals, evidence, and result synchronization (Tasks 031, 032);
+- clean-environment software release qualification (Task 033).
 
-Exit: Task 033 passes every software-side MVP criterion and explicitly unlocks Task 034. CPU-only,
+Exit: Task 033 completed and verified with all software-side MVP criteria passed. Task 034 is eligible. CPU-only,
 mock-only, and synthetic-event checks cannot satisfy the L2 exit gate.
 
 ## Phase 6 — Pen engraving hardware integration

@@ -232,10 +232,10 @@ Task 006 checks USDA root declarations and operational prim-path uniqueness but 
 OpenUSD composition validation for binary USD. Full Kit/OpenUSD scene validation remains an
 engineering-stage integration check.
 
-Production compilation cannot pass yet: the compiler deliberately emits
-`compiler.production-evidence-unverified` until evidence records can be verified rather than
-trusted as an unchecked caller assertion. Modeled safety connections remain metadata describing
-dependencies on independent rated hardware.
+Task 032 introduces real compiler evidence-policy evaluation in `cellforge_bundle.compiler`:
+verifying signed Ed25519 evidence snapshots, dual-role non-self recipe approvals, freshness,
+hardware evidence records (simulation, calibration, commissioning, safety-review), and artifact
+digests before authorizing production compilation.
 
 ## 8. Task 025 immutable runtime graph
 
@@ -246,5 +246,16 @@ and executable identities. All keys and inventories are sorted before canonical 
 runtime graph contributes deterministically to the bundle ID.
 
 Bringup accepts only the supported L0 identity set and exact fixed endpoints. A requested fidelity
-that differs from the frozen profile, a tampered critical file, a path escaping the bundle, or the
-currently unavailable L2 runtime fails before launch.
+that differs from the frozen profile, a tampered critical file, a path escaping the bundle, or an
+unavailable L2 runtime fails before launch.
+
+## 9. Task 033 software release qualification and bundle delivery
+
+Task 033 proves the complete end-to-end deployment lifecycle:
+
+- **Immutable bundle assembly:** packages materialised frozen assets, launch files, and checksums.
+- **Detached signature verification:** requires valid Ed25519 signatures against trusted public keys.
+- **Bundle agent deployment:** validates preflight facts, checksums, unpacks release, and switches
+  the atomic `current` symlink.
+- **Local offline resilience:** cell operates fully offline; telemetry and trace records buffer
+  locally in SQLite and sync idempotently to platform endpoints when reconnected.

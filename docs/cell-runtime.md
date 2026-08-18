@@ -221,3 +221,19 @@ Cancellation propagates through the gateway, supervisor, behavior tree, and acti
 Adapters resume fresh `READY` heartbeats after certain cancellation or restart. Recovery requests
 use only `/cell/operator_action`; acknowledgement records the decision without clearing device or
 safety state, and unsupported maintenance execution returns `operator.recovery.service_unavailable`.
+
+## 12. Task 033 software release qualification and result synchronization
+
+The qualified runtime operates with local authority and resilient platform synchronization:
+
+- **Unified execution:** the same Behavior Tree XML and recipe YAML execute deterministically against
+  L0 mock adapters or L2 Isaac Sim adapters, sharing identical state machine transitions and trace schemas.
+- **Offline authority:** production jobs, state transitions, trace events, and results are committed
+  to local SQLite databases (`SqliteJobStore`, `SqliteTraceStore`) immediately, ensuring complete
+  traceability even during network outages.
+- **Idempotent batch sync:** the local sync client synchronizes accumulated records with platform
+  endpoints (`POST /api/v1/sync/batch`) using deterministic composite keys (`trace_id:sequence`,
+  `idempotency_key`), preventing duplicate entries on retries.
+- **Deterministic fault and timeout recovery:** all failure paths (stale device heartbeats, process
+  timeouts, operator cancel, unready safety) transition to deterministic fault codes with declared
+  operator recovery procedures.

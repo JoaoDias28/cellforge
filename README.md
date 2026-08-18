@@ -1,7 +1,7 @@
 # CellForge — Robot Cell Engineering Platform Design Pack
 
-**Status:** implementation specification, revision 0.1
-**Primary use:** give this repository to Codex and build the platform incrementally
+**Status:** complete software release qualified (Task 033); Task 034 eligible for real hardware adapters
+**Primary use:** simulation-first robot cell engineering platform
 **First production use case:** robotic loading, laser engraving, inspection, and unloading of pens
 **Long-term scope:** reusable simulation-first engineering platform for many industrial robot cells
 

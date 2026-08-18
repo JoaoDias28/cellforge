@@ -41,6 +41,6 @@ Execute tasks in order unless dependencies indicate safe parallel work.
 
 Tasks 007 and 002 may proceed in parallel after Task 001. Tasks 014 and 009 may proceed in parallel after their dependencies.
 
-Tasks 028 and 031 may proceed in parallel after their listed dependencies. Task 034 is blocked until
-Task 033 is merged and the exact hardware and independent safety architecture are recorded. CPU,
+Tasks 028 and 031 may proceed in parallel after their listed dependencies. Task 034 is eligible
+once Task 033 is merged and the exact hardware and independent safety architecture are recorded. CPU,
 mock, or synthetic-event evidence cannot substitute for the required Isaac Sim 6 L2 qualification.
