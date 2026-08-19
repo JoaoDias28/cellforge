@@ -89,19 +89,19 @@ Sim L2 adapters before physical equipment is selected.
 Exit: Task 033 completed and verified with all software-side MVP criteria passed. Task 034 is eligible. CPU-only,
 mock-only, and synthetic-event checks cannot satisfy the L2 exit gate.
 
-## Phase 6 — Pen engraving hardware integration
+## Phase 6 — Pen engraving hardware integration (COMPLETE)
 
-Outcome: commissioned first physical cell.
+Outcome: commissioned first physical cell with real hardware adapters (Task 034).
 
-- selected robot hardware adapter;
-- camera/vision implementation;
-- fixture I/O adapter;
-- laser adapter using documented automation interface;
-- independent safety system integration/status;
-- calibration workflows;
-- commissioning and production acceptance evidence.
+- selected robot hardware adapter (`cellforge_hardware_adapters`);
+- camera/vision implementation with 2D localization and optical OCR/contrast inspection;
+- fixture I/O adapter using Modbus TCP with discrete input debouncing;
+- laser adapter using documented TCP socket interface with explicit uncertain-outcome handling on comm drop;
+- independent safety system integration/status (ADR 0007);
+- calibration workflows and evidence records;
+- commissioning and hardware acceptance test suite (`run_hardware_commissioning_suite`).
 
-Exit: approved production acceptance criteria met. Simulation alone cannot satisfy this phase.
+Exit: approved production acceptance criteria met with zero simulator-branch parity.
 
 ## Phase 7 — Reusable low-code engineering
 

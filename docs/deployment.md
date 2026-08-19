@@ -259,3 +259,20 @@ Task 033 proves the complete end-to-end deployment lifecycle:
   the atomic `current` symlink.
 - **Local offline resilience:** cell operates fully offline; telemetry and trace records buffer
   locally in SQLite and sync idempotently to platform endpoints when reconnected.
+
+## 10. Task 034 real hardware adapters and commissioning
+
+Task 034 delivers physical equipment adapters and on-cell acceptance testing:
+
+- **Physical Equipment Package:** `cellforge_hardware_adapters` provides production-qualified adapters
+  for industrial 6-axis robot, parallel gripper, clamping fixture with seating sensor, 2D vision camera,
+  laser marker, and external rated safety monitoring node.
+- **Zero-Simulator-Branch Parity:** The identical Behavior Tree XML (`behavior_tree.xml`) and canonical recipe
+  YAML run unmodified against physical hardware adapters with no simulation-specific conditional nodes or overrides.
+- **Uncertain-Outcome Safety Boundary:** Communication timeouts or dropped sockets during active process cycles
+  (such as laser firing) explicitly return `outcome_certain = false` and `laser.process.outcome_unknown`. The
+  behavior tree halts immediately without automatic retry or progression.
+- **Independent Safety Boundary:** External rated safety status is monitored via read-only hardware state telemetry.
+  Safety enforcement remains strictly on rated hardware relays and interlocks (ADR 0007).
+- **On-Cell Commissioning Suite:** Acceptance routines (`run_hardware_commissioning_suite`) execute bench and
+  in-cell validation tests across all equipment before authorizing production runs.

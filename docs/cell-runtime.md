@@ -237,3 +237,20 @@ The qualified runtime operates with local authority and resilient platform synch
 - **Deterministic fault and timeout recovery:** all failure paths (stale device heartbeats, process
   timeouts, operator cancel, unready safety) transition to deterministic fault codes with declared
   operator recovery procedures.
+
+## 13. Task 034 real hardware adapters
+
+The `cellforge_hardware_adapters` package implements real device adapters matching the generic capability contracts:
+
+- **Modbus TCP Client:** Connects to physical digital I/O blocks controlling pneumatic valves (open/close gripper,
+  clamp/release fixture) and reading digital sensor inputs (seating detection proximity sensor) with configurable
+  debounce filters.
+- **Laser Automation Interface:** Connects over TCP socket to industrial laser controllers for program selection
+  and cycle initiation. If communication is lost during an active emission cycle, the adapter deterministically
+  returns `outcome_certain = false` and `laser.process.outcome_unknown`, halting execution without auto-retry.
+- **Industrial Camera & Vision:** Interfaces with real vision cameras for 2D object localization and optical
+  contrast/OCR verification, returning structured `PoseEstimate` messages and inspection evidence URIs.
+- **Robot Trajectory Controller:** Bridges high-level MoveIt joint trajectories to the robot controller via standard
+  follow-joint-trajectory action interfaces with protective stop detection and explicit cancellation support.
+- **Independent Safety State Node:** Monitors physical rated safety hardware relay contacts over a dedicated
+  isolated interface, publishing standard `/safety/state` telemetry without implementing safety logic in software (ADR 0007).

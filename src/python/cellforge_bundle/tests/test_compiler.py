@@ -174,7 +174,17 @@ def test_operator_recovery_catalog_is_validated_and_content_addressed(tmp_path: 
 def test_production_rejects_simulated_components_unapproved_recipe_and_evidence(
     tmp_path: Path,
 ) -> None:
-    report = _compile(_project_copy(tmp_path), ExecutionMode.PRODUCTION)
+    import yaml
+
+    project = _project_copy(tmp_path)
+    robot_yaml = project / "components" / "robot" / "component.yaml"
+    data = yaml.safe_load(robot_yaml.read_text(encoding="utf-8"))
+    data["support"]["level"] = "simulated"
+    if "adapters" in data:
+        data["adapters"]["hardware"] = None
+    robot_yaml.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    report = _compile(project, ExecutionMode.PRODUCTION)
     codes = {finding.code for finding in report.findings}
 
     assert report.valid is False

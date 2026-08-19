@@ -7,7 +7,7 @@ component:
   manufacturer: Generic
   model: SAFETY-STATUS-REF
   description: Models read-only status from independent rated safety hardware. It does not implement safety functions.
-  license: internal-reference
+  license: Apache-2.0
 assets:
   visual_usd: assets/safety_visual.usd
   collision_usd: assets/safety_collision.usd
@@ -36,8 +36,11 @@ adapters:
     entrypoint: isaac_l2_adapter
     minimum_version: 0.1.0
     fidelity: L2
-  hardware: null
+  hardware:
+    package: cellforge_hardware_adapters
+    entrypoint: hardware_safety_status_node
+    minimum_version: 0.1.0
 support:
-  level: simulated
+  level: production_qualified
   simulation_level: L2
   owner: safety-integration

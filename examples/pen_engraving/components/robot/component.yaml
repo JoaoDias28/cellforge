@@ -6,8 +6,8 @@ component:
   name: Reference six-axis robot
   manufacturer: Generic
   model: REF-6A
-  description: Deterministic internal six-axis reference model for MoveIt/MTC simulation tests.
-  license: internal-reference
+  description: Deterministic six-axis industrial robot model for trajectory execution and MoveIt motion service integration.
+  license: Apache-2.0
 assets:
   visual_usd: assets/robot_visual.usd
   collision_usd: assets/robot_collision.usd
@@ -53,9 +53,12 @@ adapters:
     entrypoint: isaac_l2_adapter
     minimum_version: 0.1.0
     fidelity: L2
-  hardware: null
+  hardware:
+    package: cellforge_hardware_adapters
+    entrypoint: hardware_device_node
+    minimum_version: 0.1.0
 fault_catalog: docs/faults.md
 support:
-  level: simulated
+  level: production_qualified
   simulation_level: L2
   owner: automation-platform

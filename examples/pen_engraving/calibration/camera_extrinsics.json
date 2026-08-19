@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1.0",
+  "calibration_id": "a1b2c3d4-e5f6-4a1b-8c2d-3e4f5a6b7c8d",
+  "component_instance_id": "camera-001",
+  "kind": "camera_extrinsics",
+  "created_at": "2026-08-19T00:00:00Z",
+  "valid_until": "2027-08-19T00:00:00Z",
+  "data": {
+    "matrix": [1.0, 0.0, 0.0, 0.4, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.15, 0.0, 0.0, 0.0, 1.0],
+    "optical_frame": "camera-001/optical",
+    "reprojection_error_px": 0.12
+  },
+  "sha256": "4b684534f590d65b75010ca45b4cbf4d8e578ad45c088cce606e902f43cbbaaa"
+}
