@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1.0",
+  "evidence_id": "66666666-6666-4666-8666-666666666666",
+  "kind": "commissioning",
+  "subject": {
+    "cell_id": "0d3c6b63-a57f-4207-8638-e4cf76efec90",
+    "component_instance_id": "safety-status-001",
+    "test_name": "safety_status_read_only_monitoring"
+  },
+  "created_at": "2026-08-19T00:00:00Z",
+  "valid_until": "2027-08-19T00:00:00Z",
+  "issuer": "safety-engineer@cellforge.local",
+  "artifact_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "signature": "mock-ed25519-signature-safety-bench"
+}

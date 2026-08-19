@@ -122,3 +122,4 @@ scenarios:
 deployment_profiles:
   - deployment-sim.yaml
   - deployment-l2.yaml
+  - deployment-hardware.yaml

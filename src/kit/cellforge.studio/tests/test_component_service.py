@@ -54,7 +54,7 @@ def test_browser_filters_and_production_compatibility_are_deterministic(tmp_path
     all_components = service.browse(project)
     robots = service.browse(project, ComponentFilters(kind="robot"))
     capability = service.browse(project, ComponentFilters(capability="fixture.verify_seated"))
-    support = service.browse(project, ComponentFilters(support_level="simulated"))
+    support = service.browse(project, ComponentFilters(support_level="production_qualified"))
     fidelity = service.browse(project, ComponentFilters(simulation_level="L0"))
     l2_fidelity = service.browse(project, ComponentFilters(simulation_level="L2"))
 
@@ -65,9 +65,8 @@ def test_browser_filters_and_production_compatibility_are_deterministic(tmp_path
     assert len(fidelity.components) == 6
     assert len(l2_fidelity.components) == 6
     robot = robots.components[0]
-    assert robot.compatible_modes == ("simulation",)
-    assert any("not production-qualified" in warning for warning in robot.warnings)
-    assert any("no production adapter" in warning for warning in robot.warnings)
+    assert "production" in robot.compatible_modes
+    assert "simulation" in robot.compatible_modes
     assert all_components == service.browse(project)
 
 

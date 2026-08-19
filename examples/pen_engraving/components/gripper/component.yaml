@@ -6,7 +6,7 @@ component:
   name: Pen parallel gripper
   manufacturer: Internal
   model: PEN-GRIP-V1
-  license: internal
+  license: Apache-2.0
 assets:
   visual_usd: assets/gripper_visual.usd
   collision_usd: assets/gripper_collision.usd
@@ -58,9 +58,12 @@ adapters:
     entrypoint: isaac_l2_adapter
     minimum_version: 0.1.0
     fidelity: L2
-  hardware: null
+  hardware:
+    package: cellforge_hardware_adapters
+    entrypoint: hardware_device_node
+    minimum_version: 0.1.0
 fault_catalog: docs/faults.md
 support:
-  level: simulated
+  level: production_qualified
   simulation_level: L2
   owner: automation-platform

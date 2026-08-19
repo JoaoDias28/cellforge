@@ -1189,7 +1189,7 @@ def test_deployment_workflow_through_application(tmp_path: Path) -> None:
 
     # Refresh deployment profiles
     snapshot = application.refresh_deployment_profiles()
-    assert len(snapshot.deployment_profiles) == 2
+    assert len(snapshot.deployment_profiles) == 3
     assert any(p.id == "pen-sim-amd64" for p in snapshot.deployment_profiles)
 
     # Inspect deployment profile

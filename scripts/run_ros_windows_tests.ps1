@@ -57,8 +57,8 @@ function Invoke-RosCommand {
 }
 
 $setup = "call $(Join-Path $InstallBase 'setup.bat') && set `"RMW_IMPLEMENTATION=rmw_fastrtps_cpp`""
-$skip = "cellforge_bringup cellforge_device_sdk cellforge_job_gateway cellforge_mock_adapters cellforge_operator_api cellforge_simulation cellforge_state_trace"
-$pythonTests = "ros_ws/src/cellforge_job_gateway/test ros_ws/src/cellforge_mock_adapters/test ros_ws/src/cellforge_operator_api/test ros_ws/src/cellforge_simulation/test ros_ws/src/cellforge_state_trace/test"
+$skip = "cellforge_bringup cellforge_device_sdk cellforge_hardware_adapters cellforge_job_gateway cellforge_mock_adapters cellforge_operator_api cellforge_simulation cellforge_state_trace"
+$pythonTests = "ros_ws/src/cellforge_hardware_adapters/test ros_ws/src/cellforge_job_gateway/test ros_ws/src/cellforge_mock_adapters/test ros_ws/src/cellforge_operator_api/test ros_ws/src/cellforge_simulation/test ros_ws/src/cellforge_state_trace/test"
 
 Invoke-RosCommand "$setup && colcon test --build-base $BuildBase --install-base $InstallBase --merge-install --packages-skip $skip --return-code-on-test-failure --event-handlers console_direct+"
 Invoke-RosCommand "$setup && python -m pytest -q --basetemp $BuildBase/ros-python-pytest -o cache_dir=$BuildBase/ros-python-pytest-cache $pythonTests"

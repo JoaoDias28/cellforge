@@ -62,10 +62,11 @@ def test_browse_deployment_profiles(
 ) -> None:
     result = deployment_service.browse_deployment_profiles(PEN_PROJECT, pen_contents)
 
-    assert len(result.profiles) == 2
+    assert len(result.profiles) == 3
     ids = {p.id for p in result.profiles}
     assert "pen-sim-amd64" in ids
     assert "pen-isaac-l2-win64" in ids
+    assert "pen-hardware-cell" in ids
 
 
 def test_inspect_deployment_profile(

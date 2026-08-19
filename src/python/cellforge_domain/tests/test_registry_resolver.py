@@ -184,8 +184,24 @@ def test_incompatible_mechanical_ports_and_directions_are_rejected(
 
 def test_production_rejects_simulated_only_components(
     cell: CellProject,
-    component_registry: FilesystemComponentRegistry,
+    tmp_path: Path,
+    schema_registry: SchemaRegistry,
 ) -> None:
+    registry_root = tmp_path / "components"
+    for name in ["robot", "gripper", "laser", "camera", "fixture", "safety_status"]:
+        def _make_simulated(manifest: dict[str, Any]) -> None:
+            manifest["support"]["level"] = "simulated"
+            if "adapters" in manifest:
+                manifest["adapters"]["hardware"] = None
+            for cap in manifest.get("capabilities", []):
+                cap["modes"] = ["simulation"]
+
+        _copy_component(name, registry_root / name, mutate=_make_simulated)
+
+    component_registry = FilesystemComponentRegistry.from_directory(
+        registry_root,
+        schema_registry=schema_registry,
+    )
     report = resolve_cell(cell, component_registry, ExecutionMode.PRODUCTION)
 
     assert not report.valid

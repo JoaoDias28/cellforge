@@ -25,12 +25,12 @@ package = false
 members = ["src/python/*"]
 
 [tool.pytest.ini_options]
-addopts = ["--strict-config", "--strict-markers", "-ra"]
+addopts = ["--strict-config", "--strict-markers", "-ra", "--basetemp=.pytest_tmp", "-p", "no:cacheprovider"]
 testpaths = ["src/python/cellforge_domain/tests", "src/python/cellforge_bundle/tests", "src/python/cellforge_cli/tests", "src/python/cellforge_platform/tests", "src/kit/cellforge.studio/tests", "tests"]
 pythonpath = ["src/kit/cellforge.studio"]
 
 [tool.ruff]
-extend-exclude = [".pytest-cache", ".pytest_cache", ".pytest-tmp*", ".uv-cache*"]
+extend-exclude = [".pytest-cache", ".pytest_cache", ".pytest-tmp*", ".pytest_tmp*", ".uv-cache*"]
 line-length = 100
 target-version = "py312"
 

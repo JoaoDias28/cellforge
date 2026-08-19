@@ -202,3 +202,13 @@ exercising the full Studio-to-L0/L2-to-evidence-to-signed-bundle-to-runtime pipe
    - `uncertain-process`: irreversible process communication drop entering `OUTCOME_UNKNOWN` without auto-retry.
 3. Generates and cryptographically verifies an Ed25519-signed `SoftwareReleaseQualificationReport`
    document with Git revision provenance, cell/component versions, seeds, and explicit limitations.
+
+## 11. Task 034 hardware adapter and commissioning verification
+
+`python scripts/verify_hardware_adapters.py` executes the acceptance probe for real hardware adapters:
+
+1. **Parity Check:** Verifies zero simulation-specific branches or overrides in `behavior_tree.xml` and `recipe.yaml`.
+2. **Generic Contract Suite:** Executes all 6 contract scenarios (nominal, invalid input, fault, busy rejection, timeout, cancellation, restart reconciliation) across all 6 physical device adapters.
+3. **On-Cell Commissioning Suite:** Runs 17 individual bench and in-cell commissioning acceptance tests covering nominal and fault paths for robot motion, gripper, fixture clamp/seating, 2D vision, laser marker, and safety status.
+4. **Uncertain-Outcome Verification:** Asserts that socket timeouts or communication loss during active laser firing explicitly return `outcome_certain = False` and `laser.process.outcome_unknown`.
+5. **Safety Refusal Boundary:** Verifies that unready or faulted safety hardware refuses cell operation while keeping safety enforcement on rated hardware relays.

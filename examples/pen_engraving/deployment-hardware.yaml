@@ -1,0 +1,49 @@
+schema_version: 0.1.0
+profile:
+  id: pen-hardware-cell
+  name: Pen Physical Production Cell
+platform:
+  arch: amd64
+  os: ubuntu-24.04
+  ros_distribution: jazzy
+  gpu:
+    required: false
+runtime:
+  simulation_fidelity: L0
+  adapter_configuration: runtime/hardware-adapters.json
+  native_packages:
+    - cellforge_bringup
+    - cellforge_interfaces
+    - cellforge_supervisor
+    - cellforge_pen_bt_nodes
+    - cellforge_job_gateway
+    - cellforge_motion
+    - cellforge_state_trace
+    - cellforge_operator_api
+    - cellforge_hardware_adapters
+  executables:
+    adapter: {package: cellforge_hardware_adapters, executable: hardware_device_node}
+    coordinator: {package: cellforge_bringup, executable: runtime_coordinator}
+    gateway: {package: cellforge_job_gateway, executable: job_gateway}
+    motion_l0: {package: cellforge_motion, executable: cellforge_l0_motion_service}
+    motion_l2: {package: cellforge_motion, executable: cellforge_motion_service}
+    operator: {package: cellforge_operator_api, executable: operator_api}
+    safety_status: {package: cellforge_hardware_adapters, executable: hardware_safety_status_node}
+    state: {package: cellforge_state_trace, executable: state_aggregator}
+    supervisor: {package: cellforge_supervisor, executable: cellforge_supervisor_node}
+    trace: {package: cellforge_state_trace, executable: durable_event_recorder}
+  behavior_tree_plugins:
+    - package: cellforge_pen_bt_nodes
+      library: cellforge_pen_bt_nodes
+      manifest: behavior_tree_plugins/cellforge_pen_bt_nodes.json
+  containers: []
+network:
+  ros_domain_id: 42
+modes: [commissioning, production]
+external_prerequisites:
+  - Physical 6-axis robot controller running FollowJointTrajectory ROS 2 driver
+  - Pneumatic parallel gripper with discrete I/O interface
+  - Pneumatic fixture with Modbus TCP discrete sensor module
+  - Calibrated 2D industrial camera over GigE/USB
+  - Industrial laser marker with vendor TCP/IP automation interface
+  - Independent rated safety relay / safety PLC with dual-channel status monitor

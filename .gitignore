@@ -4,6 +4,7 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .pytest-tmp*/
+.pytest_tmp*/
 .task027-*.json
 .ruff_cache/
 .coverage

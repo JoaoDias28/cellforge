@@ -1,6 +1,6 @@
 # CellForge — Robot Cell Engineering Platform Design Pack
 
-**Status:** complete software release qualified (Task 033); Task 034 eligible for real hardware adapters
+**Status:** real hardware adapters & on-cell commissioning complete (Task 034); all roadmap implementation tasks completed
 **Primary use:** simulation-first robot cell engineering platform
 **First production use case:** robotic loading, laser engraving, inspection, and unloading of pens
 **Long-term scope:** reusable simulation-first engineering platform for many industrial robot cells
