@@ -49,8 +49,7 @@ async def run_robot_bench_test(
 
     # 1. Nominal trajectory execution
     traj_payload = (
-        '{"trajectory": {"waypoints": [{"x": 0.1, "y": 0.2, "z": 0.3}]}, '
-        '"velocity_scaling": 0.25}'
+        '{"trajectory": {"waypoints": [{"x": 0.1, "y": 0.2, "z": 0.3}]}, "velocity_scaling": 0.25}'
     )
     cmd = CapabilityCommand(
         command_id=new_command_id(),
@@ -297,8 +296,7 @@ async def run_laser_bench_test(
 
     # 1. Select program nominal
     sel_payload = (
-        '{"program_id": "ALU_REFERENCE_01", '
-        '"variable_data": {"engraving_text": "CELLFORGE-01"}}'
+        '{"program_id": "ALU_REFERENCE_01", "variable_data": {"engraving_text": "CELLFORGE-01"}}'
     )
     cmd_select = CapabilityCommand(
         command_id=new_command_id(),

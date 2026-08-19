@@ -16,7 +16,7 @@ lint:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen ruff format --check .
 	$(UV) run --frozen ruff check .
-	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_bundle/src src/python/cellforge_bundle/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests src/python/cellforge_platform/src src/python/cellforge_platform/tests ros_ws/src/cellforge_device_sdk/cellforge_device_sdk ros_ws/src/cellforge_mock_adapters/cellforge_mock_adapters ros_ws/src/cellforge_state_trace/cellforge_state_trace ros_ws/src/cellforge_job_gateway/cellforge_job_gateway ros_ws/src/cellforge_operator_api/cellforge_operator_api ros_ws/src/cellforge_simulation/cellforge_simulation ros_ws/src/cellforge_bringup/cellforge_bringup tests
+	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_bundle/src src/python/cellforge_bundle/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests src/python/cellforge_platform/src src/python/cellforge_platform/tests ros_ws/src/cellforge_device_sdk/cellforge_device_sdk ros_ws/src/cellforge_mock_adapters/cellforge_mock_adapters ros_ws/src/cellforge_hardware_adapters/cellforge_hardware_adapters ros_ws/src/cellforge_state_trace/cellforge_state_trace ros_ws/src/cellforge_job_gateway/cellforge_job_gateway ros_ws/src/cellforge_operator_api/cellforge_operator_api ros_ws/src/cellforge_simulation/cellforge_simulation ros_ws/src/cellforge_bringup/cellforge_bringup tests
 	$(UV) run --frozen mypy --explicit-package-bases src/kit/cellforge.studio/cellforge/studio/application.py src/kit/cellforge.studio/cellforge/studio/backend.py src/kit/cellforge.studio/cellforge/studio/component_service.py src/kit/cellforge.studio/cellforge/studio/connection_service.py src/kit/cellforge.studio/cellforge/studio/deployment_service.py src/kit/cellforge.studio/cellforge/studio/project_service.py src/kit/cellforge.studio/cellforge/studio/recipe_service.py src/kit/cellforge.studio/cellforge/studio/scenario_service.py src/kit/cellforge.studio/cellforge/studio/scene.py src/kit/cellforge.studio/cellforge/studio/spatial_configuration.py src/kit/cellforge.studio/cellforge/studio/task_service.py src/kit/cellforge.studio/cellforge/studio/simulation_application.py src/kit/cellforge.studio/cellforge/studio/simulation_backend.py src/kit/cellforge.studio/cellforge/studio/simulation_host.py src/kit/cellforge.studio/tests
 
 test:
@@ -106,6 +106,11 @@ release-qualification-check:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen pytest src/python/cellforge_bundle/tests/test_qualification.py tests/test_software_release_qualification.py
 	$(UV) run --frozen python scripts/verify_software_release_qualification.py
+
+hardware-adapters-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest tests/test_hardware_adapters.py
+	$(UV) run --frozen python scripts/verify_hardware_adapters.py
 
 isaac-l2-gpu-check:
 	powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/run_isaac_l2_gpu.ps1

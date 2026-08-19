@@ -189,6 +189,7 @@ def test_production_rejects_simulated_only_components(
 ) -> None:
     registry_root = tmp_path / "components"
     for name in ["robot", "gripper", "laser", "camera", "fixture", "safety_status"]:
+
         def _make_simulated(manifest: dict[str, Any]) -> None:
             manifest["support"]["level"] = "simulated"
             if "adapters" in manifest:

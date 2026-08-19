@@ -284,9 +284,7 @@ class IndustrialCameraStream:
             "qw": 1.0,
         }
 
-    def set_bench_scene(
-        self, object_present: bool, pose: dict[str, float] | None = None
-    ) -> None:
+    def set_bench_scene(self, object_present: bool, pose: dict[str, float] | None = None) -> None:
         self._simulated_scene_present = object_present
         if pose is not None:
             self._simulated_pose = dict(pose)
@@ -326,9 +324,7 @@ class IndustrialCameraStream:
         """Execute optical inspection. Returns (result, fault_code)."""
         if not self._connected:
             return (
-                InspectionResultData(
-                    accepted=False, measurements={}, evidence_uri=""
-                ),
+                InspectionResultData(accepted=False, measurements={}, evidence_uri=""),
                 "vision.camera.disconnected",
             )
 

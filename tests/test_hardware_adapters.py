@@ -40,7 +40,7 @@ from cellforge_hardware_adapters.devices import (  # noqa: E402
 
 
 @pytest.mark.anyio
-async def test_all_hardware_adapters_generic_contract_suite():
+async def test_all_hardware_adapters_generic_contract_suite() -> None:
     for kind in HardwareDeviceKind:
         factory = make_hardware_contract_factory(kind)
         report = await run_adapter_contract_suite(factory)
@@ -48,7 +48,7 @@ async def test_all_hardware_adapters_generic_contract_suite():
 
 
 @pytest.mark.anyio
-async def test_robot_hardware_adapter():
+async def test_robot_hardware_adapter() -> None:
     adapter = RobotHardwareAdapter("robot-001")
     await adapter.connect_hardware()
     assert adapter.state_publisher.snapshot.ready
@@ -58,7 +58,7 @@ async def test_robot_hardware_adapter():
 
 
 @pytest.mark.anyio
-async def test_gripper_hardware_adapter():
+async def test_gripper_hardware_adapter() -> None:
     adapter = GripperHardwareAdapter("gripper-001")
     await adapter.connect_hardware()
     assert adapter.state_publisher.snapshot.ready
@@ -68,7 +68,7 @@ async def test_gripper_hardware_adapter():
 
 
 @pytest.mark.anyio
-async def test_fixture_hardware_adapter():
+async def test_fixture_hardware_adapter() -> None:
     adapter = FixtureHardwareAdapter("fixture-001")
     await adapter.connect_hardware()
     assert adapter.state_publisher.snapshot.ready
@@ -78,7 +78,7 @@ async def test_fixture_hardware_adapter():
 
 
 @pytest.mark.anyio
-async def test_camera_hardware_adapter():
+async def test_camera_hardware_adapter() -> None:
     adapter = CameraVisionHardwareAdapter("camera-001")
     await adapter.connect_hardware()
     assert adapter.state_publisher.snapshot.ready
@@ -88,7 +88,7 @@ async def test_camera_hardware_adapter():
 
 
 @pytest.mark.anyio
-async def test_laser_hardware_adapter_and_uncertain_outcome():
+async def test_laser_hardware_adapter_and_uncertain_outcome() -> None:
     adapter = LaserHardwareAdapter("laser-001")
     await adapter.connect_hardware()
     assert adapter.state_publisher.snapshot.ready
@@ -132,7 +132,7 @@ async def test_laser_hardware_adapter_and_uncertain_outcome():
 
 
 @pytest.mark.anyio
-async def test_safety_hardware_adapter():
+async def test_safety_hardware_adapter() -> None:
     adapter = HardwareSafetyStatusAdapter("safety-status-001")
     adapter.mark_ready()
     assert adapter.state_publisher.snapshot.ready
@@ -142,7 +142,7 @@ async def test_safety_hardware_adapter():
 
 
 @pytest.mark.anyio
-async def test_hardware_commissioning_suite():
+async def test_hardware_commissioning_suite() -> None:
     report = await run_hardware_commissioning_suite()
     assert report.passed
     assert len(report.results) >= 15

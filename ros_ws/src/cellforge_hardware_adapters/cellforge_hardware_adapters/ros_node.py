@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import threading
+from datetime import timedelta
 from typing import Any
 
 import rclpy
@@ -22,7 +23,11 @@ from cellforge_interfaces.action import (
 )
 from cellforge_interfaces.msg import (
     DeviceState as RosDeviceState,
+)
+from cellforge_interfaces.msg import (
     PoseEstimate,
+)
+from cellforge_interfaces.msg import (
     SafetyState as RosSafetyState,
 )
 from cellforge_interfaces.srv import GetDeviceState
@@ -74,7 +79,7 @@ class _AsyncioBridge:
         self.thread.join(timeout=1.0)
 
 
-class HardwareDeviceNode(Node):
+class HardwareDeviceNode(Node):  # type: ignore[misc]
     """ROS 2 Node hosting physical device capability actions, queries, and state telemetry."""
 
     def __init__(
@@ -197,7 +202,7 @@ class HardwareDeviceNode(Node):
         key = str(goal_handle.goal_id.uuid.tobytes())
         command_id = self._commands.get(key)
         if command_id:
-            self._bridge.submit(self._adapter.cancel_command(command_id))
+            self._bridge.submit(self._adapter.cancel(command_id))
         return CancelResponse.ACCEPT
 
     def _make_execute_callback(self, capability: str) -> Any:
@@ -211,8 +216,8 @@ class HardwareDeviceNode(Node):
         key = str(goal_handle.goal_id.uuid.tobytes())
 
         # Extract payload and IDs from goal
-        command_id = getattr(goal, "command_id", "") or str(goal_handle.goal_id)
-        trace_id = getattr(goal, "trace_id", "") or "trace-hw"
+        command_id = str(getattr(goal, "command_id", "") or goal_handle.goal_id)
+        trace_id = str(getattr(goal, "trace_id", "") or "trace-hw")
         payload_json = self._extract_payload_json(goal, capability)
 
         command = CapabilityCommand(
@@ -220,6 +225,7 @@ class HardwareDeviceNode(Node):
             trace_id=trace_id,
             capability=capability,
             input_payload_json=payload_json,
+            timeout=timedelta(seconds=5.0),
         )
         self._commands[key] = command.command_id
         feedback_type = _ACTION_TYPES.get(capability, ExecuteSkill).Feedback
@@ -246,7 +252,7 @@ class HardwareDeviceNode(Node):
 
     def _extract_payload_json(self, goal: Any, capability: str) -> str:
         if hasattr(goal, "input_payload_json") and goal.input_payload_json:
-            return goal.input_payload_json
+            return str(goal.input_payload_json)
         if hasattr(goal, "program_id"):
             data = {
                 "program_id": goal.program_id,
@@ -332,7 +338,7 @@ class HardwareDeviceNode(Node):
         self._bridge.close()
 
 
-class HardwareSafetyStatusNode(Node):
+class HardwareSafetyStatusNode(Node):  # type: ignore[misc]
     """Read-only ROS 2 Node publishing external rated safety hardware state (ADR 0007)."""
 
     def __init__(
