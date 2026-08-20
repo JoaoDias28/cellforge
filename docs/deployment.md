@@ -249,9 +249,9 @@ Bringup accepts only the supported L0 identity set and exact fixed endpoints. A 
 that differs from the frozen profile, a tampered critical file, a path escaping the bundle, or an
 unavailable L2 runtime fails before launch.
 
-## 9. Task 033 software release qualification and bundle delivery
+## 9. Task 036 executable software release qualification and bundle delivery
 
-Task 033 proves the complete end-to-end deployment lifecycle:
+Task 036 records executable software qualification evidence for the deployment lifecycle:
 
 - **Immutable bundle assembly:** packages materialised frozen assets, launch files, and checksums.
 - **Detached signature verification:** requires valid Ed25519 signatures against trusted public keys.
@@ -259,6 +259,14 @@ Task 033 proves the complete end-to-end deployment lifecycle:
   the atomic `current` symlink.
 - **Local offline resilience:** cell operates fully offline; telemetry and trace records buffer
   locally in SQLite and sync idempotently to platform endpoints when reconnected.
+- **Fail-closed evidence:** the qualification runner records observed commands, artifacts, Git
+  provenance, component identities, and scenario outcomes. It reports Task 027 L2 as unavailable
+  unless an externally generated Isaac Sim 6/OpenUSD/PhysX report passes its scene, GPU, seed,
+  replay, and fault-fidelity checks. L0 or CPU/model evidence cannot be promoted to L2.
+
+This is engineering and simulation evidence only. It does not qualify physical hardware, process
+quality, or independent functional safety; safety enforcement remains on independently rated
+hardware.
 
 ## 10. Task 034 real hardware adapters and commissioning
 

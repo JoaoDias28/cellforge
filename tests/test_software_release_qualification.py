@@ -18,7 +18,9 @@ EXAMPLE_PROJECT = ROOT / "examples" / "pen_engraving"
 SCHEMAS = ROOT / "schemas"
 
 
-def test_cli_qualify_command_succeeds_and_writes_signed_report(tmp_path: Path) -> None:
+def test_cli_qualify_command_reports_l2_unavailable_and_writes_signed_report(
+    tmp_path: Path,
+) -> None:
     key = Ed25519PrivateKey.generate()
     key_pem = key.private_bytes(
         encoding=serialization.Encoding.PEM,
@@ -41,15 +43,17 @@ def test_cli_qualify_command_succeeds_and_writes_signed_report(tmp_path: Path) -
         ]
     )
 
-    assert exit_code == 0
+    assert exit_code != 0
     assert output_report_path.is_file()
 
     report_data = json.loads(output_report_path.read_text(encoding="utf-8"))
-    assert report_data["overall_passed"] is True
+    assert report_data["overall_passed"] is False
     assert report_data["signature"] is not None
     assert len(report_data["scenarios"]) >= 9
     assert report_data["parity"]["passed"] is True
     assert report_data["platform"]["passed"] is True
+    assert report_data["l2"]["status"] == "unavailable"
+    assert all(item["observed"] and item["artifact_sha256"] for item in report_data["scenarios"])
 
 
 def test_complete_software_release_qualification_pipeline(tmp_path: Path) -> None:
@@ -58,15 +62,18 @@ def test_complete_software_release_qualification_pipeline(tmp_path: Path) -> Non
         EXAMPLE_PROJECT,
         SCHEMAS,
         signing_key=key,
+        evidence_dir=tmp_path / "evidence",
     )
 
-    assert report.overall_passed
+    assert not report.overall_passed
     assert report.cell_id == "0d3c6b63-a57f-4207-8638-e4cf76efec90"
     assert report.parity.passed
+    assert report.parity.dynamic_observed
     assert not report.parity.has_simulator_branches
     assert report.platform.migrations_passed
     assert report.platform.dual_role_approval_verified
     assert report.platform.self_approval_rejected
     assert report.platform.idempotent_sync_verified
     assert len(report.scenarios) >= 9
+    assert report.l2["status"] == "unavailable"
     assert verify_qualification_report(report, key.public_key())
