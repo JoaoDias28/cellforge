@@ -183,25 +183,28 @@ forces candidate health failure and verifies that the former release and its gen
 are restored. These checks are deterministic unit/integration evidence, not a real systemd or
 hardware qualification.
 
-## 10. Task 033 software release qualification acceptance
+## 10. Task 036 executable software release qualification acceptance
 
-`make release-qualification-check` executes the automated end-to-end qualification workflow
-exercising the full Studio-to-L0/L2-to-evidence-to-signed-bundle-to-runtime pipeline:
+`make release-qualification-check` runs the real L0 headless scenario runner, the platform
+acceptance probe, bundle assembly and agent verification, restart reconciliation, and stale-device
+probes. Each result records the command or probe artifact and its SHA-256 digest in an integrity-
+protected `SoftwareReleaseQualificationReport`.
 
-1. Statically and dynamically verifies Behavior Tree XML and recipe YAML parity across L0 and L2,
-   confirming zero simulator-specific branches or conditionals.
-2. Executes the complete 9-category scenario qualification matrix:
-   - `nominal`: complete pen engraving cycles in L0 and L2;
-   - `fault`: injected equipment, sensor, drop, and collision faults;
-   - `cancel`: mid-cycle operator cancellation with safe halt and resource cleanup;
-   - `timeout`: watchdog timer expiry and bounded recoverable fault handling;
-   - `restart`: clean service and supervisor restart/recovery;
-   - `corrupt-bundle`: fail-closed rejection of tampered files, digests, or signatures;
-   - `offline-platform`: offline local SQLite persistence and idempotent batch synchronization;
-   - `stale-device`: fail-closed handling of lost heartbeats and unready devices;
-   - `uncertain-process`: irreversible process communication drop entering `OUTCOME_UNKNOWN` without auto-retry.
-3. Generates and cryptographically verifies an Ed25519-signed `SoftwareReleaseQualificationReport`
-   document with Git revision provenance, cell/component versions, seeds, and explicit limitations.
+The command covers all nine categories: `nominal`, `fault`, `cancel`, `timeout`, `restart`,
+`corrupt-bundle`, `offline-platform`, `stale-device`, and `uncertain-process`. The L0 rows are
+derived from the generated headless JSON report, including seeds, final status, failures, and
+trace event types. Bundle tampering must be rejected by the existing agent verifier, and platform
+results must come from observed command output rather than constants.
+
+Task 027 L2 is deliberately external. Supply `--l2-report <path>` to validate an actual Isaac Sim
+6/OpenUSD/PhysX report with CUDA identity, the canonical scene digest, 100 unique seeds, replay
+integrity, runtime/adapters provenance, and all three required PhysX faults. Without that report,
+CI prints `L2 unavailable`, writes `overall_passed: false`, and may complete its L0 evidence probe;
+`--require-l2` returns non-zero. CPU/model/mock evidence, missing evidence, tampered evidence, and
+fidelity relabeling never become L2 passes.
+
+Simulation qualification remains engineering verification only. It does not qualify real hardware,
+physical process quality, or independent functional safety; those boundaries remain external.
 
 ## 11. Task 034 hardware adapter and commissioning verification
 
