@@ -10,16 +10,16 @@
       "workflow": "kitting"
     },
     "l0_sim": {
-      "bundle_id": "8a2df8002345dd16b53607c487ec4eefbf3055e11a9ec40397ab7b9a574cddbe",
-      "bundle_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\assembled-l0-bundle-4fd529d319084eb183e45f79cbf694d1",
-      "checksums_sha256": "6af437361b165776a500e24ffff9084aceeb7285f253690235d8e5eb54db2d3d",
+      "bundle_id": "93e34c67e19de34867358d712086b8887cd4f8c33bf38c0253c1a44a6d1efe63",
+      "bundle_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\assembled-l0-bundle-28e2042c38f54b589580e2ea35ee0c1d",
+      "checksums_sha256": "2c869f9ed52648308d3c15c41ed36656489e1398180141c5bc864a8bc9c09104",
       "failure_reasons": [],
       "fidelity": "L0",
-      "key_id": "35438d03773d30608a35bfd77a609f798f146bd1bc9e518448e4f4e11cfa9efd",
-      "manifest_sha256": "963a3ded8fcf9cc91f1b169eb349228fabd5cb4e9c4c3c864f2f6f5bcb8e67a2",
+      "key_id": "52a10305b3b1da3425b76f47f74158c182b1e4a56eaf733e47e9a735a139db23",
+      "manifest_sha256": "d0c0024f03e2388957b0788ab69e1c24a7cca96d9358dfae3a86843d916bdce7",
       "observed": true,
       "passed": true,
-      "source_revision": "a980558b262e57046f82c419e704fc8176bb5f64",
+      "source_revision": "b103899bb4c53a454d94114aeb48e7cd5accc584",
       "tamper_rejected": true,
       "target_profile": "pen-sim-amd64"
     },
@@ -99,30 +99,30 @@
   "evidence": [
     {
       "gate": "source_provenance",
-      "git_clean": false,
-      "revision": "a980558b262e57046f82c419e704fc8176bb5f64",
-      "status": "failed",
-      "tree_sha": "a61a42a170809e9391fc4567c4cf7c0013e06416"
+      "git_clean": true,
+      "revision": "b103899bb4c53a454d94114aeb48e7cd5accc584",
+      "status": "passed",
+      "tree_sha": "2c39fdd8943c983db539d73d2f0ddc62db5a9d3e"
     },
     {
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "command_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-command.json",
-      "command_artifact_sha256": "11bde81afafef7552fc3bfe51b021aeb68cc4baeaadf4177fa74392f597a8686",
+      "command_artifact_sha256": "6adbea5e11c6fa03d9c02d7e6e29c29abb0492eb35ab2466a12708d02da55573",
       "gate": "l0_scenarios",
       "status": "passed"
     },
     {
       "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\bundle-probe.json",
-      "artifact_sha256": "ce7b737a49f68c3aea6fbe83685215e2d58d11bc70e75b7ae6f8b041800a3789",
+      "artifact_sha256": "43f8d6ce6df4ffd250b99e2e80a93e76ec037dbf4a3a9aa96488e7f3f61c4cc8",
       "command": "cellforge_bundle.assembly.assemble_bundle + cellforge_bundle.agent.verify_bundle",
       "gate": "bundle_agent",
       "status": "passed"
     },
     {
       "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\platform-command.json",
-      "artifact_sha256": "570e869d644817d41430549f2e29e9233d5163958efd953267a4d51b4f05114a",
+      "artifact_sha256": "5446e6ff0920229ce37dd1451310eca414d4ab261583cdf386fe006acccf0acc",
       "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\verify_platform_approvals_result_sync.py'",
       "gate": "platform",
       "status": "passed"
@@ -159,9 +159,9 @@
           "achieved_fidelity": "L0",
           "actual_physx_executed": false,
           "assertions_passed": true,
-          "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\run_simulation_demo.py' --backend l0 --workflow kitting --scenario nominal --seed 3801 --project-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\kitting' --output-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-nominal-2e4537fd77d8495fb3651e36e3071979'",
+          "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\run_simulation_demo.py' --backend l0 --workflow kitting --scenario nominal --seed 3801 --project-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\kitting' --output-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-nominal-64cd589696514289ad2b913dec638e8d'",
           "command_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-nominal-command.json",
-          "command_artifact_sha256": "32305f8a20403742268502641bce64c36d9cd98d03f0f56dca4411d808e6d65c",
+          "command_artifact_sha256": "2582abd7e41db1e3c9f1be7bedeb50f800e3481986c2912bc316f1555a08441a",
           "limitations": {
             "hardware_evidence": "No physical robot, process machine, sensor, or I/O was used.",
             "interface_evidence": "The canonical task contract, adapter sequencing, assertions, and trace were exercised.",
@@ -170,8 +170,8 @@
             "safety_evidence": "Modeled safety status is read-only evidence; no safety-rated function was implemented or validated."
           },
           "project_sha256": "4260eac1aa53cfa03704cfedb76038df0ab168053047d42fac826924dd5a3004",
-          "report_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-nominal-2e4537fd77d8495fb3651e36e3071979\\report.json",
-          "report_artifact_sha256": "4bfcac5538ac7ba3b9bc5c0673289491c68ffc84866cc645505c7c84c7060d04",
+          "report_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-nominal-64cd589696514289ad2b913dec638e8d\\report.json",
+          "report_artifact_sha256": "66baae3d128cdec34ef8af982bde73cbb7e3498b7c4a7336c5822eae6cc6602f",
           "requested_fidelity": "L0",
           "scenario": "nominal",
           "seed": 3801,
@@ -241,9 +241,9 @@
           "achieved_fidelity": "L0",
           "actual_physx_executed": false,
           "assertions_passed": true,
-          "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\run_simulation_demo.py' --backend l0 --workflow kitting --scenario gripper_close_recovery --seed 3802 --project-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\kitting' --output-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-gripper_close_recovery-0bdacdbcfc734918b832f19c4b140b1b'",
+          "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\run_simulation_demo.py' --backend l0 --workflow kitting --scenario gripper_close_recovery --seed 3802 --project-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\kitting' --output-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-gripper_close_recovery-d06a2bca714f4d39bbd060e514b92ec0'",
           "command_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-gripper_close_recovery-command.json",
-          "command_artifact_sha256": "45c95fb881b51db64ffd50552581fdd064ce6ffe6821a208e795ecd06d11b245",
+          "command_artifact_sha256": "e414a5696ade5ab174c3ce72b7224305fbf02cb7a76da6b869336708cca3b549",
           "limitations": {
             "hardware_evidence": "No physical robot, process machine, sensor, or I/O was used.",
             "interface_evidence": "The canonical task contract, adapter sequencing, assertions, and trace were exercised.",
@@ -252,8 +252,8 @@
             "safety_evidence": "Modeled safety status is read-only evidence; no safety-rated function was implemented or validated."
           },
           "project_sha256": "7cd6fc0dee8d83e40bc0c3bcef623413902d0d8edce2febd568691d22207e075",
-          "report_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-gripper_close_recovery-0bdacdbcfc734918b832f19c4b140b1b\\report.json",
-          "report_artifact_sha256": "2ff1bc536b343605a3443d9ff3834d32817792ec4cf190854a451879e1a09b53",
+          "report_artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\kitting-gripper_close_recovery-d06a2bca714f4d39bbd060e514b92ec0\\report.json",
+          "report_artifact_sha256": "14ee8af2d34d9a2b479b262ca9524adc4796c10bd8e3634889693a4bdf46ef58",
           "requested_fidelity": "L0",
           "scenario": "gripper_close_recovery",
           "seed": 3802,
@@ -324,10 +324,10 @@
       "workflow": "kitting"
     }
   ],
-  "git_clean": false,
-  "git_revision": "a980558b262e57046f82c419e704fc8176bb5f64",
-  "git_tree_sha": "a61a42a170809e9391fc4567c4cf7c0013e06416",
-  "integrity_sha256": "06e83af2c7ba0841f4c803dde837851a6c47817e84a1d9d03807440d5ee649c3",
+  "git_clean": true,
+  "git_revision": "b103899bb4c53a454d94114aeb48e7cd5accc584",
+  "git_tree_sha": "2c39fdd8943c983db539d73d2f0ddc62db5a9d3e",
+  "integrity_sha256": "a7749548eb32f1f89a580f58ac282df7d1d19cf51cfa5651408e367921e24864",
   "key_id": null,
   "l2": {
     "actual_physx_executed": false,
@@ -378,7 +378,7 @@
   },
   "platform": {
     "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\platform-command.json",
-    "artifact_sha256": "570e869d644817d41430549f2e29e9233d5163958efd953267a4d51b4f05114a",
+    "artifact_sha256": "5446e6ff0920229ce37dd1451310eca414d4ab261583cdf386fe006acccf0acc",
     "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\verify_platform_approvals_result_sync.py'",
     "dual_role_approval_verified": true,
     "evidence_records_verified": true,
@@ -402,19 +402,19 @@
     "status": "TESTED",
     "version": 1
   },
-  "report_id": "525e3f5d-2864-4ca0-9b36-66b81727e3df",
+  "report_id": "92e6a8d0-80d8-4add-b6bd-c01709bf4904",
   "scenarios": [
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "nominal",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -486,15 +486,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "fault",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -523,15 +523,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "fault",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -560,15 +560,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "fault",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -611,15 +611,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "fault",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -674,15 +674,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "fault",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -743,15 +743,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "timeout",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -806,15 +806,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "cancel",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -862,15 +862,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "uncertain_process",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -925,15 +925,15 @@
     },
     {
       "achieved_fidelity": "L0",
-      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6\\pen-headless-report.json",
+      "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a\\pen-headless-report.json",
       "artifact_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4",
       "available": true,
       "category": "fault",
-      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-f5ae676d73ff42da9fc8f045877fb6f6' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
+      "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\ros_ws\\src\\cellforge_mock_adapters\\cellforge_mock_adapters\\headless.py' --scenario-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\scenarios' --tree 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\behavior_tree.xml' --reports-dir 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\l0-e319590498974460b53741fe9d487d3a' --golden-root 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\examples\\pen_engraving\\golden_traces'",
       "duration_seconds": 0.0,
       "evidence": {
         "backend": "L0 contract mock",
-        "runner_duration_seconds": 1.125,
+        "runner_duration_seconds": 1.157,
         "runner_report_sha256": "2966b4a1ecedc7e47bb175b06499edbd28981472cc17726ddb313cfb7af3c1d4"
       },
       "failure_reasons": [],
@@ -978,7 +978,7 @@
     {
       "achieved_fidelity": "L0",
       "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\bundle-probe.json",
-      "artifact_sha256": "ce7b737a49f68c3aea6fbe83685215e2d58d11bc70e75b7ae6f8b041800a3789",
+      "artifact_sha256": "43f8d6ce6df4ffd250b99e2e80a93e76ec037dbf4a3a9aa96488e7f3f61c4cc8",
       "available": true,
       "category": "corrupt_bundle",
       "command": "cellforge_bundle.assembly.assemble_bundle + cellforge_bundle.agent.verify_bundle",
@@ -999,7 +999,7 @@
     {
       "achieved_fidelity": "L0",
       "artifact_path": "C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\.artifacts\\task036\\platform-command.json",
-      "artifact_sha256": "570e869d644817d41430549f2e29e9233d5163958efd953267a4d51b4f05114a",
+      "artifact_sha256": "5446e6ff0920229ce37dd1451310eca414d4ab261583cdf386fe006acccf0acc",
       "available": true,
       "category": "offline_platform",
       "command": "'C:\\Users\\j4nec\\Documents\\ChatGPT\\cellforge\\.venv\\Scripts\\python.exe' 'C:\\Users\\j4nec\\.codex\\worktrees\\3bbb\\cellforge\\scripts\\verify_platform_approvals_result_sync.py'",
@@ -1043,5 +1043,5 @@
   "schema_version": "0.1.0",
   "signature": null,
   "suite_version": "0.2.0",
-  "timestamp": "2026-08-20T20:35:59.909386+00:00"
+  "timestamp": "2026-08-20T21:19:15.868426+00:00"
 }
