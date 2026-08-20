@@ -26,6 +26,17 @@ The platform is intentionally split into two products:
 
 Every component can expose a simulation adapter and a hardware adapter behind the same capability interface. The same recipe and behavior tree should therefore run in simulation and on real hardware, subject to explicit deployment configuration and safety validation.
 
+## Simulation quick start
+
+Run the reproducible reference-cell L0 demo without ROS or Isaac Sim:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --scenario nominal --seed 1001
+```
+
+Artifacts are written to `.artifacts/simulation-demo/l0/seed-1001/`. The supported Isaac Sim 6 L2
+path and evidence boundaries are documented in [docs/simulation-demo.md](docs/simulation-demo.md).
+
 ## Non-goals
 
 CellForge does not replace:

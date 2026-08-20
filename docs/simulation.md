@@ -233,3 +233,65 @@ Task 033 qualifies the complete simulation stack across L0 and L2 fidelity:
 - **Mandatory disclaimers:** simulation status and evidence are engineering verification data only.
   Functional safety is independently enforced by rated hardware, and laser mark/material quality
   qualification requires physical commissioning in Task 034.
+
+## 13. Task 037 simulation demo workflow
+
+The supported one-command demonstration is `scripts/run_simulation_demo.py`. It is an engineering
+demo wrapper around the existing Task 013 L0 runner and Task 027 Isaac Sim probe; it does not add a
+second behavior-tree interpreter, qualification matrix, runtime, or safety controller.
+
+Run the nominal L0 demo from a clean checkout on Windows or Linux with:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --scenario nominal --seed 1001
+```
+
+The default output directory is `.artifacts/simulation-demo/l0/seed-1001/`. It contains:
+
+* `report.json` — the common machine-readable evidence report, including source revision, project,
+  cell/scene/recipe/tree/scenario hashes, selected L0 adapters, fidelity, assertions, result,
+  limitations, safety boundary, and replay command;
+* `trace.json` and `events.json` — timestamp-free, seed-derived normalized events;
+* `junit.xml` — assertion outcomes for CI/test tooling;
+* `run.log` and `replay.txt` — a deterministic summary and copyable replay command.
+
+The report references only repository-relative artifact names. Repeating the command with the same
+seed produces byte-identical normalized report, trace, event, JUnit, log, and replay inputs. A
+deliberately failing assertion is non-zero and is retained in the report:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --scenario nominal --seed 1001 --assertion require-event:demo.event.missing
+```
+
+Use `require-event:<event>`, `forbid-event:<event>`, or `final-status:<status>` for additional
+machine-readable assertion checks. These overlays do not change the canonical scenario or tree.
+
+The supported headless Isaac Sim 6 L2 demo invokes the unchanged Task 027 OpenUSD/PhysX probe:
+
+```powershell
+uv run --frozen python scripts/run_simulation_demo.py `
+  --backend l2 `
+  --isaac-sim-root C:\isaacsim
+```
+
+The runner requires an Isaac Sim 6 `VERSION`, the matching Kit executable/application, an NVIDIA
+GPU visible to `nvidia-smi`, and the Task 027 runtime's CUDA/PhysX support. It writes
+`.artifacts/simulation-demo/l2/report.json`, `trace.json`, `events.json`, `junit.xml`, `run.log`,
+`replay.txt`, `task027-report.json`, and the Kit stdout/stderr logs. The L2 report passes only when
+the probe reports Isaac 6, CUDA, `actual_physx_executed: true`, runtime/adapter event origin, and
+100 successful seeded runs. Missing prerequisites, a probe error, a CPU-only result, or any failed
+fidelity assertion writes an unavailable/failed report and returns non-zero.
+
+On Linux, the same wrapper uses the supported `kit/kit` layout:
+
+```bash
+uv run --frozen python scripts/run_simulation_demo.py \
+  --backend l2 \
+  --isaac-sim-root /opt/isaacsim
+```
+
+The demo distinguishes interface evidence, physics evidence, process-quality evidence, hardware
+evidence, and safety evidence in every report. L0 proves contract sequencing only. L2 proves only
+the configured Isaac/PhysX model and its declared scenarios. Neither path qualifies a real device,
+laser mark/material quality, commissioning, production operation, or independent functional safety;
+`physical_operation_authorized` is always `false`.
