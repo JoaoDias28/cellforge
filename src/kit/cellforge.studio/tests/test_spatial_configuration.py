@@ -45,6 +45,16 @@ def _service() -> SpatialConfigurationService:
     )
 
 
+def _project_service(spatial_service: SpatialConfigurationService) -> ProjectCommandService:
+    """Use the same deterministic clock for every project validation boundary."""
+
+    return ProjectCommandService(SCHEMAS, spatial_service=spatial_service)
+
+
+def _timestamp(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
 def test_transform_configuration_and_selection_preserve_paired_identity(tmp_path: Path) -> None:
     project = _project_copy(tmp_path)
     service = _service()
@@ -152,8 +162,9 @@ def test_calibration_creation_is_digest_checked_bound_and_saved_transactionally(
     assert created.calibration_path in created.contents.artifacts
     assert created.calibration_path in created.contents.cell_yaml
 
-    saved = ProjectCommandService(SCHEMAS).save(project, created.contents)
-    reopened = ProjectCommandService(SCHEMAS).inspect(project)
+    project_service = _project_service(service)
+    saved = project_service.save(project, created.contents)
+    reopened = project_service.inspect(project)
 
     assert saved.project is not None
     assert reopened.project is not None
@@ -179,7 +190,7 @@ def test_existing_calibration_can_be_imported_through_project_command_service(
         (created.contents.artifacts[created.calibration_path or ""]).decode("utf-8")
     )
 
-    imported = ProjectCommandService(SCHEMAS).import_calibration(
+    imported = _project_service(service).import_calibration(
         project,
         _contents(project),
         instance_id="camera-001",
@@ -202,14 +213,15 @@ def test_reopening_rejects_a_tampered_calibration_artifact(tmp_path: Path) -> No
         data={"focal_length_mm": 12.0},
     )
     assert created.contents is not None and created.calibration_path is not None
-    assert ProjectCommandService(SCHEMAS).save(project, created.contents).project is not None
+    project_service = _project_service(service)
+    assert project_service.save(project, created.contents).project is not None
 
     tampered = json.loads((project / created.calibration_path).read_text(encoding="utf-8"))
     tampered["data"]["focal_length_mm"] = 13.0
     (project / created.calibration_path).write_bytes(
         (json.dumps(tampered, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
     )
-    reopened = ProjectCommandService(SCHEMAS).inspect(project)
+    reopened = project_service.inspect(project)
 
     assert reopened.project is None
     assert any(item.code == "studio.calibration-digest-invalid" for item in reopened.validation)
@@ -235,8 +247,8 @@ def test_expired_mismatched_or_wrongly_bound_calibration_is_rejected(tmp_path: P
             "calibration_id": "00000000-0000-4000-8000-000000000010",
             "component_instance_id": "robot-001",
             "kind": "camera.intrinsics",
-            "created_at": "2026-08-13T00:00:00Z",
-            "valid_until": "2026-08-20T00:00:00Z",
+            "created_at": _timestamp(NOW),
+            "valid_until": _timestamp(NOW + timedelta(days=7)),
             "data": {},
             "sha256": "0" * 64,
         },
