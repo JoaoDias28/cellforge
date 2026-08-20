@@ -1,6 +1,7 @@
-"""Run the reproducible CellForge L0 demo or the supported Isaac Sim 6 L2 probe.
+"""Run a reproducible CellForge workflow demo or the supported Isaac Sim 6 L2 probe.
 
-The L0 path delegates execution to the existing Task 013 headless runner. The L2 path launches
+The pen L0 path delegates execution to the existing Task 013 headless runner; the kitting L0 path
+resolves the same generic adapter contracts through component manifests. The L2 path launches
 the existing Task 027 Kit probe and accepts its result only when the report proves Isaac Sim 6,
 CUDA, and actual PhysX execution. This script is an engineering demo wrapper; it never selects a
 commissioning or production mode and never implements a functional-safety function.
@@ -25,6 +26,7 @@ import yaml
 SCHEMA_VERSION = "0.1.0"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROJECT = REPOSITORY_ROOT / "examples" / "pen_engraving"
+KITTING_PROJECT = REPOSITORY_ROOT / "examples" / "kitting"
 DEFAULT_ISAAC_SIM_ROOT = Path(os.environ.get("ISAAC_SIM_ROOT", "C:\\isaacsim"))
 TASK027_PROBE = REPOSITORY_ROOT / "scripts" / "verify_kit_l2_runtime.py"
 SAFETY_BOUNDARY = (
@@ -203,6 +205,7 @@ def _canonical_inputs(
     scenario_path: Path,
     *,
     adapter_config: str,
+    task_id: str | None = None,
 ) -> dict[str, Any]:
     project = project.resolve()
     scenario_path = scenario_path.resolve()
@@ -223,19 +226,24 @@ def _canonical_inputs(
     if not isinstance(tasks, list):
         raise DemoError(f"{cell_path}.tasks must be a list")
     task = next(
-        (item for item in tasks if isinstance(item, dict) and item.get("id") == "pen_engraving"),
+        (
+            item
+            for item in tasks
+            if isinstance(item, dict) and (task_id is None or item.get("id") == task_id)
+        ),
         None,
     )
     if not isinstance(task, dict) or not isinstance(task.get("behavior_tree"), str):
-        raise DemoError("canonical pen_engraving behavior tree is not declared")
+        requested = task_id or "the first task"
+        raise DemoError(f"canonical behavior tree for {requested} is not declared")
     tree_path = (project / task["behavior_tree"]).resolve()
 
     recipes = cell_document.get("recipes")
     if not isinstance(recipes, list) or not recipes or not isinstance(recipes[0], dict):
-        raise DemoError("canonical pen recipe is not declared")
+        raise DemoError("canonical recipe is not declared")
     recipe_relative = recipes[0].get("path")
     if not isinstance(recipe_relative, str):
-        raise DemoError("canonical pen recipe path is invalid")
+        raise DemoError("canonical recipe path is invalid")
     recipe_path = (project / recipe_relative).resolve()
     recipe_document = _load_yaml(recipe_path)
     recipe_identity = recipe_document.get("recipe")
@@ -246,6 +254,13 @@ def _canonical_inputs(
     selected_paths = [cell_path, Path(canonical.scene_path), tree_path, recipe_path, scenario_path]
     if adapter_path.is_file():
         selected_paths.append(adapter_path)
+    for source_root in (
+        project / "components",
+        project / "capabilities",
+        project / "fault_catalogs",
+    ):
+        if source_root.is_dir():
+            selected_paths.extend(path for path in source_root.rglob("*") if path.is_file())
     manifest: list[dict[str, str]] = []
     seen: set[Path] = set()
     for path in selected_paths:
@@ -269,6 +284,13 @@ def _canonical_inputs(
     recipe_relative = _project_relative(recipe_path, project)
     adapter_relative = _project_relative(adapter_path, project) if adapter_path.is_file() else None
     project_root_label = _repo_relative(project, REPOSITORY_ROOT)
+    component_manifest = [
+        item
+        for item in manifest
+        if item["path"].endswith("/component.yaml") or item["path"] == "component.yaml"
+    ]
+    capability_contracts = [item for item in manifest if "/capabilities/" in f"/{item['path']}"]
+    fault_catalogs = [item for item in manifest if "/fault_catalogs/" in f"/{item['path']}"]
     return {
         "project_root": project_root_label,
         "cell_id": canonical.cell_id,
@@ -284,6 +306,9 @@ def _canonical_inputs(
         "scenario": {"path": scenario_relative, "sha256": by_path[scenario_relative]},
         "project_sha256": _sha256_bytes(_json_bytes(manifest)),
         "input_manifest": manifest,
+        "component_manifests": component_manifest,
+        "capability_contracts": capability_contracts,
+        "fault_catalogs": fault_catalogs,
         "recipe_identity": {
             "id": recipe_identity.get("id"),
             "version": recipe_identity.get("version"),
@@ -306,6 +331,7 @@ def _source_identity(root: Path) -> dict[str, str]:
 
 
 def _l0_adapters(executor: Any) -> list[dict[str, Any]]:
+    entrypoint = f"{type(executor).__module__}.{type(executor).__name__}"
     adapters: list[dict[str, Any]] = []
     for role, adapter in sorted(executor.adapters.items()):
         scenario = adapter.scenario
@@ -315,7 +341,7 @@ def _l0_adapters(executor: Any) -> list[dict[str, Any]]:
                 "role": role,
                 "component_instance_id": scenario.component_instance_id,
                 "adapter_package": "cellforge_mock_adapters",
-                "entrypoint": "cellforge_mock_adapters.headless.PenHeadlessExecutor",
+                "entrypoint": entrypoint,
                 "device_kind": device_kind,
                 "fidelity": "L0",
                 "capabilities": sorted(scenario.operations),
@@ -468,6 +494,9 @@ def _common_fields(
                 "recipe",
                 "adapter_configuration",
                 "project_sha256",
+                "component_manifests",
+                "capability_contracts",
+                "fault_catalogs",
             }
         },
         "scenario": scenario,
@@ -498,6 +527,9 @@ def _common_fields(
                 "recipe",
                 "adapter_configuration",
                 "project_sha256",
+                "component_manifests",
+                "capability_contracts",
+                "fault_catalogs",
             }
         },
         "scenario": scenario,
@@ -565,14 +597,19 @@ def _write_common_artifacts(
     _write_text(output / "replay.txt", replay_text)
 
 
-def _l0_output(repo: Path, seed: int, requested: Path | None) -> Path:
+def _l0_output(repo: Path, seed: int, requested: Path | None, workflow: str) -> Path:
     if requested is not None:
         return requested.resolve()
-    return repo / ".artifacts" / "simulation-demo" / "l0" / f"seed-{seed}"
+    if workflow == "pen":
+        return repo / ".artifacts" / "simulation-demo" / "l0" / f"seed-{seed}"
+    return repo / ".artifacts" / "simulation-demo" / workflow / "l0" / f"seed-{seed}"
 
 
 def _run_l0(args: argparse.Namespace) -> int:
-    project = Path(args.project_root).resolve()
+    workflow = str(args.workflow)
+    project = Path(
+        args.project_root or (KITTING_PROJECT if workflow == "kitting" else DEFAULT_PROJECT)
+    ).resolve()
     scenario, scenario_path = _resolve_l0_scenario(project, args.scenario)
     source_seed = scenario.seed
     seed = source_seed if args.seed is None else args.seed
@@ -580,7 +617,12 @@ def _run_l0(args: argparse.Namespace) -> int:
         raise DemoError("--seed must be non-negative")
     if args.seed is not None:
         scenario = replace(scenario, seed=seed)
-    inputs = _canonical_inputs(project, scenario_path, adapter_config="runtime/l0-adapters.json")
+    inputs = _canonical_inputs(
+        project,
+        scenario_path,
+        adapter_config="runtime/l0-adapters.json",
+        task_id="tray_kitting" if workflow == "kitting" else "pen_engraving",
+    )
     recipe_identity = inputs["recipe_identity"]
     if recipe_identity != {
         "id": scenario.job.get("recipe_id"),
@@ -588,10 +630,16 @@ def _run_l0(args: argparse.Namespace) -> int:
     }:
         raise DemoError("scenario job does not reference the canonical recipe identity")
     _ensure_simulation_import_paths(REPOSITORY_ROOT)
-    from cellforge_mock_adapters.headless import PenHeadlessExecutor
+    if workflow == "kitting":
+        from cellforge_mock_adapters.kitting import KittingHeadlessExecutor
+    else:
+        from cellforge_mock_adapters.headless import PenHeadlessExecutor
 
     async def execute() -> tuple[Any, Any]:
-        executor = PenHeadlessExecutor(scenario, inputs["tree_path"])
+        if workflow == "kitting":
+            executor = KittingHeadlessExecutor(scenario, inputs["tree_path"], project)
+        else:
+            executor = PenHeadlessExecutor(scenario, inputs["tree_path"])
         return await executor.execute(), executor
 
     result, executor = asyncio.run(execute())
@@ -616,10 +664,14 @@ def _run_l0(args: argparse.Namespace) -> int:
         "run_log": "run.log",
         "replay": "replay.txt",
     }
-    replay = (
-        "uv run --frozen python scripts/run_simulation_demo.py --backend l0 "
-        f"--scenario {scenario_path.stem} --seed {seed}"
-    )
+    replay_parts = [
+        "uv run --frozen python scripts/run_simulation_demo.py",
+        "--backend l0",
+    ]
+    if workflow != "pen":
+        replay_parts.extend(["--workflow", workflow])
+    replay_parts.extend(["--scenario", scenario_path.stem, "--seed", str(seed)])
+    replay = " ".join(replay_parts)
     result_document = {
         "passed": passed,
         "final_status": result.final_status,
@@ -635,7 +687,17 @@ def _run_l0(args: argparse.Namespace) -> int:
         inputs=inputs,
         scenario=scenario_identity,
         selected_adapters=selected,
-        limitations=COMMON_LIMITATIONS,
+        limitations=(
+            {
+                **COMMON_LIMITATIONS,
+                "process_quality_evidence": (
+                    "No physical process is part of this kitting workflow; slot inspection is a "
+                    "deterministic contract result, not product-quality evidence."
+                ),
+            }
+            if workflow == "kitting"
+            else COMMON_LIMITATIONS
+        ),
         artifacts=artifacts,
         trace=trace,
         assertions=assertions,
@@ -643,10 +705,11 @@ def _run_l0(args: argparse.Namespace) -> int:
         replay_command=replay,
         logs={"run": "run.log"},
     )
-    output = _l0_output(REPOSITORY_ROOT, seed, args.output_dir)
+    output = _l0_output(REPOSITORY_ROOT, seed, args.output_dir, workflow)
     run_log = (
         "\n".join(
             (
+                f"workflow={workflow}",
                 "backend=l0-contract-mock",
                 f"scenario={scenario.scenario_id}",
                 f"seed={seed}",
@@ -858,14 +921,127 @@ def _build_l2_report(
     return report, trace, assertions
 
 
-def _l2_output(repo: Path, requested: Path | None) -> Path:
+def _l2_output(repo: Path, requested: Path | None, workflow: str = "pen") -> Path:
     if requested is not None:
         return requested.resolve()
-    return repo / ".artifacts" / "simulation-demo" / "l2"
+    if workflow == "pen":
+        return repo / ".artifacts" / "simulation-demo" / "l2"
+    return repo / ".artifacts" / "simulation-demo" / workflow / "l2"
+
+
+def _run_kitting_higher_fidelity_unavailable(args: argparse.Namespace) -> int:
+    """Write an honest unavailable report; no generic pen PhysX probe is reused for kitting."""
+
+    project = Path(args.project_root or KITTING_PROJECT).resolve()
+    scenario, scenario_path = _resolve_l0_scenario(project, args.scenario)
+    inputs = _canonical_inputs(
+        project,
+        scenario_path,
+        adapter_config="runtime/l2-adapters.json",
+        task_id="tray_kitting",
+    )
+    output = _l2_output(REPOSITORY_ROOT, args.output_dir, "kitting")
+    artifacts = {
+        "report": "report.json",
+        "trace": "trace.json",
+        "events": "events.json",
+        "junit": "junit.xml",
+        "run_log": "run.log",
+        "replay": "replay.txt",
+    }
+    assertions = [
+        {
+            "id": "kitting.higher_fidelity.adapter_available",
+            "kind": "adapter_available",
+            "expected": "genuine kitting L1/L2 adapter",
+            "actual": False,
+            "passed": False,
+        }
+    ]
+    from cellforge_mock_adapters.kitting import load_kitting_project
+
+    selected_adapters = [
+        {
+            "component_instance_id": component_id,
+            "adapter_package": "cellforge_mock_adapters" if binding.capabilities else "none",
+            "entrypoint": "cellforge_mock_adapters.KittingHeadlessExecutor",
+            "fidelity": "L0",
+            "capabilities": sorted(binding.capabilities),
+        }
+        for component_id, binding in sorted(load_kitting_project(project).components.items())
+    ]
+    replay = (
+        "uv run --frozen python scripts/run_simulation_demo.py --backend l2 --workflow kitting "
+        f"--scenario {scenario_path.stem}"
+    )
+    result = {
+        "passed": False,
+        "final_status": "UNAVAILABLE",
+        "failures": [
+            "No genuine reusable kitting L1/L2 simulation adapter is implemented; the existing "
+            "Task 027 PhysX probe is specific to the pen physical project."
+        ],
+        "probe_exit_code": 127,
+    }
+    report = _common_fields(
+        backend="kitting-higher-fidelity-unavailable",
+        requested_fidelity="L2",
+        achieved_fidelity=None,
+        actual_physx_executed=False,
+        source=_source_identity(REPOSITORY_ROOT),
+        inputs=inputs,
+        scenario={
+            "id": scenario.scenario_id,
+            "name": scenario.name,
+            "source": inputs["scenario"]["path"],
+            "source_sha256": inputs["scenario"]["sha256"],
+            "seed": scenario.seed,
+        },
+        selected_adapters=selected_adapters,
+        limitations={
+            **COMMON_LIMITATIONS,
+            "interface_evidence": (
+                "The kitting project is validated, but no higher-fidelity adapter was selected "
+                "or executed."
+            ),
+            "physics_evidence": (
+                "Kitting L1/L2 is unavailable: no robot/tray/product PhysX adapter exists for "
+                "this project, and the pen-only Task 027 probe cannot be reused."
+            ),
+            "process_quality_evidence": "No physical process is modeled by the kitting workflow.",
+        },
+        artifacts=artifacts,
+        trace=[],
+        assertions=assertions,
+        result=result,
+        replay_command=replay,
+        logs={"run": "run.log"},
+    )
+    report["status"] = "unavailable"
+    output.mkdir(parents=True, exist_ok=True)
+    _write_common_artifacts(
+        output,
+        report,
+        [],
+        run_log=(
+            "status=unavailable\n"
+            "reason=no genuine kitting L1/L2 adapter; Task 027 is pen-specific\n"
+        ),
+        replay_text=replay + "\n",
+        junit_assertions=assertions,
+    )
+    print(
+        "UNAVAILABLE L2 kitting simulation demo: no genuine kitting higher-fidelity adapter. "
+        f"Report: {output / 'report.json'}",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def _run_l2(args: argparse.Namespace) -> int:
-    project = Path(args.project_root).resolve()
+    if str(args.workflow) == "kitting":
+        return _run_kitting_higher_fidelity_unavailable(args)
+    project = Path(args.project_root or DEFAULT_PROJECT).resolve()
     scenario_path = (project / "physical" / "scenarios" / "nominal.yaml").resolve()
     output = _l2_output(REPOSITORY_ROOT, args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -1018,7 +1194,8 @@ def _positive_int(value: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=("l0", "l2"), default="l0")
-    parser.add_argument("--project-root", type=Path, default=DEFAULT_PROJECT)
+    parser.add_argument("--workflow", choices=("pen", "kitting"), default="pen")
+    parser.add_argument("--project-root", type=Path)
     parser.add_argument("--scenario", default="nominal", help="L0 scenario ID or filename stem")
     parser.add_argument("--seed", type=_nonnegative_int, help="L0 deterministic replay seed")
     parser.add_argument("--output-dir", type=Path)
@@ -1042,7 +1219,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return _run_l0(args) if args.backend == "l0" else _run_l2(args)
-    except DemoError as error:
+    except (DemoError, ValueError) as error:
         print(f"ERROR simulation demo: {error}", file=sys.stderr)
         return 2
 

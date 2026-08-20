@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/examples/kitting/fixture-config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tray_variant", "seating_tolerance_mm"],
+  "properties": {
+    "tray_variant": {"type": "string", "const": "two_slot"},
+    "seating_tolerance_mm": {"type": "number", "exclusiveMinimum": 0, "maximum": 5}
+  }
+}

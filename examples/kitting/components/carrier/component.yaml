@@ -1,0 +1,42 @@
+schema_version: 0.1.0
+component:
+  id: generic.product_carrier.kitting
+  version: 0.1.0
+  kind: product_carrier
+  name: Generic two-part source carrier
+  manufacturer: Internal
+  model: KIT-SOURCE-REF
+  description: Passive source geometry with stable part frames for reusable kitting workflows.
+  license: Apache-2.0
+assets:
+  visual_usd: assets/carrier_visual.usd
+  collision_usd: assets/carrier_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /SourceCarrier/root
+  - id: source_slot_1
+    role: product
+    usd_prim: /SourceCarrier/source_slot_1
+  - id: source_slot_2
+    role: product
+    usd_prim: /SourceCarrier/source_slot_2
+ports:
+  mechanical: []
+  software: []
+  industrial_io: []
+  safety: []
+config_schema: config.schema.json
+capabilities: []
+adapters:
+  simulation:
+    package: cellforge_simulation
+    entrypoint: l0_static_carrier
+    minimum_version: 0.1.0
+    fidelity: L0
+  hardware: null
+fault_catalog: ../../fault_catalogs/kitting.faults.json
+support:
+  level: simulated
+  simulation_level: L0
+  owner: automation-platform

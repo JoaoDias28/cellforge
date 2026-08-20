@@ -1,0 +1,8 @@
+#usda 1.0
+(
+    defaultPrim = "KitFixture"
+)
+
+def Xform "KitFixture" {
+    custom string cellforge:assetStatus = "simplified_reusable_reference_geometry"
+}

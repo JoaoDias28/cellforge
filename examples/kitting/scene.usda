@@ -1,0 +1,97 @@
+#usda 1.0
+(
+    defaultPrim = "World"
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+def Xform "World" {
+    custom string cellforge:assetStatus = "simplified_internal_kitting_geometry"
+    custom string cellforge:physicsPurpose = "L0 contract workflow; no PhysX claim"
+
+    def PhysicsScene "PhysicsScene" {
+        vector3f physics:gravityDirection = (0, 0, -1)
+        float physics:gravityMagnitude = 9.81
+    }
+
+    def Xform "Robot" {
+        custom string cellforge:instanceId = "robot-001"
+        double3 xformOp:translate = (-0.45, 0, 0.8)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        def Xform "base" {}
+        def Xform "tool_flange" {}
+    }
+
+    def Xform "Gripper" {
+        custom string cellforge:instanceId = "gripper-001"
+        double3 xformOp:translate = (0.0, 0, 1.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        def Xform "robot_mount" {}
+        def Xform "tcp" {}
+    }
+
+    def Xform "Camera" {
+        custom string cellforge:instanceId = "camera-001"
+        double3 xformOp:translate = (0.2, -0.2, 1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        def Xform "root" {}
+        def Xform "optical" {}
+    }
+
+    def Xform "SourceCarrier" {
+        custom string cellforge:instanceId = "source-carrier-001"
+        custom string cellforge:spatialRole = "passive_product_carrier"
+        double3 xformOp:translate = (0.0, -0.35, 0.8)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        def Xform "root" {}
+        def Xform "source_slot_1" {}
+        def Xform "source_slot_2" {}
+        def Cube "Tray" (
+            prepend apiSchemas = ["PhysicsCollisionAPI"]
+        ) {
+            double size = 1
+            float3 xformOp:scale = (0.22, 0.14, 0.02)
+            uniform token[] xformOpOrder = ["xformOp:scale"]
+        }
+    }
+
+    def Xform "KitFixture" {
+        custom string cellforge:instanceId = "kit-fixture-001"
+        double3 xformOp:translate = (0.55, 0.0, 0.82)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        def Xform "root" {}
+        def Xform "slot_1" {
+            custom double cellforge:translationToleranceM = 0.0005
+        }
+        def Xform "slot_2" {
+            custom double cellforge:translationToleranceM = 0.0005
+        }
+        def Xform "camera_mount" {}
+        def Cube "Tray" (
+            prepend apiSchemas = ["PhysicsCollisionAPI"]
+        ) {
+            double size = 1
+            float3 xformOp:scale = (0.22, 0.14, 0.02)
+            uniform token[] xformOpOrder = ["xformOp:scale"]
+        }
+    }
+
+    def Xform "ProductTemplates" {
+        def Cube "PartTemplate" (
+            prepend apiSchemas = ["PhysicsCollisionAPI", "PhysicsRigidBodyAPI"]
+        ) {
+            custom string cellforge:spatialRole = "runtime_product_template"
+            float physics:mass = 0.04
+            token visibility = "invisible"
+        }
+    }
+
+    def Xform "SpawnedProducts" {
+        custom string cellforge:spatialRole = "runtime_product_spawn_scope"
+    }
+
+    def Xform "SafetyStatus" {
+        custom string cellforge:instanceId = "safety-status-001"
+        custom bool cellforge:modeledOnly = true
+    }
+}

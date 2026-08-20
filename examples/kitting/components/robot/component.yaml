@@ -1,0 +1,57 @@
+schema_version: 0.1.0
+component:
+  id: generic.six_axis_robot.kitting
+  version: 0.1.0
+  kind: robot
+  name: Generic six-axis kitting robot
+  manufacturer: Generic
+  model: REF-6A-KIT
+  description: Reusable reference robot contract for bounded pick-and-place trajectories.
+  license: Apache-2.0
+assets:
+  visual_usd: assets/robot_visual.usd
+  collision_usd: assets/robot_collision.usd
+frames:
+  - id: base
+    role: root
+    usd_prim: /Robot/base
+  - id: tool_flange
+    role: mount
+    usd_prim: /Robot/tool_flange
+ports:
+  mechanical:
+    - id: tool_flange
+      direction: output
+      type: iso_9409_reference
+      frame: tool_flange
+      required: false
+  software:
+    - id: trajectory
+      direction: input
+      type: robot_motion.execute_trajectory.v1
+      required: true
+  industrial_io: []
+  safety:
+    - id: safe_motion_permitted
+      direction: input
+      type: safety.status.safe_motion_permitted
+      required: true
+config_schema: config.schema.json
+capabilities:
+  - contract: robot_motion.execute_trajectory
+    version: 1.0.0
+    definition: cellforge://capabilities/robot_motion.execute_trajectory/1.0.0
+    endpoint: execute_trajectory
+    modes: [simulation]
+adapters:
+  simulation:
+    package: cellforge_mock_adapters
+    entrypoint: kitting_l0_adapter
+    minimum_version: 0.1.0
+    fidelity: L0
+  hardware: null
+fault_catalog: ../../fault_catalogs/kitting.faults.json
+support:
+  level: simulated
+  simulation_level: L0
+  owner: automation-platform

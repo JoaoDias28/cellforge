@@ -54,6 +54,15 @@ Every `component.yaml` capability entry must include the exact versioned definit
 `cellforge://capabilities/<contract>/<version>`. The URI, `contract`, and `version` fields must
 agree; this prevents a component from claiming a name while binding to a different contract.
 
+The reusable `examples/kitting` project is the reference for composing these surfaces across a
+workflow. Its behavior tree names manifest-resolved ports such as `trajectory`, `close`,
+`locate_object`, and `clamp`; it does not import a pen executor, vendor runtime, or simulator API.
+The project loader validates each port against the versioned capability document, component
+configuration schema, declared frames, and canonical USD instance identity before the existing
+generic L0 adapters are selected. A future higher-fidelity adapter can implement the same
+capability contracts without changing the tree or recipe, but its evidence must report its actual
+fidelity and remain bounded by the weakest required adapter.
+
 ## 4. Support levels
 
 - `metadata_only`: geometry and documentation, no executable adapter.

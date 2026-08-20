@@ -1,0 +1,8 @@
+#usda 1.0
+(
+    defaultPrim = "SourceCarrier"
+)
+
+def Xform "SourceCarrier" {
+    custom string cellforge:assetStatus = "simplified_passive_reference_geometry"
+}

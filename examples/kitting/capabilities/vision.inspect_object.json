@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "contract": "vision.inspect_object",
+  "version": "1.0.0",
+  "description": "Inspect whether all declared kit slots contain their expected parts.",
+  "request_schema": {"type": "object", "required": ["inspection_profile"]},
+  "result_schema": {"type": "object", "required": ["accepted", "measurements"]},
+  "fault_catalog": "../fault_catalogs/kitting.faults.json",
+  "supports_cancellation": true,
+  "timeout_required": true
+}

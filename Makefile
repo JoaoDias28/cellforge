@@ -10,7 +10,7 @@ ROS_WINDOWS_UNDERLAY ?= C:/IsaacSim-ros-workspaces/jazzy_ws/install
 ROS_WINDOWS_LLVM_BIN ?= C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin
 PYTEST_BASETEMP ?= .pytest-tmp
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check simulation-demo-check simulation-demo-l0 simulation-demo-l2 ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check simulation-demo-check kitting-simulation-check simulation-demo-l0 simulation-demo-l2 kitting-simulation-l0 kitting-simulation-l2 ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
@@ -25,7 +25,7 @@ test:
 
 validate-examples:
 	$(UV) sync --locked --all-packages
-	$(UV) run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples/pen_engraving
+	$(UV) run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples
 
 kit-extension-check:
 	$(UV) sync --locked --all-packages
@@ -118,11 +118,20 @@ isaac-l2-gpu-check:
 simulation-demo-check:
 	$(UV) run --frozen pytest tests/test_simulation_demo.py
 
+kitting-simulation-check:
+	$(UV) run --frozen pytest tests/test_kitting_simulation.py
+
 simulation-demo-l0:
 	$(UV) run --frozen python scripts/run_simulation_demo.py --backend l0 --scenario nominal --seed 1001
 
 simulation-demo-l2:
 	$(UV) run --frozen python scripts/run_simulation_demo.py --backend l2
+
+kitting-simulation-l0:
+	$(UV) run --frozen python scripts/run_simulation_demo.py --backend l0 --workflow kitting --scenario nominal --seed 3801
+
+kitting-simulation-l2:
+	$(UV) run --frozen python scripts/run_simulation_demo.py --backend l2 --workflow kitting
 
 ifeq ($(OS),Windows_NT)
 ros-build:

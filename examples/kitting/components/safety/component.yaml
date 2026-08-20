@@ -1,0 +1,36 @@
+schema_version: 0.1.0
+component:
+  id: generic.external_safety_status.reference
+  version: 0.1.0
+  kind: safety_device
+  name: Modeled external safety status
+  manufacturer: Generic
+  model: SAFETY-STATUS-REF
+  description: Read-only modeled safety dependency; rated enforcement remains external.
+  license: Apache-2.0
+assets:
+  visual_usd: assets/safety_visual.usd
+  collision_usd: assets/safety_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /SafetyStatus/root
+ports:
+  mechanical: []
+  software: []
+  industrial_io: []
+  safety:
+    - id: safe_motion_permitted
+      direction: output
+      type: safety.status.safe_motion_permitted
+      required: false
+capabilities: []
+config_schema: config.schema.json
+adapters:
+  simulation: null
+  hardware: null
+fault_catalog: ../../fault_catalogs/kitting.faults.json
+support:
+  level: simulated
+  simulation_level: L0
+  owner: safety-engineering

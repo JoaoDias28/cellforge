@@ -1,0 +1,24 @@
+schema_version: 0.1.0
+profile:
+  id: kitting-sim-amd64
+  name: Kitting simulation workstation
+platform:
+  arch: amd64
+  os: ubuntu-24.04
+  ros_distribution: jazzy
+  gpu:
+    required: false
+runtime:
+  simulation_fidelity: L0
+  adapter_configuration: runtime/l0-adapters.json
+  native_packages:
+    - cellforge_interfaces
+    - cellforge_mock_adapters
+  executables:
+    adapter: {package: cellforge_mock_adapters, executable: mock_device_node}
+  behavior_tree_plugins: []
+  containers: []
+network:
+  ros_domain_id: 42
+modes: [simulation]
+external_prerequisites: []

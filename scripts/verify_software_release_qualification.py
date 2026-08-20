@@ -56,6 +56,12 @@ def _parser() -> argparse.ArgumentParser:
         help="directory for observed command and probe artifacts",
     )
     parser.add_argument(
+        "--kitting-project",
+        type=Path,
+        default=ROOT / "examples" / "kitting",
+        help="optional Task 038 kitting project to observe through the L0 demo runner",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=ROOT
@@ -128,6 +134,29 @@ def _report_failures(report: SoftwareReleaseQualificationReport) -> list[str]:
         report.l2.get("report_path"), report.l2.get("report_sha256")
     ):
         failures.append("Task 027 L2 report artifact is missing or tampered")
+    for item in report.evidence:
+        if item.get("gate") != "kitting_workflow_l0":
+            continue
+        if item.get("status") != "passed":
+            failures.append("Task 038 kitting L0 workflow evidence failed")
+        scenarios = item.get("scenarios", [])
+        if not isinstance(scenarios, list) or not scenarios:
+            failures.append("Task 038 kitting workflow has no scenario evidence")
+            continue
+        for scenario in scenarios:
+            if not isinstance(scenario, dict):
+                failures.append("Task 038 kitting workflow contains invalid scenario evidence")
+                continue
+            if not _artifact_is_intact(
+                scenario.get("command_artifact_path"),
+                scenario.get("command_artifact_sha256"),
+            ):
+                failures.append("Task 038 kitting command artifact is missing or tampered")
+            if not _artifact_is_intact(
+                scenario.get("report_artifact_path"),
+                scenario.get("report_artifact_sha256"),
+            ):
+                failures.append("Task 038 kitting report artifact is missing or tampered")
     if not verify_report_integrity(report):
         failures.append("qualification report integrity seal is invalid")
     return failures
@@ -148,6 +177,9 @@ def run_acceptance_probe(argv: list[str] | None = None) -> int:
         evidence_dir=arguments.evidence_dir.resolve(),
         repository_root=ROOT,
         qualification_command=command,
+        kitting_project_path=(
+            arguments.kitting_project.resolve() if arguments.kitting_project else None
+        ),
     )
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     arguments.output.write_text(

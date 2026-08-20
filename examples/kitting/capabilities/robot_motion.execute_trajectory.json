@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "contract": "robot_motion.execute_trajectory",
+  "version": "1.0.0",
+  "description": "Execute a bounded planner-neutral trajectory for one manipulation step.",
+  "request_schema": {"type": "object", "required": ["trajectory"]},
+  "result_schema": {"type": "object", "required": ["executed_waypoints"]},
+  "fault_catalog": "../fault_catalogs/kitting.faults.json",
+  "supports_cancellation": true,
+  "timeout_required": true
+}
