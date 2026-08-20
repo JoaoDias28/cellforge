@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "contract": "fixture.clamp",
+  "version": "1.0.0",
+  "description": "Clamp the declared kit tray before manipulation.",
+  "request_schema": {"type": "object"},
+  "result_schema": {"type": "object", "required": ["clamped"]},
+  "fault_catalog": "../fault_catalogs/kitting.faults.json",
+  "supports_cancellation": true,
+  "timeout_required": true
+}

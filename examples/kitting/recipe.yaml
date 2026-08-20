@@ -1,0 +1,62 @@
+schema_version: 0.1.0
+recipe:
+  id: two-part-kit-reference
+  version: 1
+  name: Two-part tray kit reference
+  status: TESTED
+compatibility:
+  cell_ids:
+    - 6e3f8f7c-7aa9-4b72-b72d-9c6a7f6f0c31
+  required_capabilities:
+    - robot_motion.execute_trajectory
+    - gripper.open
+    - gripper.close
+    - vision.locate_object
+    - vision.inspect_object
+    - fixture.clamp
+    - fixture.release
+    - fixture.verify_seated
+product:
+  sku: KIT-2PART-REF
+  material: engineered_polymer
+  allowed_colors: [natural]
+parameters:
+  source_carrier_id: source-carrier-001
+  kit_fixture_id: kit-fixture-001
+  required_parts:
+    - sku: PART-A
+      slot: slot_1
+    - sku: PART-B
+      slot: slot_2
+  source_frame: source_slot_1
+  destination_frames: [slot_1, slot_2]
+limits:
+  max_pose_correction_mm: 3.0
+  max_rotation_correction_deg: 5.0
+  max_parts: 2
+timeouts:
+  locate: 3.0
+  robot_motion: 20.0
+  gripper: 4.0
+  fixture: 4.0
+  inspection: 5.0
+retry_policy:
+  pick_attempts: 2
+  place_attempts: 1
+inspection:
+  method: slot_presence
+  minimum_parts: 2
+  all_slots_required: true
+traceability:
+  record_fields:
+    - kit_sku
+    - part_skus
+    - source_frames
+    - destination_frames
+    - inspection_measurements
+  capture_before_image: false
+  capture_after_image: true
+approval:
+  evidence:
+    - scenario:kitting-nominal
+    - scenario:kitting-gripper-recovery

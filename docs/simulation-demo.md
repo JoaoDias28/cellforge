@@ -62,6 +62,42 @@ An empty `Compare-Object` result is expected. `run.log`, `replay.txt`, JUnit, tr
 report are deterministic for the same checkout, scenario, and seed. Output directories are not
 part of normalized evidence.
 
+## Reusable kitting workflow
+
+Task 038 adds a second workflow through the same demo surface. It is a two-part tray-kitting
+sequence that resolves robot, gripper, camera, carrier, fixture, and read-only safety-status
+contracts from the component manifests and canonical `cell.yaml`/USD identities. Run the nominal
+path with:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --workflow kitting --scenario nominal --seed 3801
+```
+
+The default artifacts are written to `.artifacts/simulation-demo/kitting/l0/seed-3801/`. The
+recovery scenario exercises one injected `gripper.motion.close_failed` fault, marks the generic
+adapter ready, retries the pick, and records `fault.recovered`:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --workflow kitting --scenario gripper_close_recovery --seed 3802
+```
+
+Both reports include the canonical component-manifest, capability-contract, fault-catalog, scene,
+recipe, tree, scenario, and adapter-configuration hashes, selected adapters, normalized trace,
+assertions, limitations, and replay command. The kitting workflow is intentionally L0-only: it
+proves declared contract reuse and deterministic sequencing, not geometry, kinematics, contact,
+perception quality, hardware behavior, or functional safety.
+
+Requesting a higher-fidelity kitting backend fails closed and writes an explicit unavailable report:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l2 --workflow kitting
+```
+
+The command must return non-zero. The report records that no genuine reusable kitting L1/L2
+adapter is available; the pen-specific Task 027 Isaac path is never reused or relabeled for
+kitting. The same limitation is recorded by the Task 036 qualification gate, while the existing
+pen L2 qualification remains independent.
+
 ## Isaac Sim 6 L2 demo
 
 On the supported Windows runner, use the same entry point:

@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1.0",
+  "catalog": "kitting",
+  "version": "1.0.0",
+  "faults": [
+    {"code": "robot.motion.planning_failed", "severity": "recoverable", "outcome": "known_failed", "recovery": "operator.replan"},
+    {"code": "gripper.motion.close_failed", "severity": "recoverable", "outcome": "known_failed", "recovery": "tree.retry_pick"},
+    {"code": "gripper.motion.open_failed", "severity": "recoverable", "outcome": "known_failed", "recovery": "operator.inspect_gripper"},
+    {"code": "gripper.object.dropped", "severity": "terminal", "outcome": "known_failed", "recovery": "operator.recover_part"},
+    {"code": "camera.image.stale", "severity": "recoverable", "outcome": "known_failed", "recovery": "operator.refresh_camera"},
+    {"code": "vision.object.not_found", "severity": "recoverable", "outcome": "known_failed", "recovery": "operator.replenish_source"},
+    {"code": "fixture.sensor.seating_failed", "severity": "recoverable", "outcome": "known_failed", "recovery": "operator.reseat_tray"}
+  ]
+}

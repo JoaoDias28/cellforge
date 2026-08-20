@@ -1,0 +1,8 @@
+#usda 1.0
+(
+    defaultPrim = "Camera"
+)
+
+def Xform "Camera" {
+    custom string cellforge:collisionPurpose = "contract-test placeholder; not optical qualification"
+}

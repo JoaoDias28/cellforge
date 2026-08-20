@@ -1,0 +1,69 @@
+schema_version: 0.1.0
+component:
+  id: generic.parallel_gripper.kitting
+  version: 0.1.0
+  kind: end_effector
+  name: Generic parallel gripper for kitting
+  manufacturer: Generic
+  model: REF-GRIP-KIT
+  description: Reusable open/close contract for pick-and-place workflows.
+  license: Apache-2.0
+assets:
+  visual_usd: assets/gripper_visual.usd
+  collision_usd: assets/gripper_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /Gripper/root
+  - id: robot_mount
+    role: mount
+    usd_prim: /Gripper/robot_mount
+  - id: tcp
+    role: tool
+    usd_prim: /Gripper/tcp
+ports:
+  mechanical:
+    - id: robot_mount
+      direction: input
+      type: iso_9409_reference
+      frame: robot_mount
+      required: true
+  software:
+    - id: open
+      direction: input
+      type: gripper.open.v1
+      required: true
+    - id: close
+      direction: input
+      type: gripper.close.v1
+      required: true
+  industrial_io: []
+  safety:
+    - id: safe_motion_permitted
+      direction: input
+      type: safety.status.safe_motion_permitted
+      required: true
+config_schema: config.schema.json
+capabilities:
+  - contract: gripper.open
+    version: 1.0.0
+    definition: cellforge://capabilities/gripper.open/1.0.0
+    endpoint: open
+    modes: [simulation]
+  - contract: gripper.close
+    version: 1.0.0
+    definition: cellforge://capabilities/gripper.close/1.0.0
+    endpoint: close
+    modes: [simulation]
+adapters:
+  simulation:
+    package: cellforge_mock_adapters
+    entrypoint: kitting_l0_adapter
+    minimum_version: 0.1.0
+    fidelity: L0
+  hardware: null
+fault_catalog: ../../fault_catalogs/kitting.faults.json
+support:
+  level: simulated
+  simulation_level: L0
+  owner: automation-platform

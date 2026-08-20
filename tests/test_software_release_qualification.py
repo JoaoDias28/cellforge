@@ -63,6 +63,7 @@ def test_complete_software_release_qualification_pipeline(tmp_path: Path) -> Non
         SCHEMAS,
         signing_key=key,
         evidence_dir=tmp_path / "evidence",
+        kitting_project_path=ROOT / "examples" / "kitting",
     )
 
     assert not report.overall_passed
@@ -76,4 +77,12 @@ def test_complete_software_release_qualification_pipeline(tmp_path: Path) -> Non
     assert report.platform.idempotent_sync_verified
     assert len(report.scenarios) >= 9
     assert report.l2["status"] == "unavailable"
+    kitting_gate = next(
+        item for item in report.evidence if item.get("gate") == "kitting_workflow_l0"
+    )
+    assert kitting_gate["status"] == "passed"
+    assert [item["scenario"] for item in kitting_gate["scenarios"]] == [
+        "nominal",
+        "gripper_close_recovery",
+    ]
     assert verify_qualification_report(report, key.public_key())

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/examples/kitting/robot-config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["controller_namespace"],
+  "properties": {"controller_namespace": {"type": "string", "pattern": "^/[-a-z0-9_/]+$"}}
+}

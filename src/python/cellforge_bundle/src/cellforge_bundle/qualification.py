@@ -815,6 +815,110 @@ def _run_l0_evidence(
     return command_evidence, results
 
 
+def _run_kitting_workflow_evidence(
+    project_path: Path,
+    repo_root: Path,
+    evidence_dir: Path,
+) -> dict[str, Any]:
+    """Observe the reusable kitting L0 nominal and recovery paths.
+
+    Task 036 remains the pen qualification authority. This additive gate records the Task 038
+    workflow as a separate contract-mock observation so it cannot change the pen L2 claim.
+    """
+
+    demo_script = repo_root / "scripts" / "run_simulation_demo.py"
+    scenarios = (("nominal", 3801), ("gripper_close_recovery", 3802))
+    observed: list[dict[str, Any]] = []
+    for scenario_name, seed in scenarios:
+        output_dir = evidence_dir / f"kitting-{scenario_name}-{uuid4().hex}"
+        command_evidence = _run_observed_command(
+            [
+                sys.executable,
+                str(demo_script),
+                "--backend",
+                "l0",
+                "--workflow",
+                "kitting",
+                "--scenario",
+                scenario_name,
+                "--seed",
+                str(seed),
+                "--project-root",
+                str(project_path),
+                "--output-dir",
+                str(output_dir),
+            ],
+            cwd=repo_root,
+            env={**os.environ, "PYTHONPATH": _python_path(repo_root)},
+            artifact_path=evidence_dir / f"kitting-{scenario_name}-command.json",
+        )
+        report_path = output_dir / "report.json"
+        report_sha256 = _sha256_file(report_path) if report_path.is_file() else None
+        raw: dict[str, Any] = {}
+        if report_path.is_file():
+            try:
+                decoded = json.loads(report_path.read_text(encoding="utf-8"))
+                if isinstance(decoded, dict):
+                    raw = decoded
+            except (OSError, json.JSONDecodeError):
+                raw = {}
+        assertions = raw.get("assertions", {})
+        fidelity = raw.get("fidelity", {})
+        result = raw.get("result", {})
+        passed = bool(
+            command_evidence.get("returncode") == 0
+            and isinstance(result, dict)
+            and result.get("passed") is True
+            and isinstance(fidelity, dict)
+            and fidelity.get("requested") == "L0"
+            and fidelity.get("achieved") == "L0"
+            and fidelity.get("actual_physx_executed") is False
+        )
+        observed.append(
+            {
+                "scenario": scenario_name,
+                "seed": seed,
+                "status": "passed" if passed else "failed",
+                "requested_fidelity": (
+                    fidelity.get("requested") if isinstance(fidelity, dict) else None
+                ),
+                "achieved_fidelity": (
+                    fidelity.get("achieved") if isinstance(fidelity, dict) else None
+                ),
+                "actual_physx_executed": (
+                    fidelity.get("actual_physx_executed") if isinstance(fidelity, dict) else None
+                ),
+                "assertions_passed": (
+                    assertions.get("passed") if isinstance(assertions, dict) else None
+                ),
+                "command": command_evidence.get("command"),
+                "command_artifact_path": command_evidence.get("artifact_path"),
+                "command_artifact_sha256": command_evidence.get("artifact_sha256"),
+                "report_artifact_path": str(report_path),
+                "report_artifact_sha256": report_sha256,
+                "project_sha256": (
+                    raw.get("project", {}).get("project_sha256")
+                    if isinstance(raw.get("project"), dict)
+                    else None
+                ),
+                "selected_adapters": raw.get("selected_adapters", []),
+                "limitations": raw.get("limitations", {}),
+            }
+        )
+    workflow_passed = all(item["status"] == "passed" for item in observed)
+    return {
+        "gate": "kitting_workflow_l0",
+        "workflow": "kitting",
+        "status": "passed" if workflow_passed else "failed",
+        "project_path": str(project_path),
+        "scenarios": observed,
+        "limitations": (
+            "L0 contract-mock evidence only; no kitting L1/L2 adapter was available. "
+            "This gate does not alter the pen workflow's Task 027 L2 qualification."
+        ),
+    }
+
+
 def _scenario_result_from_l0(
     raw: dict[str, Any] | None,
     *,
@@ -1372,6 +1476,7 @@ def run_software_release_qualification(
     evidence_dir: Path | None = None,
     repository_root: Path | None = None,
     qualification_command: str | None = None,
+    kitting_project_path: Path | None = None,
 ) -> SoftwareReleaseQualificationReport:
     """Execute the qualification gates and build a truthful report from observed evidence."""
 
@@ -1433,6 +1538,11 @@ def run_software_release_qualification(
     restart_result, restart_evidence = _run_restart_evidence(repo_root, evidence_root)
     stale_result, stale_evidence = _run_stale_device_evidence(repo_root, evidence_root)
     platform_result = _run_platform_evidence(repo_root, evidence_root)
+    kitting_evidence = (
+        _run_kitting_workflow_evidence(kitting_project_path.resolve(), repo_root, evidence_root)
+        if kitting_project_path is not None
+        else None
+    )
 
     def _probe_scenario(
         scenario_id: str,
@@ -1564,7 +1674,14 @@ def run_software_release_qualification(
             "fidelity": "L2" if l2.get("passed") else "unavailable",
         },
     }
-    evidence = (
+    if kitting_evidence is not None:
+        bundles["kitting_l0"] = {
+            "status": kitting_evidence["status"],
+            "workflow": "kitting",
+            "fidelity": "L0",
+            "scenarios": [item["scenario"] for item in kitting_evidence["scenarios"]],
+        }
+    evidence_items: list[dict[str, Any]] = [
         {
             "gate": "source_provenance",
             "status": "passed" if rev and tree_sha and is_clean else "failed",
@@ -1600,7 +1717,10 @@ def run_software_release_qualification(
             "report_sha256": l2.get("report_sha256"),
             "failure_reasons": l2.get("failure_reasons", []),
         },
-    )
+    ]
+    if kitting_evidence is not None:
+        evidence_items.append(kitting_evidence)
+    evidence = tuple(evidence_items)
     required_category_set = {scenario.category.value for scenario in scenarios}
     all_scenarios_observed = (
         required_category_set == _REQUIRED_CATEGORY_VALUES
@@ -1617,7 +1737,21 @@ def run_software_release_qualification(
         and bundle_result.get("passed") is True
         and all_scenarios_observed
         and l2.get("passed") is True
+        and (kitting_evidence is None or kitting_evidence["status"] == "passed")
     )
+    limitations = {
+        **QUALIFICATION_DISCLAIMERS,
+        "l2_availability": (
+            "Task 027 actual Isaac Sim 6/OpenUSD/PhysX seed evidence was validated."
+            if l2.get("passed")
+            else (
+                "No valid external Task 027 actual-PhysX report was supplied; "
+                "L2 is unavailable and full qualification is false."
+            )
+        ),
+    }
+    if kitting_evidence is not None:
+        limitations["kitting_workflow"] = str(kitting_evidence["limitations"])
     report = SoftwareReleaseQualificationReport(
         report_id=str(uuid4()),
         timestamp=datetime.now(UTC).isoformat(),
@@ -1644,17 +1778,7 @@ def run_software_release_qualification(
         scenarios=tuple(scenarios),
         parity=parity,
         platform=platform_result,
-        limitations={
-            **QUALIFICATION_DISCLAIMERS,
-            "l2_availability": (
-                "Task 027 actual Isaac Sim 6/OpenUSD/PhysX seed evidence was validated."
-                if l2.get("passed")
-                else (
-                    "No valid external Task 027 actual-PhysX report was supplied; "
-                    "L2 is unavailable and full qualification is false."
-                )
-            ),
-        },
+        limitations=limitations,
         overall_passed=overall_passed,
         qualification_command=qualification_command
         or "python scripts/verify_software_release_qualification.py",

@@ -36,6 +36,13 @@ uv run --frozen python scripts/run_simulation_demo.py --backend l0 --scenario no
 
 Artifacts are written to `.artifacts/simulation-demo/l0/seed-1001/`. The supported Isaac Sim 6 L2
 path and evidence boundaries are documented in [docs/simulation-demo.md](docs/simulation-demo.md).
+The reusable tray-kitting L0 workflow is available with:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --workflow kitting --scenario nominal --seed 3801
+```
+
+Its artifacts are written to `.artifacts/simulation-demo/kitting/l0/seed-3801/`.
 
 ## Non-goals
 

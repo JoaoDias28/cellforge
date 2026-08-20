@@ -1,0 +1,124 @@
+schema_version: 0.1.0
+cell:
+  id: 6e3f8f7c-7aa9-4b72-b72d-9c6a7f6f0c31
+  name: Two-Part Tray Kitting Cell
+  description: Reusable L0 pick-and-place workflow that builds a two-part kit in a declared tray.
+scene:
+  usd: scene.usda
+  root_prim: /World
+components:
+  - id: robot-001
+    alias: robot
+    component: generic.six_axis_robot.kitting
+    version: 0.1.0
+    usd_prim: /World/Robot
+    adapter_mode: target_selected
+    config:
+      controller_namespace: /robot
+  - id: gripper-001
+    alias: parallel_gripper
+    component: generic.parallel_gripper.kitting
+    version: 0.1.0
+    usd_prim: /World/Gripper
+    adapter_mode: target_selected
+    config:
+      jaw_opening_mm: 18.0
+  - id: camera-001
+    alias: kitting_camera
+    component: generic.vision_camera.kitting
+    version: 0.1.0
+    usd_prim: /World/Camera
+    adapter_mode: target_selected
+    config:
+      profile: kitting_overhead
+      frame: camera_optical
+  - id: kit-fixture-001
+    alias: kit_tray
+    component: generic.kitting_fixture.reference
+    version: 0.1.0
+    usd_prim: /World/KitFixture
+    adapter_mode: target_selected
+    config:
+      tray_variant: two_slot
+      seating_tolerance_mm: 0.5
+  - id: source-carrier-001
+    alias: source_carrier
+    component: generic.product_carrier.kitting
+    version: 0.1.0
+    usd_prim: /World/SourceCarrier
+    adapter_mode: simulation
+    config:
+      modeled_only: true
+      carrier_variant: two_part_input
+  - id: safety-status-001
+    alias: safety_status
+    component: generic.external_safety_status.reference
+    version: 0.1.0
+    usd_prim: /World/SafetyStatus
+    adapter_mode: simulation
+    config:
+      modeled_only: true
+connections:
+  - id: mechanical-robot-gripper
+    kind: mechanical
+    from:
+      component: robot-001
+      port: tool_flange
+    to:
+      component: gripper-001
+      port: robot_mount
+    config:
+      adapter_plate: none
+  - id: mechanical-camera-fixture
+    kind: mechanical
+    from:
+      component: kit-fixture-001
+      port: camera_mount
+    to:
+      component: camera-001
+      port: mount
+    config:
+      mount: overhead
+  - id: safety-robot-permission
+    kind: safety
+    from:
+      component: safety-status-001
+      port: safe_motion_permitted
+    to:
+      component: robot-001
+      port: safe_motion_permitted
+    config:
+      implementation: external_rated_hardware
+      modeled_only: true
+  - id: safety-gripper-permission
+    kind: safety
+    from:
+      component: safety-status-001
+      port: safe_motion_permitted
+    to:
+      component: gripper-001
+      port: safe_motion_permitted
+    config:
+      implementation: external_rated_hardware
+      modeled_only: true
+tasks:
+  - id: tray_kitting
+    behavior_tree: behavior_tree.xml
+    required_capabilities:
+      - robot_motion.execute_trajectory
+      - gripper.open
+      - gripper.close
+      - vision.locate_object
+      - vision.inspect_object
+      - fixture.clamp
+      - fixture.release
+      - fixture.verify_seated
+recipes:
+  - schema: ../../schemas/recipe.schema.json
+    path: recipe.yaml
+calibrations: []
+scenarios:
+  - scenarios/nominal.yaml
+  - scenarios/gripper_close_recovery.yaml
+deployment_profiles:
+  - deployment-sim.yaml

@@ -1,0 +1,60 @@
+{
+  "schema_version": "0.1.0",
+  "nodes": {
+    "mock_robot": {
+      "component_instance_id": "robot-001",
+      "device_kind": "robot",
+      "restart": "ready",
+      "operations": {
+        "robot_motion.action.execute_trajectory": {"duration_seconds": 0.001}
+      }
+    },
+    "mock_gripper": {
+      "component_instance_id": "gripper-001",
+      "device_kind": "gripper",
+      "restart": "ready",
+      "operations": {
+        "gripper.action.open": {"duration_seconds": 0.001},
+        "gripper.action.close": {"duration_seconds": 0.001}
+      },
+      "device": {"jaw_initial": "open"}
+    },
+    "mock_vision_locator": {
+      "component_instance_id": "camera-001",
+      "device_kind": "vision_locator",
+      "restart": "ready",
+      "operations": {
+        "vision.action.locate_object": {"duration_seconds": 0.001}
+      },
+      "device": {
+        "object_present": true,
+        "object_id": "part-001",
+        "confidence": 0.99,
+        "pose": {"x": 0.2, "y": -0.25, "z": 0.83, "qx": 0, "qy": 0, "qz": 0, "qw": 1}
+      }
+    },
+    "mock_inspection": {
+      "component_instance_id": "camera-001",
+      "device_kind": "inspection",
+      "restart": "ready",
+      "operations": {
+        "vision.action.inspect_object": {"duration_seconds": 0.001}
+      },
+      "device": {
+        "accepted": true,
+        "measurements": {"parts_in_slots": 2, "slot_1": true, "slot_2": true}
+      }
+    },
+    "mock_kit_fixture": {
+      "component_instance_id": "kit-fixture-001",
+      "device_kind": "fixture",
+      "restart": "ready",
+      "operations": {
+        "fixture.action.clamp": {"duration_seconds": 0.001},
+        "fixture.action.release": {"duration_seconds": 0.001},
+        "fixture.action.verify_seated": {"duration_seconds": 0.001}
+      },
+      "device": {"seated": true, "clamped_initial": false}
+    }
+  }
+}

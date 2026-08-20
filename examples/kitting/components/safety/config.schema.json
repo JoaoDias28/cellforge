@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.local/examples/kitting/safety-config.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["modeled_only"],
+  "properties": {"modeled_only": {"const": true}}
+}

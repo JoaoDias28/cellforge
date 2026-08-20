@@ -295,3 +295,28 @@ evidence, and safety evidence in every report. L0 proves contract sequencing onl
 the configured Isaac/PhysX model and its declared scenarios. Neither path qualifies a real device,
 laser mark/material quality, commissioning, production operation, or independent functional safety;
 `physical_operation_authorized` is always `false`.
+
+## 14. Task 038 reusable tray-kitting workflow
+
+The kitting example demonstrates that a second workflow can reuse the platform contracts without
+copying the pen architecture. `examples/kitting/cell.yaml` is the operational graph and
+`examples/kitting/scene.usda` is the spatial graph; immutable component instance IDs are checked
+against both. Component manifests resolve behavior-tree ports to generic capability contracts,
+frames, configuration schemas, and the shared fault catalog. The runner then maps those declared
+ports to the existing Task 009 generic mock adapters.
+
+The supported path is deterministic L0 contract-mock execution:
+
+```text
+uv run --frozen python scripts/run_simulation_demo.py --backend l0 --workflow kitting --scenario nominal --seed 3801
+```
+
+The nominal and `gripper_close_recovery` scenarios provide machine-readable report, trace, event,
+JUnit, log, and replay artifacts. The recovery path proves explicit fault injection, adapter-ready
+recovery, retry, and successful completion. No process machine, production authorization, rated
+safety enforcement, or hardware driver is implemented.
+
+There is no genuine reusable kitting L1/L2 adapter in this repository. An L2 request therefore
+returns non-zero with a structured `unavailable` report. The existing Isaac Sim Task 027 path is
+pen-specific and remains available only through the pen workflow; CPU mocks, metadata, or the pen
+adapter cannot be relabeled as kitting L2 evidence.

@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "contract": "vision.locate_object",
+  "version": "1.0.0",
+  "description": "Locate a declared kit part in a source carrier frame.",
+  "request_schema": {"type": "object", "required": ["object_type", "source_frame"]},
+  "result_schema": {"type": "object", "required": ["estimates"]},
+  "fault_catalog": "../fault_catalogs/kitting.faults.json",
+  "supports_cancellation": true,
+  "timeout_required": true
+}

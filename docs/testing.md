@@ -133,13 +133,13 @@ Budgets are defined per cell and skill. The platform should detect regressions r
 ## 6. Schema and example validation
 
 `make validate-examples` validates every canonical schema as JSON Schema Draft 2020-12, converts
-the pen example YAML documents to JSON-compatible values, validates them against the schema selected
+all example YAML documents to JSON-compatible values, validates them against the schema selected
 by document kind and `schema_version`, and then applies the pure Pydantic domain contracts.
 
 The same check is available without Make:
 
 ```bash
-uv run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples/pen_engraving
+uv run --frozen python -m cellforge_domain.example_validation --schemas schemas --examples examples
 ```
 
 Recipe schema paths, recipe document paths, recipe-to-cell compatibility, and deployment-profile
@@ -205,6 +205,23 @@ fidelity relabeling never become L2 passes.
 
 Simulation qualification remains engineering verification only. It does not qualify real hardware,
 physical process quality, or independent functional safety; those boundaries remain external.
+
+Task 038 extends `make release-qualification-check` with the reusable kitting L0 gate. The
+qualification command executes and records both `nominal` (seed 3801) and
+`gripper_close_recovery` (seed 3802) through `scripts/run_simulation_demo.py`. Each scenario keeps
+its command artifact and demo report path plus SHA-256 digests, selected adapters, requested and
+achieved fidelity, and limitations in the integrity-protected qualification evidence. The gate is
+additive and does not change the pen Task 027 L2 result.
+
+The focused kitting checks are available with:
+
+```bash
+make kitting-simulation-check
+```
+
+They cover canonical identity and manifest-resolved ports, nominal completion, invalid recipe
+input, injected gripper fault/recovery, same-seed replay, failed assertions, and truthful higher-
+fidelity unavailability.
 
 ## 11. Task 034 hardware adapter and commissioning verification
 

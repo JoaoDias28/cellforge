@@ -1,0 +1,8 @@
+#usda 1.0
+(
+    defaultPrim = "SafetyStatus"
+)
+
+def Xform "SafetyStatus" {
+    custom string cellforge:collisionPurpose = "modeled status only; no safety enforcement"
+}

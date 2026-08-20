@@ -1,0 +1,81 @@
+schema_version: 0.1.0
+component:
+  id: generic.kitting_fixture.reference
+  version: 0.1.0
+  kind: fixture
+  name: Generic two-slot kitting fixture
+  manufacturer: Internal
+  model: KIT-TRAY-REF
+  description: Reusable clamp, seating, and release contract for a two-slot kit tray.
+  license: Apache-2.0
+assets:
+  visual_usd: assets/fixture_visual.usd
+  collision_usd: assets/fixture_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /KitFixture/root
+  - id: slot_1
+    role: product
+    usd_prim: /KitFixture/slot_1
+  - id: slot_2
+    role: product
+    usd_prim: /KitFixture/slot_2
+  - id: camera_mount
+    role: mount
+    usd_prim: /KitFixture/camera_mount
+ports:
+  mechanical:
+    - id: camera_mount
+      direction: output
+      type: camera_m4_pattern
+      frame: camera_mount
+      required: false
+  software:
+    - id: clamp
+      direction: input
+      type: fixture.clamp.v1
+      required: true
+    - id: release
+      direction: input
+      type: fixture.release.v1
+      required: true
+    - id: verify_seated
+      direction: input
+      type: fixture.verify_seated.v1
+      required: true
+  industrial_io:
+    - id: seated
+      direction: output
+      type: digital.boolean
+      required: true
+  safety: []
+config_schema: config.schema.json
+capabilities:
+  - contract: fixture.clamp
+    version: 1.0.0
+    definition: cellforge://capabilities/fixture.clamp/1.0.0
+    endpoint: clamp
+    modes: [simulation]
+  - contract: fixture.release
+    version: 1.0.0
+    definition: cellforge://capabilities/fixture.release/1.0.0
+    endpoint: release
+    modes: [simulation]
+  - contract: fixture.verify_seated
+    version: 1.0.0
+    definition: cellforge://capabilities/fixture.verify_seated/1.0.0
+    endpoint: verify_seated
+    modes: [simulation]
+adapters:
+  simulation:
+    package: cellforge_mock_adapters
+    entrypoint: kitting_l0_adapter
+    minimum_version: 0.1.0
+    fidelity: L0
+  hardware: null
+fault_catalog: ../../fault_catalogs/kitting.faults.json
+support:
+  level: simulated
+  simulation_level: L0
+  owner: automation-platform

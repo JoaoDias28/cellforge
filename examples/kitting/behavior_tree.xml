@@ -1,0 +1,73 @@
+<root BTCPP_format="4" main_tree_to_execute="TrayKitting">
+  <BehaviorTree ID="TrayKitting">
+    <Sequence name="run_tray_kitting">
+      <ValidateFrozenJob
+        job_id="{job_id}"
+        cell_id="{cell_id}"
+        recipe_id="{recipe_id}"
+        recipe_version="{recipe_version}"
+        input_payload_json="{input_payload_json}"
+        execution_mode="{execution_mode}"/>
+      <CheckSafetyHealthy healthy="{cell_ready}"/>
+      <CheckRequiredDevicesReady ready="{cell_ready}"/>
+      <ClampKitTray component="kit-fixture-001" port="clamp"/>
+      <LocateObject
+        component="camera-001"
+        port="locate_object"
+        object_type="kit_part"
+        source_frame="source_slot_1"
+        part_index="0"
+        output_pose="{part_1_pose}"
+        output_object_id="{part_1_id}"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <PickObject
+          robot_component="robot-001"
+          robot_port="trajectory"
+          gripper_component="gripper-001"
+          gripper_port="close"
+          pose="{part_1_pose}"
+          object_id="{part_1_id}"/>
+      </RetryUntilSuccessful>
+      <PlaceObject
+        robot_component="robot-001"
+        robot_port="trajectory"
+        gripper_component="gripper-001"
+        gripper_port="open"
+        destination_frame="slot_1"
+        object_id="{part_1_id}"/>
+      <LocateObject
+        component="camera-001"
+        port="locate_object"
+        object_type="kit_part"
+        source_frame="source_slot_2"
+        part_index="1"
+        output_pose="{part_2_pose}"
+        output_object_id="{part_2_id}"/>
+      <RetryUntilSuccessful num_attempts="2">
+        <PickObject
+          robot_component="robot-001"
+          robot_port="trajectory"
+          gripper_component="gripper-001"
+          gripper_port="close"
+          pose="{part_2_pose}"
+          object_id="{part_2_id}"/>
+      </RetryUntilSuccessful>
+      <PlaceObject
+        robot_component="robot-001"
+        robot_port="trajectory"
+        gripper_component="gripper-001"
+        gripper_port="open"
+        destination_frame="slot_2"
+        object_id="{part_2_id}"/>
+      <InspectObject
+        component="camera-001"
+        port="inspect"
+        profile="slot_presence"
+        expected="{input_payload_json}"
+        output="{inspection}"/>
+      <VerifyKitTray component="kit-fixture-001" port="verify_seated"/>
+      <ReleaseKitTray component="kit-fixture-001" port="release"/>
+      <RecordKittingResult inspection="{inspection}"/>
+    </Sequence>
+  </BehaviorTree>
+</root>

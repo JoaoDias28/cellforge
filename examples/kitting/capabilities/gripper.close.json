@@ -1,0 +1,11 @@
+{
+  "schema_version": "0.1.0",
+  "contract": "gripper.close",
+  "version": "1.0.0",
+  "description": "Close the reusable parallel gripper around a located part.",
+  "request_schema": {"type": "object"},
+  "result_schema": {"type": "object", "required": ["jaw_state"]},
+  "fault_catalog": "../fault_catalogs/kitting.faults.json",
+  "supports_cancellation": true,
+  "timeout_required": true
+}

@@ -1,0 +1,62 @@
+schema_version: 0.1.0
+component:
+  id: generic.vision_camera.kitting
+  version: 0.1.0
+  kind: sensor
+  name: Generic overhead kitting camera
+  manufacturer: Generic
+  model: REF-CAM-KIT
+  description: Reusable location and inspection contracts for a fixed tray view.
+  license: Apache-2.0
+assets:
+  visual_usd: assets/camera_visual.usd
+  collision_usd: assets/camera_collision.usd
+frames:
+  - id: root
+    role: root
+    usd_prim: /Camera/root
+  - id: camera_optical
+    role: sensor
+    usd_prim: /Camera/optical
+ports:
+  mechanical:
+    - id: mount
+      direction: input
+      type: camera_m4_pattern
+      frame: root
+      required: true
+  software:
+    - id: locate_object
+      direction: input
+      type: vision.locate_object.v1
+      required: true
+    - id: inspect
+      direction: input
+      type: vision.inspect_object.v1
+      required: true
+  industrial_io: []
+  safety: []
+config_schema: config.schema.json
+capabilities:
+  - contract: vision.locate_object
+    version: 1.0.0
+    definition: cellforge://capabilities/vision.locate_object/1.0.0
+    endpoint: locate_object
+    modes: [simulation]
+  - contract: vision.inspect_object
+    version: 1.0.0
+    definition: cellforge://capabilities/vision.inspect_object/1.0.0
+    endpoint: inspect_object
+    modes: [simulation]
+adapters:
+  simulation:
+    package: cellforge_mock_adapters
+    entrypoint: kitting_l0_adapter
+    minimum_version: 0.1.0
+    fidelity: L0
+  hardware: null
+fault_catalog: ../../fault_catalogs/kitting.faults.json
+support:
+  level: simulated
+  simulation_level: L0
+  owner: automation-platform
