@@ -37,10 +37,17 @@ Execute tasks in order unless dependencies indicate safe parallel work.
 | 031 | platform registry and artifact services | 005, 006, 023 |
 | 032 | platform approvals, evidence, and result sync | 010, 012, 021, 022, 026, 031 |
 | 033 | complete software release qualification | 025, 026, 027, 028, 029, 030, 031, 032 |
-| 034 | first real hardware adapters | selected hardware, independent safety architecture, 033 |
+| 034 | hardware adapter prototypes and contract harnesses | selected hardware, independent safety architecture, 033 |
+| 035 | simulation readiness program bootstrap | 033, 034 |
+| 036 | executable release qualification | 035 |
+| 037 | simulation demo workflow | 035 |
+| 038 | simulation component expansion | 036, 037 |
 
 Tasks 007 and 002 may proceed in parallel after Task 001. Tasks 014 and 009 may proceed in parallel after their dependencies.
 
-Tasks 028 and 031 may proceed in parallel after their listed dependencies. Task 034 is eligible
-once Task 033 is merged and the exact hardware and independent safety architecture are recorded. CPU,
-mock, or synthetic-event evidence cannot substitute for the required Isaac Sim 6 L2 qualification.
+Tasks 028 and 031 may proceed in parallel after their listed dependencies. Task 034 is an
+adapter-prototype and contract-harness milestone only; it does not establish real-device
+commissioning or production qualification. Task 035 follows the merged software baseline and
+prototype boundary. Tasks 036 and 037 may proceed in parallel once Task 035 is merged. Task 038
+requires both Tasks 036 and 037. CPU, mock, or synthetic-event evidence cannot substitute for the
+required Isaac Sim 6 L2 qualification, and functional safety remains independent.

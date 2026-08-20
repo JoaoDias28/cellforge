@@ -72,10 +72,10 @@ Outcome: collision-aware simulated pick/load/unload.
 
 Exit: repeated simulated cycles meet scenario and collision requirements.
 
-## Phase 5 — Pre-hardware software integration and qualification (COMPLETE)
+## Phase 5 — Pre-hardware software baseline (BASELINE; executable gate pending)
 
-Outcome: the complete engineering-to-runtime workflow operates with L0 mocks and genuine Isaac
-Sim L2 adapters before physical equipment is selected.
+Outcome: the engineering-to-runtime workflow and L0/L2 simulation implementations are assembled,
+but the release claim still requires independently executed gates and honest evidence.
 
 - unified frozen-job and trace identity (Task 023);
 - canonical BehaviorTree.CPP pen execution (Task 024);
@@ -84,26 +84,40 @@ Sim L2 adapters before physical equipment is selected.
 - genuine Isaac Sim 6 L2 execution (Task 027);
 - complete Studio spatial, task, recipe, deployment, and evidence workflows (Tasks 028, 029, 030);
 - platform registry, artifacts, approvals, evidence, and result synchronization (Tasks 031, 032);
-- clean-environment software release qualification (Task 033).
+- software-side qualification workflow and report scaffold (Task 033).
 
-Exit: Task 033 completed and verified with all software-side MVP criteria passed. Task 034 is eligible. CPU-only,
-mock-only, and synthetic-event checks cannot satisfy the L2 exit gate.
+Exit: Task 036 replaces synthetic or hard-coded qualification success with actually executed gates
+and evidence. CPU-only, mock-only, and synthetic-event checks cannot satisfy the Isaac Sim 6 L2 gate.
 
-## Phase 6 — Pen engraving hardware integration (COMPLETE)
+## Phase 6 — Simulation readiness program (IN PROGRESS)
 
-Outcome: commissioned first physical cell with real hardware adapters (Task 034).
+Outcome: establish a deterministic, observable simulation baseline and extend it beyond the reference
+pen workflow without claiming physical qualification.
 
-- selected robot hardware adapter (`cellforge_hardware_adapters`);
-- camera/vision implementation with 2D localization and optical OCR/contrast inspection;
-- fixture I/O adapter using Modbus TCP with discrete input debouncing;
-- laser adapter using documented TCP socket interface with explicit uncertain-outcome handling on comm drop;
-- independent safety system integration/status (ADR 0007);
-- calibration workflows and evidence records;
-- commissioning and hardware acceptance test suite (`run_hardware_commissioning_suite`).
+- Task 035: simulation-readiness status, dependency graph, and deterministic green baseline;
+- Task 036: executable release qualification with actually run gates and honest evidence;
+- Task 037: documented one-command L0 demo and supported Isaac Sim L2 demo path with observable artifacts;
+- Task 038: at least one additional useful simulated robot-cell workflow using reusable contracts.
 
-Exit: approved production acceptance criteria met with zero simulator-branch parity.
+Exit: Tasks 036 and 037 provide executable qualification and observable demo evidence; Task 038
+adds a reusable non-pen workflow. Simulation evidence remains engineering evidence only, and
+functional safety remains independently enforced and verified outside CellForge software.
 
-## Phase 7 — Reusable low-code engineering
+## Phase 7 — Hardware integration readiness (PROTOTYPES ONLY)
+
+Outcome: hardware-adapter prototypes and generic contract harnesses are available for future
+commissioning planning. Task 034 does not claim real-device commissioning, production qualification,
+or safety validation.
+
+- adapter-shaped packages and vendor-interface boundaries from Task 034;
+- generic contract, calibration, and failure-path harnesses;
+- explicit prerequisites for selected hardware, approved commissioning controls, and independent
+  safety evidence before any physical execution.
+
+Exit: a future hardware-integration task must provide real-equipment evidence under approved
+commissioning controls and record functional-safety verification separately.
+
+## Phase 8 — Reusable low-code engineering
 
 Outcome: new cells can be assembled from components and skills.
 
@@ -115,7 +129,7 @@ Outcome: new cells can be assembled from components and skills.
 - operator UI;
 - support-level/evidence promotion workflow.
 
-## Phase 8 — Advanced perception and optimization
+## Phase 9 — Advanced perception and optimization
 
 Add only for justified applications:
 
