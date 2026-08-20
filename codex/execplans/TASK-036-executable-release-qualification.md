@@ -89,8 +89,10 @@ invoked. Revert the single task commit to restore the Task 033 report API if nec
   backward-compatible signing/integrity behavior.
 - [x] 2026-08-20 — Validated Task 027 L2 boundaries against missing, CPU-relabeled, tampered,
   format-only, and parent-provided genuine external evidence cases.
-- [ ] 2026-08-20 — Run final checks, regenerate the checked-in report, commit, publish, and
-  complete the repository lifecycle.
+- [x] 2026-08-20 — Ran final focused/full Python, Ruff, mypy, example-validation, and qualification
+  checks; regenerated the checked-in report from committed revision `44747ca1ae659727172324d857b73f307eb36150`.
+- [ ] 2026-08-20 — Publish the implementation and report commits, wait for required checks, merge,
+  and complete the repository lifecycle.
 
 ## Decisions
 
@@ -102,4 +104,24 @@ invoked. Revert the single task commit to restore the Task 033 report API if nec
 
 ## Results
 
-To be completed after implementation and repository verification.
+- Implementation commit: `44747ca1ae659727172324d857b73f307eb36150` (`task(036): make release
+  qualification executable`). A follow-up report-only commit is required because the report was
+  regenerated after this implementation commit, without rewriting the implementation commit.
+- Focused qualification tests: `11 passed` with the parent-provided genuine Task 027 report
+  supplied through `CELLFORGE_TASK027_REPORT`.
+- Full Python suite: `453 passed, 2 skipped, 1 warning`; skips were the Windows symlink privilege
+  case and the intentionally unset external-L2 environment case in the no-Isaac run.
+- Ruff format/check and strict mypy: passed for the changed implementation, tests, and runner.
+- Example validation: `Validated 10 canonical schemas, 7 component config schemas, and 25 example
+  YAML documents.`
+- Qualification command with no L2: all 14 observed scenario rows passed their expected L0/probe
+  gates, L2 reported `unavailable`, `overall_passed` was `false`; default mode returned 0 for CI
+  evidence collection and `--require-l2` returned 1.
+- Genuine external L2 report: SHA-256
+  `ceac3fbc38d4ba8f412751fd90e89bd525b3f01a43430ee972e5a7b7c244c`; validator observed Isaac 6,
+  RTX 4080/CUDA, 100 seeds, and all three required PhysX faults. The L2 gate passed; the full
+  report remained false in the dirty implementation worktree until the clean-source check.
+- Checked-in report: `examples/pen_engraving/reports/software_release_qualification_report.json`.
+  It records revision `44747ca1ae659727172324d857b73f307eb36150`, `git_clean: true`, a valid
+  SHA-256 integrity seal, explicit L2 `unavailable`, and `overall_passed: false`. The report file
+  itself is now the only intended source change awaiting the follow-up commit.
