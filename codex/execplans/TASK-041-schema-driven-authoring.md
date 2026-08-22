@@ -91,9 +91,10 @@ silently applied during Preview.
    Acceptance: cell/config/recipe/scenario contracts cover success, invalid input, ambiguity,
    generated values, semantic references, seed/fault/fidelity, backend/UI failure, and renderer
    delegation without domain rules.
-5. [ ] Run required and focused locked checks, Kit probe if available, inspect complete diff, commit
-   only Task 041, publish a ready PR, wait for every required check, merge when green/mergeable,
-   fetch and verify `origin/main` ancestry, and leave this worktree clean. Do not start Task 042.
+5. [x] 2026-08-22 — Ran required and focused locked checks, inspected the complete diff, committed
+   only Task 041, published ready PR #39, waited for every required check, merged when green and
+   mergeable, fetched and verified `origin/main` ancestry, and kept the task worktree clean. The
+   controller checkout's local `main` ref was not moved. Do not start Task 042.
 
 ## Validation
 
@@ -134,7 +135,10 @@ compatible.
   passed; focused project/spatial/task-recipe/simulation regressions and probes passed; example
   validation passed; and the Isaac Sim Kit interaction probe passed. GNU Make is unavailable, so
   the exact target command bodies were run with the populated offline uv cache.
-- [ ] Complete commit, PR/CI/merge, and final ancestry verification.
+- [x] 2026-08-22 — Completed commit, PR/CI/merge, and final ancestry verification: implementation
+  commit `a26837d0576fe08745d2c50bdfd49e6b02087cc8` (`task(041): add schema-driven authoring`),
+  PR #39, merge commit `b1ecc235bbefe4cb2b722ff68c53e3aff675da49`, and `origin/main` ancestry
+  confirmed. This final plan-state update is documentation-only and remains Task 041 scope.
 
 ## Decisions
 
@@ -153,9 +157,10 @@ compatible.
 
 ## Results
 
-Implementation is complete locally. Focused authoring tests pass (19), the full Studio suite passes
-(121), the complete locked repository suite passes (501 with two expected skips), the headless
-authoring probe passes, the focused prerequisite regressions pass, example validation passes, and
-the Isaac Sim Kit interaction probe passes. GNU Make is unavailable on this Windows runner; the
-documented locked uv command bodies were executed with the populated offline cache. CI/PR/merge
-evidence, limitations, and the next-task prompt will be recorded here after publication.
+Implementation and publication are complete. Focused authoring tests pass (19), the full Studio
+suite passes (121), the complete locked repository suite passes (501 with two expected skips), the
+headless authoring probe passes, focused prerequisite regressions pass, example validation passes,
+and the Isaac Sim Kit interaction probe passes. Ruff format/check and mypy pass, and the required
+GitHub Python 3.12 and ROS 2 Jazzy checks both pass. GNU Make is unavailable on this Windows
+runner; the documented locked uv command bodies were executed with the populated offline cache.
+PR #39 is merged, `origin/main` contains the Task 041 commit, and no later task was started.
