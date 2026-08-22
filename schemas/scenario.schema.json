@@ -2,6 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/schemas/scenario.schema.json",
   "title": "CellForge simulation scenario",
+  "x-cellforge": {
+    "label": "Simulation scenario",
+    "group": "Scenario",
+    "order": 0
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,10 +18,20 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.1.0",
+      "x-cellforge": {
+        "label": "Schema version",
+        "group": "Metadata",
+        "order": 10
+      }
     },
     "scenario": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Scenario identity",
+        "group": "Identity",
+        "order": 20
+      },
       "required": [
         "id",
         "name",
@@ -24,17 +39,37 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Scenario ID",
+            "order": 10
+          }
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Name",
+            "order": 20
+          }
         },
         "seed": {
-          "type": "integer"
+          "type": "integer",
+          "x-cellforge": {
+            "label": "Random seed",
+            "group": "Reproducibility",
+            "order": 30,
+            "help": "Keep the seed stable to reproduce a simulation run."
+          }
         },
         "timeout_seconds": {
           "type": "number",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "x-cellforge": {
+            "label": "Scenario timeout",
+            "group": "Timing",
+            "order": 40,
+            "unit": "s"
+          }
         }
       }
     },
@@ -43,6 +78,11 @@
     },
     "simulation": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Simulation fidelity",
+        "group": "Simulation",
+        "order": 40
+      },
       "additionalProperties": false,
       "properties": {
         "requested_fidelity": {
@@ -52,7 +92,12 @@
             "L2",
             "L3"
           ],
-          "default": "L0"
+          "default": "L0",
+          "x-cellforge": {
+            "label": "Requested fidelity",
+            "order": 10,
+            "help": "Select the simulation fidelity requested by this scenario."
+          }
         }
       }
     },
@@ -60,10 +105,23 @@
       "type": "object"
     },
     "randomization": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Randomization",
+        "group": "Reproducibility",
+        "order": 50,
+        "advanced": true
+      }
     },
     "faults": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Fault injections",
+        "group": "Fault injection",
+        "order": 60,
+        "advanced": true,
+        "help": "Faults are simulation inputs and must be preserved exactly."
+      },
       "items": {
         "type": "object",
         "required": [
@@ -110,7 +168,12 @@
         },
         "max_cycle_seconds": {
           "type": "number",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "x-cellforge": {
+            "label": "Maximum cycle time",
+            "order": 40,
+            "unit": "s"
+          }
         }
       }
     }

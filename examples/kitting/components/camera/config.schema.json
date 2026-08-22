@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/examples/kitting/camera-config.schema.json",
+  "x-cellforge": {"label": "Camera configuration", "group": "Camera", "order": 0},
   "type": "object",
   "additionalProperties": false,
   "required": ["profile", "frame"],
   "properties": {
-    "profile": {"type": "string", "const": "kitting_overhead"},
-    "frame": {"type": "string", "const": "camera_optical"}
+    "profile": {"type": "string", "const": "kitting_overhead", "x-cellforge": {"label": "Profile", "order": 10}},
+    "frame": {"type": "string", "const": "camera_optical", "x-cellforge": {"label": "Optical frame", "order": 20}}
   }
 }

@@ -51,6 +51,10 @@ if TYPE_CHECKING:
         ScenarioReplayResult,
         ScenarioSummary,
     )
+    from cellforge.studio.schema_authoring import (
+        AuthoringCandidate,
+        SchemaFormModel,
+    )
     from cellforge.studio.task_service import (
         TaskBrowserResult,
         TaskEditResult,
@@ -623,6 +627,8 @@ class StudioSnapshot:
     guided_preview: ProjectPreview | None = None
     readiness_report: StudioReadinessReport | None = None
     readiness_preview: ReadinessCandidatePreview | None = None
+    authoring_form: SchemaFormModel | None = None
+    authoring_candidate: AuthoringCandidate | None = None
     browser: tuple[BrowserComponent, ...] = ()
     spatial_components: tuple[SpatialComponent, ...] = ()
     connection_ports: tuple[ConnectionPort, ...] = ()
@@ -739,6 +745,8 @@ class StudioApplication:
                 dirty=False,
                 readiness_report=None,
                 readiness_preview=None,
+                authoring_form=None,
+                authoring_candidate=None,
                 browser=(),
                 spatial_components=(),
                 connection_ports=(),
@@ -922,6 +930,223 @@ class StudioApplication:
             refreshed,
             readiness_report=result.report,
             readiness_preview=None,
+            detail=result.message,
+            logs=self._append_log(LogLevel.INFO, result.message),
+        )
+        return self._snapshot
+
+    def build_schema_form(
+        self,
+        schema: Mapping[str, Any] | str | Path,
+        *,
+        source_path: str | Path | None = None,
+        schema_kind: str | None = None,
+        allocator_seed: str | None = None,
+        required_choices: Mapping[str, Sequence[str]] | None = None,
+        artifact_path: str | None = None,
+    ) -> StudioSnapshot:
+        """Build a schema-driven authoring form from the open project's buffers."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot build an authoring form without a valid project.")
+        try:
+            form = getattr(self._backend, "build_schema_form")(
+                Path(project.path),
+                contents,
+                schema=schema,
+                source_path=source_path,
+                schema_kind=schema_kind,
+                allocator_seed=allocator_seed,
+                required_choices=required_choices,
+                artifact_path=artifact_path,
+            )
+        except Exception as error:
+            return self._operation_failure("Schema form build", error, preserve_project=True)
+        validation = _authoring_validation(form.findings)
+        self._snapshot = replace(
+            self._snapshot,
+            authoring_form=form,
+            authoring_candidate=None,
+            validation=validation,
+            status=(
+                StudioStatus.PROJECT_INVALID
+                if any(item.severity == "error" for item in validation)
+                else StudioStatus.PROJECT_READY
+            ),
+            detail=(
+                f"Built {form.title} authoring form; "
+                + (
+                    f"{len(form.choices)} choice(s) require resolution."
+                    if form.choices
+                    else "ready for review."
+                )
+            ),
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Built schema-driven form for {form.source_path}; no files were written.",
+            ),
+        )
+        return self._snapshot
+
+    def update_schema_form(
+        self,
+        values: Mapping[str, Any] | None = None,
+        *,
+        changes: Mapping[str, Any] | None = None,
+    ) -> StudioSnapshot:
+        """Apply form values in memory and clear any stale source candidate."""
+
+        if self._backend is None or self._snapshot.authoring_form is None:
+            return self._no_open_project("No schema authoring form is available to update.")
+        try:
+            form = getattr(self._backend, "update_schema_form")(
+                self._snapshot.authoring_form,
+                values,
+                changes=changes,
+            )
+        except Exception as error:
+            return self._operation_failure("Schema form update", error, preserve_project=True)
+        validation = _authoring_validation(form.findings)
+        self._snapshot = replace(
+            self._snapshot,
+            authoring_form=form,
+            authoring_candidate=None,
+            validation=validation,
+            detail="Updated schema-driven authoring form in memory; preview before Save.",
+            logs=self._append_log(LogLevel.INFO, "Updated authoring form; no files were written."),
+        )
+        return self._snapshot
+
+    def preview_source_edit(
+        self,
+        source: str | bytes | Path | None = None,
+        *,
+        source_path: str | Path | None = None,
+        artifact_path: str | None = None,
+    ) -> StudioSnapshot:
+        """Preview an advanced source edit and retain its immutable candidate."""
+
+        if self._backend is None:
+            return self._snapshot
+        project = self._snapshot.project
+        contents = self._working_contents
+        form = self._snapshot.authoring_form
+        if project is None or contents is None or form is None:
+            return self._no_open_project("No schema authoring form is available to preview.")
+        try:
+            candidate = getattr(self._backend, "preview_source_edit")(
+                form,
+                source,
+                source_path=source_path,
+                artifact_path=artifact_path,
+                project_path=Path(project.path),
+                project_contents=contents,
+            )
+        except Exception as error:
+            return self._operation_failure("Source edit preview", error, preserve_project=True)
+        validation = _authoring_validation(candidate.findings)
+        self._snapshot = replace(
+            self._snapshot,
+            authoring_candidate=candidate,
+            validation=validation,
+            status=(
+                StudioStatus.PROJECT_INVALID
+                if any(item.severity == "error" for item in validation)
+                else StudioStatus.PROJECT_READY
+            ),
+            detail=(
+                "Source edit preview ready; explicit Save is available."
+                if candidate.can_save
+                else "Source edit preview is blocked by unresolved findings."
+            ),
+            logs=self._append_log(
+                LogLevel.INFO if candidate.can_save else LogLevel.WARNING,
+                "Previewed schema source edit; no canonical files were written.",
+            ),
+        )
+        return self._snapshot
+
+    def merge_source_edit(
+        self,
+        source_or_candidate: str | bytes | Path | AuthoringCandidate,
+    ) -> StudioSnapshot:
+        """Three-way merge a source edit and retain the resulting candidate."""
+
+        if self._backend is None:
+            return self._snapshot
+        project = self._snapshot.project
+        contents = self._working_contents
+        form = self._snapshot.authoring_form
+        if project is None or contents is None or form is None:
+            return self._no_open_project("No schema authoring form is available to merge.")
+        try:
+            candidate = getattr(self._backend, "merge_source_edit")(
+                form,
+                source_or_candidate,
+                project_path=Path(project.path),
+                project_contents=contents,
+            )
+        except Exception as error:
+            return self._operation_failure("Source edit merge", error, preserve_project=True)
+        validation = _authoring_validation(candidate.findings)
+        self._snapshot = replace(
+            self._snapshot,
+            authoring_candidate=candidate,
+            validation=validation,
+            detail=(
+                "Merged source edit preview ready; explicit Save is available."
+                if candidate.can_save
+                else "Merged source edit is blocked by conflicts or validation findings."
+            ),
+            logs=self._append_log(
+                LogLevel.INFO, "Merged schema source edit; no files were written."
+            ),
+        )
+        return self._snapshot
+
+    def save_authoring_candidate(
+        self,
+        *,
+        confirmation_token: str | None = None,
+        confirmed: bool = False,
+    ) -> StudioSnapshot:
+        """Save the reviewed authoring candidate through the existing project transaction."""
+
+        if self._backend is None:
+            return self._snapshot
+        project = self._snapshot.project
+        contents = self._working_contents
+        candidate = self._snapshot.authoring_candidate
+        if project is None or contents is None or candidate is None:
+            return self._no_open_project("No schema authoring preview is available to Save.")
+        try:
+            result = getattr(self._backend, "save_authoring_candidate")(
+                candidate,
+                confirmation_token,
+                confirmed=confirmed,
+                project_path=Path(project.path),
+                project_contents=contents,
+            )
+        except Exception as error:
+            return self._operation_failure("Authoring Save", error, preserve_project=True)
+        if not result.success:
+            validation = _authoring_validation(result.findings)
+            self._snapshot = replace(
+                self._snapshot,
+                validation=validation,
+                detail=result.message,
+                logs=self._append_log(LogLevel.WARNING, result.message),
+            )
+            return self._snapshot
+        refreshed = self.open_project(project.path)
+        self._snapshot = replace(
+            refreshed,
+            authoring_form=None,
+            authoring_candidate=None,
             detail=result.message,
             logs=self._append_log(LogLevel.INFO, result.message),
         )
@@ -1748,6 +1973,8 @@ class StudioApplication:
             dirty=False,
             readiness_report=None,
             readiness_preview=None,
+            authoring_form=None,
+            authoring_candidate=None,
             spatial_components=(),
             mechanical_preview=None,
             tasks=task_graph.tasks,
@@ -2526,4 +2753,18 @@ def _guided_validation_item(item: Any) -> ValidationItem:
         severity=str(item.severity),
         path=str(item.path),
         message=str(item.message),
+    )
+
+
+def _authoring_validation(items: Sequence[Any]) -> tuple[ValidationItem, ...]:
+    """Map schema-authoring findings into the existing validation-panel DTO."""
+
+    return tuple(
+        ValidationItem(
+            code=str(item.code),
+            severity=str(item.severity),
+            path=str(item.path),
+            message=str(item.message),
+        )
+        for item in items
     )
