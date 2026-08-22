@@ -34,3 +34,12 @@ they do not implement or authorize any safety-rated function.
 Task 018 adds a ROS-backed simulation panel for deterministic reset/start/pause/step, scenario
 setup, test fault injection, trace assertions, and evidence. It reports fidelity limits and does not
 provide functional-safety enforcement.
+
+Task 040 adds the readiness guidance panel. Its pure `EvaluateStudioReadiness` service reuses the
+canonical validators and registries to show source-linked pass, blocked, advisory, and unavailable
+checks for project pairing, schemas, components, ports, assets, tasks, recipes, scenarios,
+adapters, fidelity, calibration, evidence, and deployment prerequisites. Normalized reports are
+diagnostic only; L0 remains explicitly L0 and unavailable fidelity is never promoted. Modeled safety
+appears under a separate safety-review category and never authorizes physical operation or claims
+functional-safety validation. Remediation previews are in-memory only; explicit Save after preview
+is the sole path to the existing transactional paired-artifact boundary.

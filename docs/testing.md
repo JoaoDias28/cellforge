@@ -232,3 +232,17 @@ fidelity unavailability.
 3. **On-Cell Commissioning Suite:** Runs 17 individual bench and in-cell commissioning acceptance tests covering nominal and fault paths for robot motion, gripper, fixture clamp/seating, 2D vision, laser marker, and safety status.
 4. **Uncertain-Outcome Verification:** Asserts that socket timeouts or communication loss during active laser firing explicitly return `outcome_certain = False` and `laser.process.outcome_unknown`.
 5. **Safety Refusal Boundary:** Verifies that unready or faulted safety hardware refuses cell operation while keeping safety enforcement on rated hardware relays.
+
+## 12. Task 040 Studio readiness guidance acceptance
+
+`make studio-readiness-check` runs the pure readiness service and its headless probe. The focused
+tests cover nominal pen and kitting reports, stable normalized check IDs, blocked component/task/
+scenario/calibration input, advisory missing evidence, unavailable Isaac/GPU fidelity, malformed
+report data, backend failures, no-write remediation previews, explicit Save confirmation, and
+transactional replacement failure recovery. The probe also validates the Draft 2020-12 diagnostic
+report schema and deterministic replay.
+
+The report is derived from canonical project sources and is never required by Cell Runtime. It is
+not a runtime readiness authority, a safety function, a commissioning result, a physical process
+qualification, or functional-safety evidence. When Make is unavailable, use the exact locked `uv`
+commands documented in `docs/cell-studio.md` with the repository's offline cache if available.

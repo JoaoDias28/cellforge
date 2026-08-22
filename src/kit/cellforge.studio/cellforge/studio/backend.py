@@ -31,6 +31,7 @@ def create_default_application() -> StudioApplication:
 
         from cellforge.studio.guided_launcher import GuidedProjectService
         from cellforge.studio.project_service import ProjectCommandService
+        from cellforge.studio.readiness import EvaluateStudioReadiness
     except ImportError:
         return StudioApplication(
             None,
@@ -57,4 +58,12 @@ def create_default_application() -> StudioApplication:
         resources.schema_directory,
         project_service=project_service,
     )
-    return StudioApplication(project_service, guided_service=guided_service)
+    readiness_service = EvaluateStudioReadiness(
+        resources.schema_directory,
+        project_service=project_service,
+    )
+    return StudioApplication(
+        project_service,
+        guided_service=guided_service,
+        readiness_service=readiness_service,
+    )

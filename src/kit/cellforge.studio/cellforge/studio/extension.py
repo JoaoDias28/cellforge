@@ -26,6 +26,7 @@ TASK_WINDOW = "CellForge Tasks"
 RECIPE_WINDOW = "CellForge Recipes"
 DEPLOYMENT_WINDOW = "CellForge Deployment"
 EVIDENCE_WINDOW = "CellForge Evidence"
+READINESS_WINDOW = "CellForge Readiness"
 
 
 class CellForgeStudioExtension(omni.ext.IExt):
@@ -89,6 +90,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._deployment_profile_id_model = ui.SimpleStringModel("deployment-sim")
         self._deployment_target_profile_model = ui.SimpleStringModel("pen-cell-amd64")
         self._deployment_mode_model = ui.SimpleStringModel("simulation")
+        self._readiness_fidelity_model = ui.SimpleStringModel("L0")
+        self._readiness_remediation_model = ui.SimpleStringModel("readiness.open-validator")
         self._deployment_revision_model = ui.SimpleStringModel("main")
         self._deployment_output_dir_model = ui.SimpleStringModel("dist/bundle")
         self._deployment_signing_key_model = ui.SimpleStringModel("keys/signing.pem")
@@ -110,6 +113,7 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._deployment_window = ui.Window(DEPLOYMENT_WINDOW, width=520, height=620)
         self._evidence_window = ui.Window(EVIDENCE_WINDOW, width=480, height=520)
         self._validation_window = ui.Window(VALIDATION_WINDOW, width=460, height=420)
+        self._readiness_window = ui.Window(READINESS_WINDOW, width=620, height=620)
         self._log_window = ui.Window(LOG_WINDOW, width=820, height=220)
         self._render_all()
         ui.dock_window_in_window(VALIDATION_WINDOW, PROJECT_WINDOW, ui.DockPosition.RIGHT, 0.55)
@@ -120,6 +124,7 @@ class CellForgeStudioExtension(omni.ext.IExt):
         ui.dock_window_in_window(RECIPE_WINDOW, TASK_WINDOW, ui.DockPosition.RIGHT, 0.5)
         ui.dock_window_in_window(DEPLOYMENT_WINDOW, RECIPE_WINDOW, ui.DockPosition.RIGHT, 0.5)
         ui.dock_window_in_window(EVIDENCE_WINDOW, SIMULATION_WINDOW, ui.DockPosition.BOTTOM, 0.5)
+        ui.dock_window_in_window(READINESS_WINDOW, VALIDATION_WINDOW, ui.DockPosition.BOTTOM, 0.65)
         ui.dock_window_in_window(LOG_WINDOW, PROJECT_WINDOW, ui.DockPosition.BOTTOM, 0.35)
 
     def on_shutdown(self) -> None:
@@ -135,6 +140,7 @@ class CellForgeStudioExtension(omni.ext.IExt):
             "_deployment_window",
             "_evidence_window",
             "_validation_window",
+            "_readiness_window",
             "_log_window",
         ):
             window = getattr(self, window_name, None)
@@ -170,6 +176,37 @@ class CellForgeStudioExtension(omni.ext.IExt):
         if application is None:
             return
         application.save_project()
+        self._render_all()
+
+    def _on_evaluate_readiness(self) -> None:
+        application = self._application
+        if application is None:
+            return
+        application.evaluate_readiness(
+            requested_fidelity=self._readiness_fidelity_model.as_string.strip() or "L0"
+        )
+        self._render_all()
+
+    def _on_preview_readiness_remediation(self) -> None:
+        application = self._application
+        if application is None:
+            return
+        application.preview_readiness_remediation(
+            self._readiness_remediation_model.as_string.strip() or "readiness.open-validator",
+            requested_fidelity=self._readiness_fidelity_model.as_string.strip() or "L0",
+        )
+        self._render_all()
+
+    def _on_save_readiness_preview(self) -> None:
+        application = self._application
+        preview = application.snapshot.readiness_preview if application is not None else None
+        if application is None or preview is None:
+            return
+        application.save_readiness_preview(
+            confirmation_token=preview.confirmation_token,
+            confirmed=True,
+            requested_fidelity=self._readiness_fidelity_model.as_string.strip() or "L0",
+        )
         self._render_all()
 
     def _on_guided_create_project(self) -> None:
@@ -610,7 +647,84 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._render_evidence_panel()
         self._render_deployment_panel()
         self._render_validation_panel()
+        self._render_readiness_panel()
         self._render_log_panel()
+
+    def _render_readiness_panel(self) -> None:
+        snapshot = self._application.snapshot
+        self._readiness_window.frame.clear()
+        with self._readiness_window.frame:
+            with ui.ScrollingFrame():
+                with ui.VStack(spacing=6):
+                    ui.Label("Studio readiness guidance", style={"font_size": 18})
+                    ui.Label(
+                        "Engineering guidance for authoring and simulation only. "
+                        "Readiness is not functional-safety validation and cannot authorize "
+                        "physical operation.",
+                        word_wrap=True,
+                    )
+                    ui.Label("Requested simulation fidelity")
+                    ui.StringField(model=self._readiness_fidelity_model)
+                    with ui.HStack(spacing=6, height=28):
+                        ui.Button("Evaluate readiness", clicked_fn=self._on_evaluate_readiness)
+                        ui.Button(
+                            "Preview remediation",
+                            clicked_fn=self._on_preview_readiness_remediation,
+                        )
+                        ui.Button(
+                            "Save after preview",
+                            clicked_fn=self._on_save_readiness_preview,
+                        )
+                    ui.Label("Remediation ID")
+                    ui.StringField(model=self._readiness_remediation_model)
+                    report = snapshot.readiness_report
+                    if report is None:
+                        ui.Label(
+                            "No readiness report evaluated for the selected project.",
+                            word_wrap=True,
+                        )
+                        return
+                    summary = report.summary
+                    ui.Separator(height=6)
+                    ui.Label(
+                        f"Overall: {summary.overall_status} | "
+                        f"requested: {report.requested_fidelity} | "
+                        f"observed: {report.observed_fidelity}",
+                        word_wrap=True,
+                    )
+                    ui.Label(
+                        f"Pass {summary.pass_count} | Blocked {summary.blocked_count} | "
+                        f"Advisory {summary.advisory_count} | "
+                        f"Unavailable {summary.unavailable_count}",
+                        word_wrap=True,
+                    )
+                    ui.Label(summary.safety_disclaimer, word_wrap=True)
+                    ui.Separator(height=6)
+                    for check in report.checks:
+                        ui.Label(
+                            f"{check.status.upper()} / {check.severity.upper()} / "
+                            f"{check.category}: "
+                            f"{check.message}",
+                            word_wrap=True,
+                        )
+                        ui.Label(
+                            f"Source: {check.source_reference} | Check: {check.check_id} | "
+                            f"Remediation: {check.remediation_id or 'none'}",
+                            word_wrap=True,
+                        )
+                    preview = snapshot.readiness_preview
+                    if preview is not None:
+                        ui.Separator(height=6)
+                        ui.Label(
+                            f"Candidate preview: "
+                            f"{'Save available' if preview.can_save else 'blocked'}; "
+                            "no canonical source was written.",
+                            word_wrap=True,
+                        )
+                        ui.Label(
+                            f"Confirmation token: {preview.confirmation_token}",
+                            word_wrap=True,
+                        )
 
     def _render_project_panel(self) -> None:
         snapshot = self._application.snapshot

@@ -27,6 +27,12 @@ if TYPE_CHECKING:
         GuidedProjectService,
         ProjectPreview,
     )
+    from cellforge.studio.readiness import (
+        EvaluateStudioReadiness,
+        ReadinessBackendProbe,
+        ReadinessCandidatePreview,
+        StudioReadinessReport,
+    )
     from cellforge.studio.recipe_service import (
         RecipeBrowserResult,
         RecipeDetail,
@@ -615,6 +621,8 @@ class StudioSnapshot:
     logs: tuple[LogEntry, ...] = ()
     dirty: bool = False
     guided_preview: ProjectPreview | None = None
+    readiness_report: StudioReadinessReport | None = None
+    readiness_preview: ReadinessCandidatePreview | None = None
     browser: tuple[BrowserComponent, ...] = ()
     spatial_components: tuple[SpatialComponent, ...] = ()
     connection_ports: tuple[ConnectionPort, ...] = ()
@@ -667,9 +675,11 @@ class StudioApplication:
         *,
         backend_unavailable_message: str = "CellForge project services are unavailable.",
         guided_service: GuidedProjectService | None = None,
+        readiness_service: EvaluateStudioReadiness | None = None,
     ) -> None:
         self._backend = backend
         self._guided_service = guided_service
+        self._readiness_service = readiness_service
         if backend is None:
             self._snapshot = StudioSnapshot(
                 status=StudioStatus.BACKEND_UNAVAILABLE,
@@ -727,6 +737,8 @@ class StudioApplication:
                 project=None,
                 validation=(),
                 dirty=False,
+                readiness_report=None,
+                readiness_preview=None,
                 browser=(),
                 spatial_components=(),
                 connection_ports=(),
@@ -779,6 +791,185 @@ class StudioApplication:
         self.refresh_components()
         self.refresh_spatial()
         return self.refresh_connections()
+
+    def evaluate_readiness(
+        self,
+        *,
+        requested_fidelity: str = "L0",
+        backend_probe: ReadinessBackendProbe | None = None,
+    ) -> StudioSnapshot:
+        """Evaluate the selected project through the pure readiness application service."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._readiness_service is None:
+            return self._operation_failure(
+                "Studio readiness evaluation",
+                RuntimeError("Studio readiness service is unavailable."),
+                preserve_project=True,
+            )
+        if project is None or contents is None:
+            return self._no_open_project("Cannot evaluate readiness without a valid project open.")
+        try:
+            report = self._readiness_service.EvaluateStudioReadiness(
+                Path(project.path),
+                requested_fidelity=requested_fidelity,
+                backend_probe=backend_probe,
+                candidate_contents=contents,
+            )
+        except Exception as error:
+            return self._operation_failure(
+                "Studio readiness evaluation", error, preserve_project=True
+            )
+        self._snapshot = replace(
+            self._snapshot,
+            readiness_report=report,
+            detail=(
+                f"Readiness {report.summary.overall_status}: {report.summary.pass_count} pass, "
+                f"{report.summary.blocked_count} blocked, "
+                f"{report.summary.unavailable_count} unavailable."
+            ),
+            logs=self._append_log(
+                LogLevel.INFO,
+                f"Evaluated Studio readiness for {project.cell_id} at {report.observed_fidelity}.",
+            ),
+        )
+        return self._snapshot
+
+    def preview_readiness_remediation(
+        self,
+        remediation_id: str,
+        *,
+        candidate_contents: ProjectContents | None = None,
+        requested_fidelity: str = "L0",
+        backend_probe: ReadinessBackendProbe | None = None,
+    ) -> StudioSnapshot:
+        """Stage a readiness remediation candidate without writing canonical sources."""
+
+        project = self._snapshot.project
+        contents = candidate_contents or self._working_contents
+        if self._readiness_service is None:
+            return self._operation_failure(
+                "Studio remediation preview",
+                RuntimeError("Studio readiness service is unavailable."),
+                preserve_project=True,
+            )
+        if project is None:
+            return self._no_open_project(
+                "Cannot preview a remediation without a valid project open."
+            )
+        try:
+            preview = self._readiness_service.PreviewStudioReadinessRemediation(
+                Path(project.path),
+                remediation_id,
+                candidate_contents=contents,
+                requested_fidelity=requested_fidelity,
+                backend_probe=backend_probe,
+            )
+        except Exception as error:
+            return self._operation_failure(
+                "Studio remediation preview", error, preserve_project=True
+            )
+        self._snapshot = replace(
+            self._snapshot,
+            readiness_report=preview.report,
+            readiness_preview=preview,
+            detail=(
+                "Readiness remediation preview staged in memory; "
+                + ("explicit Save is available." if preview.can_save else "Save is blocked.")
+            ),
+            logs=self._append_log(
+                LogLevel.INFO if preview.can_save else LogLevel.WARNING,
+                f"Previewed remediation {remediation_id}; no canonical files were written.",
+            ),
+        )
+        return self._snapshot
+
+    def save_readiness_preview(
+        self,
+        *,
+        confirmation_token: str | None = None,
+        confirmed: bool = False,
+        requested_fidelity: str = "L0",
+        backend_probe: ReadinessBackendProbe | None = None,
+    ) -> StudioSnapshot:
+        """Explicitly Save a reviewed readiness candidate through the existing transaction."""
+
+        preview = self._snapshot.readiness_preview
+        if self._readiness_service is None or preview is None:
+            return self._no_open_project("No readiness remediation preview is available to Save.")
+        try:
+            result = self._readiness_service.SaveStudioReadiness(
+                preview,
+                confirmation_token,
+                confirmed=confirmed,
+                requested_fidelity=requested_fidelity,
+                backend_probe=backend_probe,
+            )
+        except Exception as error:
+            return self._operation_failure("Studio remediation Save", error, preserve_project=True)
+        if not result.success:
+            self._snapshot = replace(
+                self._snapshot,
+                readiness_report=result.report,
+                validation=result.validation,
+                detail=result.message,
+                logs=self._append_log(LogLevel.WARNING, result.message),
+            )
+            return self._snapshot
+        refreshed = self.open_project(preview.project_path)
+        self._snapshot = replace(
+            refreshed,
+            readiness_report=result.report,
+            readiness_preview=None,
+            detail=result.message,
+            logs=self._append_log(LogLevel.INFO, result.message),
+        )
+        return self._snapshot
+
+    # Exact command spellings for headless callers and future non-Kit clients.
+    def EvaluateStudioReadiness(
+        self,
+        project_path: str | Path | None = None,
+        *,
+        requested_fidelity: str = "L0",
+        backend_probe: ReadinessBackendProbe | None = None,
+    ) -> StudioSnapshot:
+        if project_path is not None and self._snapshot.project is None:
+            self.open_project(project_path)
+        return self.evaluate_readiness(
+            requested_fidelity=requested_fidelity, backend_probe=backend_probe
+        )
+
+    def PreviewStudioReadinessRemediation(
+        self,
+        remediation_id: str,
+        *,
+        candidate_contents: ProjectContents | None = None,
+        requested_fidelity: str = "L0",
+        backend_probe: ReadinessBackendProbe | None = None,
+    ) -> StudioSnapshot:
+        return self.preview_readiness_remediation(
+            remediation_id,
+            candidate_contents=candidate_contents,
+            requested_fidelity=requested_fidelity,
+            backend_probe=backend_probe,
+        )
+
+    def SaveStudioReadiness(
+        self,
+        confirmation_token: str | None = None,
+        *,
+        confirmed: bool = False,
+        requested_fidelity: str = "L0",
+        backend_probe: ReadinessBackendProbe | None = None,
+    ) -> StudioSnapshot:
+        return self.save_readiness_preview(
+            confirmation_token=confirmation_token,
+            confirmed=confirmed,
+            requested_fidelity=requested_fidelity,
+            backend_probe=backend_probe,
+        )
 
     def create_project(self, project_path: str | Path) -> StudioSnapshot:
         """Explicitly create a project through the backend command service."""
@@ -1509,6 +1700,8 @@ class StudioApplication:
                 project=None,
                 validation=result.validation,
                 dirty=False,
+                readiness_report=None,
+                readiness_preview=None,
                 browser=(),
                 spatial_components=(),
                 connection_ports=(),
@@ -1553,6 +1746,8 @@ class StudioApplication:
             ),
             validation=result.validation,
             dirty=False,
+            readiness_report=None,
+            readiness_preview=None,
             spatial_components=(),
             mechanical_preview=None,
             tasks=task_graph.tasks,
@@ -1582,6 +1777,8 @@ class StudioApplication:
         self._snapshot = replace(
             self._snapshot,
             dirty=dirty,
+            readiness_report=None,
+            readiness_preview=None,
             detail=(
                 "Project has unsaved in-memory changes."
                 if dirty

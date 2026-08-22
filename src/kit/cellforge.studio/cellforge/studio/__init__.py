@@ -47,14 +47,37 @@ _GUIDED_EXPORTS = frozenset(
     }
 )
 
+_READINESS_EXPORTS = frozenset(
+    {
+        "EvaluateStudioReadiness",
+        "ReadinessBackendProbe",
+        "ReadinessCandidatePreview",
+        "ReadinessCategory",
+        "ReadinessRemediation",
+        "ReadinessSaveResult",
+        "ReadinessService",
+        "ReadinessSeverity",
+        "ReadinessStatus",
+        "SAFETY_REVIEW_DISCLAIMER",
+        "StudioProjectIdentity",
+        "StudioReadinessCheck",
+        "StudioReadinessReport",
+        "StudioReadinessService",
+        "StudioReadinessSummary",
+        "evaluate_studio_readiness",
+        "validate_studio_readiness_report_document",
+    }
+)
+
 
 def __getattr__(name: str) -> object:
     """Load guided services lazily so Kit can bootstrap its source workspace first."""
 
-    if name not in _GUIDED_EXPORTS:
+    if name not in _GUIDED_EXPORTS and name not in _READINESS_EXPORTS:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    guided = importlib.import_module(f"{__name__}.guided_launcher")
-    value = getattr(guided, name)
+    module_name = "guided_launcher" if name in _GUIDED_EXPORTS else "readiness"
+    module = importlib.import_module(f"{__name__}.{module_name}")
+    value = getattr(module, name)
     globals()[name] = value
     return value
 
@@ -97,4 +120,21 @@ __all__ = [
     "RequiredChoice",
     "StudioProjectLauncher",
     "validate_project_preview_document",
+    "EvaluateStudioReadiness",
+    "ReadinessBackendProbe",
+    "ReadinessCandidatePreview",
+    "ReadinessCategory",
+    "ReadinessRemediation",
+    "ReadinessSaveResult",
+    "ReadinessService",
+    "ReadinessSeverity",
+    "ReadinessStatus",
+    "SAFETY_REVIEW_DISCLAIMER",
+    "StudioProjectIdentity",
+    "StudioReadinessCheck",
+    "StudioReadinessReport",
+    "StudioReadinessService",
+    "StudioReadinessSummary",
+    "evaluate_studio_readiness",
+    "validate_studio_readiness_report_document",
 ]
