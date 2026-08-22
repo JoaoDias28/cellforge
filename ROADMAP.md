@@ -89,7 +89,7 @@ but the release claim still requires independently executed gates and honest evi
 Exit: Task 036 replaces synthetic or hard-coded qualification success with actually executed gates
 and evidence. CPU-only, mock-only, and synthetic-event checks cannot satisfy the Isaac Sim 6 L2 gate.
 
-## Phase 6 — Simulation readiness program (IN PROGRESS)
+## Phase 6 — Simulation readiness program (COMPLETE)
 
 Outcome: establish a deterministic, observable simulation baseline and extend it beyond the reference
 pen workflow without claiming physical qualification.
@@ -117,17 +117,42 @@ or safety validation.
 Exit: a future hardware-integration task must provide real-equipment evidence under approved
 commissioning controls and record functional-safety verification separately.
 
-## Phase 8 — Reusable low-code engineering
+## Phase 8 — Guided low-code simulation engineering (PLANNED; Tasks 039–048)
 
-Outcome: new cells can be assembled from components and skills.
+Outcome: an engineer can assemble, inspect, simulate, and qualify a new cell through deterministic
+guided flows and visual canvases while the canonical source artifacts remain reviewable and
+headless-first.
 
-- connection graph editor;
-- behavior-tree visual editor integration;
-- schema-driven recipe editor;
-- component SDK templates;
-- deployment manager and rollback UI;
-- operator UI;
-- support-level/evidence promotion workflow.
+The program is deliberately incremental and serial:
+
+- Task 039: guided Studio launcher that previews a deterministic project skeleton and saves only
+  after explicit confirmation;
+- Task 040: readiness guidance that turns missing assets, contracts, schemas, and simulation
+  prerequisites into actionable, honest findings;
+- Task 041: schema-driven forms for cell/component/recipe/scenario data with an advanced source
+  view and deterministic IDs, paths, and defaults;
+- Task 042: typed visual mechanical, capability/ROS, industrial-I/O, and separately labeled
+  modeled-safety connection canvases;
+- Task 043: visual BehaviorTree.CPP task and recipe authoring that writes canonical XML/YAML;
+- Task 044: reproducible simulation experiment workbench for seeds, faults, replay, comparison,
+  and evidence;
+- Task 045: reusable robot simulation model/adapter contract backed by existing Isaac and ROS
+  capabilities;
+- Task 046: URDF/Xacro, MJCF, and articulated-USD robot import wizard using existing Isaac/ROS/
+  OpenUSD importers;
+- Task 047: deterministic primitive robot builder that emits the same simulation-only robot
+  contract;
+- Task 048: end-to-end low-code simulation qualification and release evidence.
+
+Each task is independently releasable and adds tests before the next task starts. Imported and
+built robots remain simulation-only; no step authorizes physical operation, promotes hardware
+support, or implements a functional-safety function. Existing Isaac Sim, OpenUSD, ROS 2,
+MoveIt, and BehaviorTree.CPP capabilities are reused rather than duplicated.
+
+Exit: a clean supported checkout can create a project, resolve readiness, author canonical
+cell/scene/task/recipe/scenario artifacts, run deterministic experiments through the reusable
+simulation runtime, and produce honest evidence with unavailable higher-fidelity paths reported
+as unavailable. Independent hardware and safety qualification remain outside this phase.
 
 ## Phase 9 — Advanced perception and optimization
 

@@ -42,6 +42,16 @@ Execute tasks in order unless dependencies indicate safe parallel work.
 | 036 | executable release qualification | 035 |
 | 037 | simulation demo workflow | 035 |
 | 038 | simulation component expansion | 036, 037 |
+| 039 | guided Studio launcher and deterministic project flow | 038 |
+| 040 | Studio readiness guidance | 039 |
+| 041 | schema-driven authoring with advanced source view | 040 |
+| 042 | visual cell connections | 041 |
+| 043 | visual task and recipe authoring | 042 |
+| 044 | simulation experiment workbench | 043 |
+| 045 | reusable robot simulation runtime contract | 044 |
+| 046 | robot import wizard | 045 |
+| 047 | primitive robot builder | 046 |
+| 048 | low-code simulation qualification | 047 |
 
 Tasks 007 and 002 may proceed in parallel after Task 001. Tasks 014 and 009 may proceed in parallel after their dependencies.
 
@@ -51,3 +61,9 @@ commissioning or production qualification. Task 035 follows the merged software 
 prototype boundary. Tasks 036 and 037 may proceed in parallel once Task 035 is merged. Task 038
 requires both Tasks 036 and 037. CPU, mock, or synthetic-event evidence cannot substitute for the
 required Isaac Sim 6 L2 qualification, and functional safety remains independent.
+
+Tasks 039–048 are an intentionally serial low-code simulation-engineering program. Task 039
+requires the merged Task 038 baseline; each subsequent task requires the immediately preceding
+task. Every task must keep the main branch releasable, preserve canonical `cell.yaml`, USD,
+BehaviorTree.CPP XML, recipe, and scenario artifacts, and keep imported or built robots
+simulation-only. No task in this program implements or replaces independent functional safety.
