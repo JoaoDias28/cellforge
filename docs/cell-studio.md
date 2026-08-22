@@ -23,11 +23,20 @@ cellforge.evidence
 
 ### Create project
 
-- select template or blank cell;
-- choose schema version;
-- create Git-friendly project directory;
-- initialize USD stage and `cell.yaml`;
-- assign cell ID.
+- choose **Blank**, **Pen engraving**, or **Two-part kitting** from the guided launcher;
+- choose the requested schema version, destination, display name, and any genuinely required
+  explicit choices;
+- review a deterministic in-memory skeleton containing every generated relative path, schema
+  version, cell/component IDs, aliases, defaults, validation findings, and exact SHA-256 hashes;
+- confirm **Save** only after the preview is acceptable. Preview, Cancel, and close-without-Save
+  do not write the destination or mutate a source example;
+- open the saved project through the existing validator and paired YAML/USD identity checks.
+
+Guided projects begin in simulation-only mode. The launcher never chooses a physical target,
+recipe, scenario, component, or safety dependency when the request is ambiguous. Template IDs
+and canonical example component IDs are retained where the existing simulation contracts require
+them; blank-project IDs are allocated from the explicit deterministic seed and never from the
+display name.
 
 ### Add components
 
@@ -135,6 +144,10 @@ The extension calls a local application service layer rather than editing YAML d
 Core commands:
 
 - `CreateProject`
+- `OpenProject`
+- `PreviewProject`
+- `ConfirmProjectSave`
+- `CancelProjectDraft`
 - `AddComponentInstance`
 - `RemoveComponentInstance`
 - `SetComponentVariant`
@@ -205,6 +218,14 @@ are inspected only after the user chooses **Open / Refresh**. The Kit callback d
 pure application service, which in turn reuses Task 004 project validation and inspection.
 Missing CellForge backend packages or schemas produce an actionable panel state instead of blocking
 extension startup.
+
+Task 039 adds the guided Create/Open/Review flow behind the same service boundary. Create and
+Preview retain all candidate bytes in memory and expose a versioned diagnostic preview at
+`schemas/studio_project_preview.schema.json`; the preview is not a third source of truth. Only
+`ConfirmProjectSave` with the current preview confirmation is allowed to create a destination.
+New projects are validated in a sibling staging tree and materialized through the existing
+paired project validator and Task 015 recovery-journal transaction. Existing project edits use
+the same recovery boundary.
 
 ## 8. Project and scene round trip
 

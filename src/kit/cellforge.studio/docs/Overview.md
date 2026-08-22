@@ -9,6 +9,13 @@ The UI renders backend findings; it does not implement schema or domain validati
 CellForge Python packages or canonical schemas are unavailable in Isaac Sim's Python environment,
 the panels remain usable and explain how to restore the backend.
 
+Task 039 adds a guided Create/Open/Review flow for the blank, pen, and kitting starting points.
+The launcher produces an in-memory deterministic preview of paths, IDs, schema versions, findings,
+and SHA-256 hashes. Preview and Cancel are read-only; only an explicit ConfirmProjectSave persists
+the canonical `cell.yaml`, USD scene, BehaviorTree.CPP XML, recipe references, and scenario
+references. Guided projects start in simulation-only mode and never implement or certify
+independent functional safety.
+
 Task 015 adds explicit project create/open/save commands, in-memory dirty tracking, linked
 `cellforge:instanceId` validation across `cell.yaml` and USD, and recovery-journal-backed saves.
 Opening and in-memory edits remain read-only until the engineer selects **Save**.

@@ -174,9 +174,18 @@ def _manifest_documents(root: Path) -> dict[str, tuple[Path, dict[str, Any]]]:
     return manifests
 
 
+def _schema_path(root: Path, filename: str) -> Path:
+    """Prefer a project-local schema so guided projects remain independently runnable."""
+
+    local = root / "schemas" / filename
+    if local.is_file():
+        return local
+    return root.parent.parent / "schemas" / filename
+
+
 def _capability_documents(root: Path) -> dict[tuple[str, str], Path]:
     documents: dict[tuple[str, str], Path] = {}
-    schema_path = root.parent.parent / "schemas" / "capability-contract.schema.json"
+    schema_path = _schema_path(root, "capability-contract.schema.json")
     for path in sorted((root / "capabilities").glob("*.json")):
         document = _load_json(path, str(path))
         _validate_json_schema(document, schema_path, str(path))
@@ -190,7 +199,7 @@ def _capability_documents(root: Path) -> dict[tuple[str, str], Path]:
 
 
 def _fault_catalog_documents(root: Path) -> tuple[Path, ...]:
-    schema_path = root.parent.parent / "schemas" / "fault-catalog.schema.json"
+    schema_path = _schema_path(root, "fault-catalog.schema.json")
     paths = tuple(sorted((root / "fault_catalogs").glob("*.json")))
     if not paths:
         _fail(str(root / "fault_catalogs"), "no fault catalog documents found")

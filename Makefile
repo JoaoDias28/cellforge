@@ -10,7 +10,7 @@ ROS_WINDOWS_UNDERLAY ?= C:/IsaacSim-ros-workspaces/jazzy_ws/install
 ROS_WINDOWS_LLVM_BIN ?= C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin
 PYTEST_BASETEMP ?= .pytest-tmp
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check simulation-demo-check kitting-simulation-check simulation-demo-l0 simulation-demo-l2 kitting-simulation-l0 kitting-simulation-l2 ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check studio-guided-launcher-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check simulation-demo-check kitting-simulation-check simulation-demo-l0 simulation-demo-l2 kitting-simulation-l0 kitting-simulation-l2 ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
@@ -61,6 +61,11 @@ studio-deployment-evidence-check:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen pytest src/kit/cellforge.studio/tests/test_scenario_service.py src/kit/cellforge.studio/tests/test_deployment_service.py
 	$(UV) run --frozen python scripts/verify_studio_deployment_evidence.py
+
+studio-guided-launcher-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest src/kit/cellforge.studio/tests/test_guided_launcher.py
+	$(UV) run --frozen python scripts/verify_studio_guided_launcher.py
 
 platform-registry-artifacts-check:
 	$(UV) sync --locked --all-packages

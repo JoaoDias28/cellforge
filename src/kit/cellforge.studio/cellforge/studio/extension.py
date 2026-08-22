@@ -13,7 +13,6 @@ from cellforge.studio.application import (
     StudioApplication,
 )
 from cellforge.studio.backend import create_default_application
-from cellforge.studio.deployment_service import AgentPaths
 from cellforge.studio.simulation_backend import create_simulation_application
 from cellforge.studio.simulation_host import create_kit_simulation_host
 
@@ -40,6 +39,10 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._simulation_host, simulation_host_error = create_kit_simulation_host()
         self._simulation_application = create_simulation_application(simulation_host_error)
         self._project_path_model = ui.SimpleStringModel("")
+        self._guided_template_model = ui.SimpleStringModel("blank")
+        self._guided_name_model = ui.SimpleStringModel("Guided Cell")
+        self._guided_schema_model = ui.SimpleStringModel("0.1.0")
+        self._guided_seed_model = ui.SimpleIntModel(3901)
         self._kind_filter_model = ui.SimpleStringModel("")
         self._capability_filter_model = ui.SimpleStringModel("")
         self._support_filter_model = ui.SimpleStringModel("")
@@ -167,6 +170,58 @@ class CellForgeStudioExtension(omni.ext.IExt):
         if application is None:
             return
         application.save_project()
+        self._render_all()
+
+    def _on_guided_create_project(self) -> None:
+        application = self._application
+        if application is None:
+            return
+        from cellforge.studio.guided_launcher import CreateProjectRequest
+
+        application.create_guided_project(
+            CreateProjectRequest(
+                template_id=self._guided_template_model.as_string.strip(),
+                destination_directory=Path(self._project_path_model.as_string.strip()),
+                cell_display_name=self._guided_name_model.as_string.strip(),
+                requested_schema_version=self._guided_schema_model.as_string.strip(),
+                seed=self._guided_seed_model.as_int,
+            )
+        )
+        self._render_all()
+
+    def _on_guided_preview_project(self) -> None:
+        application = self._application
+        preview = application.snapshot.guided_preview if application is not None else None
+        if application is None or preview is None:
+            return
+        application.preview_guided_project(preview)
+        self._render_all()
+
+    def _on_guided_open_project(self) -> None:
+        application = self._application
+        if application is None:
+            return
+        application.open_guided_project(self._project_path_model.as_string)
+        self._render_all()
+
+    def _on_guided_confirm_save(self) -> None:
+        application = self._application
+        preview = application.snapshot.guided_preview if application is not None else None
+        if application is None or preview is None:
+            return
+        application.confirm_guided_project_save(
+            preview,
+            preview.confirmation_token,
+            confirmed=True,
+        )
+        self._render_all()
+
+    def _on_guided_cancel_draft(self) -> None:
+        application = self._application
+        preview = application.snapshot.guided_preview if application is not None else None
+        if application is None or preview is None:
+            return
+        application.cancel_guided_project_draft(preview)
         self._render_all()
 
     def _on_refresh_components(self) -> None:
@@ -513,6 +568,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
 
     def _on_refresh_deployment_status(self) -> None:
         if self._application is not None:
+            from cellforge.studio.deployment_service import AgentPaths
+
             paths = AgentPaths(
                 install_root=Path(self._agent_install_root_model.as_string),
                 state_root=Path(self._agent_state_root_model.as_string),
@@ -522,6 +579,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
 
     def _on_install_bundle(self) -> None:
         if self._application is not None:
+            from cellforge.studio.deployment_service import AgentPaths
+
             paths = AgentPaths(
                 install_root=Path(self._agent_install_root_model.as_string),
                 state_root=Path(self._agent_state_root_model.as_string),
@@ -532,6 +591,8 @@ class CellForgeStudioExtension(omni.ext.IExt):
 
     def _on_rollback_deployment(self) -> None:
         if self._application is not None:
+            from cellforge.studio.deployment_service import AgentPaths
+
             paths = AgentPaths(
                 install_root=Path(self._agent_install_root_model.as_string),
                 state_root=Path(self._agent_state_root_model.as_string),
@@ -566,6 +627,63 @@ class CellForgeStudioExtension(omni.ext.IExt):
                     ui.Button("Create", clicked_fn=self._on_create_project)
                     ui.Button("Open / Refresh", clicked_fn=self._on_open_project)
                     ui.Button("Save", clicked_fn=self._on_save_project)
+                ui.Separator(height=8)
+                ui.Label("Guided Studio launcher", style={"font_size": 16})
+                ui.Label(
+                    "Create and review a simulation-only candidate. "
+                    "No canonical file is written until Confirm Guided Save.",
+                    word_wrap=True,
+                )
+                ui.Label("Template ID (blank, pen_engraving, or kitting)")
+                ui.StringField(model=self._guided_template_model)
+                ui.Label("Cell display name")
+                ui.StringField(model=self._guided_name_model)
+                ui.Label("Requested schema version")
+                ui.StringField(model=self._guided_schema_model)
+                ui.Label("Deterministic seed")
+                ui.IntField(model=self._guided_seed_model)
+                with ui.HStack(spacing=6, height=28):
+                    ui.Button("Guided Create", clicked_fn=self._on_guided_create_project)
+                    ui.Button("Review / Refresh", clicked_fn=self._on_guided_preview_project)
+                    ui.Button("Guided Open", clicked_fn=self._on_guided_open_project)
+                with ui.HStack(spacing=6, height=28):
+                    ui.Button("Confirm Guided Save", clicked_fn=self._on_guided_confirm_save)
+                    ui.Button("Cancel Draft", clicked_fn=self._on_guided_cancel_draft)
+                guided_preview = snapshot.guided_preview
+                if guided_preview is not None:
+                    ui.Separator(height=8)
+                    ui.Label(
+                        f"Preview {guided_preview.draft_id} — {guided_preview.template_id}",
+                        word_wrap=True,
+                    )
+                    ui.Label(
+                        f"Mode: {guided_preview.starting_mode}; "
+                        f"simulation-only: {guided_preview.simulation_only}"
+                    )
+                    save_label = (
+                        "available after confirmation" if guided_preview.can_save else "blocked"
+                    )
+                    ui.Label(f"Save: {save_label}", word_wrap=True)
+                    ui.Label(
+                        f"Candidate SHA-256: {guided_preview.candidate_hash}",
+                        word_wrap=True,
+                    )
+                    ui.Label(
+                        f"Generated files ({len(guided_preview.generated_paths)}): "
+                        + ", ".join(guided_preview.generated_paths),
+                        word_wrap=True,
+                    )
+                    if guided_preview.required_choices:
+                        ui.Label("Required choices:")
+                        for choice in guided_preview.required_choices:
+                            ui.Label(f"- {choice.key}: {choice.prompt}", word_wrap=True)
+                    if guided_preview.findings:
+                        ui.Label("Findings:")
+                        for finding in guided_preview.findings:
+                            ui.Label(
+                                f"{finding.severity.upper()} {finding.code}: {finding.message}",
+                                word_wrap=True,
+                            )
                 if snapshot.project is not None:
                     project = snapshot.project
                     ui.Separator(height=8)

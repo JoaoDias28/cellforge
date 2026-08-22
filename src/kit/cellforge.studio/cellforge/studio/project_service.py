@@ -136,6 +136,125 @@ class ProjectCommandService:
         initialize_project(project_path)
         return self.inspect(project_path)
 
+    def save_new_project(
+        self,
+        project_path: Path,
+        files: Mapping[str, bytes],
+        *,
+        validate_studio_extensions: bool = True,
+    ) -> BackendResult:
+        """Validate and atomically materialize a new complete project tree.
+
+        Guided Studio candidates are assembled in memory and handed to this existing project
+        service only after explicit confirmation.  The complete tree is first inspected in a
+        sibling staging directory, then written through Task 015's recovery-journal transaction.
+        An existing destination is never overwritten.
+        """
+
+        root = project_path.resolve()
+        if os.path.lexists(root):
+            return BackendResult(
+                project=None,
+                validation=(
+                    ValidationItem(
+                        code="studio.destination-exists",
+                        severity="error",
+                        path=f"{root}#",
+                        message="The destination already exists; no files were overwritten.",
+                    ),
+                ),
+            )
+        required = {"cell.yaml", "scene.usda", "behavior_tree.xml"}
+        missing = sorted(required - set(files))
+        if missing:
+            return BackendResult(
+                project=None,
+                validation=(
+                    ValidationItem(
+                        code="studio.canonical-file-missing",
+                        severity="error",
+                        path=f"{root}#",
+                        message=f"New project is missing canonical files: {', '.join(missing)}.",
+                    ),
+                ),
+            )
+
+        normalized: dict[str, bytes] = {}
+        for relative, content in sorted(files.items()):
+            relative_path = Path(relative)
+            target = (root / relative_path).resolve()
+            if (
+                relative_path.is_absolute()
+                or not target.is_relative_to(root)
+                or not isinstance(content, bytes)
+            ):
+                return BackendResult(
+                    project=None,
+                    validation=(
+                        ValidationItem(
+                            code="studio.candidate-path-invalid",
+                            severity="error",
+                            path=f"{root}#",
+                            message="New project candidate paths must remain project-relative.",
+                        ),
+                    ),
+                )
+            normalized[relative_path.as_posix()] = content
+
+        staging: Path | None = None
+        root_created = False
+        try:
+            root.parent.mkdir(parents=True, exist_ok=True)
+            staging = Path(
+                tempfile.mkdtemp(prefix=f".{root.name}.cellforge-guided-", dir=root.parent)
+            )
+            for relative, content in normalized.items():
+                target = staging / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(content)
+            inspected = self.inspect_candidate(
+                staging,
+                validate_studio_extensions=validate_studio_extensions,
+            )
+            if inspected.project is None or inspected.contents is None:
+                return _remap_backend_result(inspected, staging, root)
+            root.mkdir()
+            root_created = True
+            self._transactional_replace(
+                root,
+                {root / relative: content for relative, content in normalized.items()},
+            )
+            shutil.rmtree(staging, ignore_errors=True)
+            staging = None
+            result = self.inspect_candidate(
+                root,
+                validate_studio_extensions=validate_studio_extensions,
+            )
+            if result.project is None or result.contents is None:
+                if not (root / RECOVERY_FILE).exists():
+                    shutil.rmtree(root, ignore_errors=True)
+            return result
+        except (OSError, ProjectSaveError) as error:
+            if root_created and not (root / RECOVERY_FILE).exists():
+                shutil.rmtree(root, ignore_errors=True)
+            return BackendResult(
+                project=None,
+                validation=(
+                    ValidationItem(
+                        code="studio.new-project-save-failed",
+                        severity="error",
+                        path=f"{root}#",
+                        message=(
+                            f"New project save failed ({type(error).__name__}); no partial "
+                            "project was accepted."
+                        ),
+                    ),
+                ),
+            )
+        finally:
+            if staging is not None:
+                shutil.rmtree(staging, ignore_errors=True)
+
     def inspect(self, project_path: Path) -> BackendResult:
         """Open and validate a project byte-for-byte without modifying any file."""
 
@@ -170,6 +289,65 @@ class ProjectCommandService:
             contents = None
             findings.extend(candidate)
 
+        findings = list(_unique_findings(findings))
+        if findings or contents is None:
+            return BackendResult(project=None, validation=tuple(findings))
+        summary = inspect_project(root, registry)
+        return BackendResult(
+            project=_backend_project(summary),
+            validation=(),
+            contents=contents,
+        )
+
+    def inspect_candidate(
+        self,
+        project_path: Path,
+        *,
+        validate_studio_extensions: bool = True,
+    ) -> BackendResult:
+        """Inspect an isolated candidate with optional task-editor extension checks.
+
+        Canonical schema, recipe, scenario, deployment, and YAML/USD identity checks are always
+        applied. Task 038's reusable kitting XML is an executable simulation contract but does
+        not declare a Studio task-editor plugin manifest, so the guided launcher can deliberately
+        omit only the editor-plugin inventory check while preserving the source validator.
+        """
+
+        if validate_studio_extensions:
+            return self.inspect(project_path)
+        root = project_path.resolve()
+        try:
+            registry = self._registry_for(root)
+        except ProjectOperationError as error:
+            return BackendResult(project=None, validation=(_validation_item(error.finding),))
+
+        report = validate_project(root, registry)
+        findings = [_validation_item(item) for item in report.findings]
+        candidate = self._read_candidate(root)
+        if isinstance(candidate, _OpenedCandidate):
+            scene, scene_findings = inspect_scene(
+                candidate.contents.scene_usda, candidate.scene_path
+            )
+            findings.extend(scene_findings)
+            findings.extend(self._spatial.validate_calibrations(root, candidate.contents))
+            findings.extend(self._recipes.browse(root, candidate.contents).validation)
+            findings.extend(self._scenarios.browse_scenarios(root, candidate.contents).validation)
+            findings.extend(
+                self._deployments.browse_deployment_profiles(root, candidate.contents).validation
+            )
+            if scene is not None:
+                findings.extend(
+                    validate_scene_cross_references(
+                        candidate.cell_data,
+                        scene,
+                        cell_path=root / "cell.yaml",
+                        scene_path=candidate.scene_path,
+                    )
+                )
+            contents = candidate.contents
+        else:
+            contents = None
+            findings.extend(candidate)
         findings = list(_unique_findings(findings))
         if findings or contents is None:
             return BackendResult(project=None, validation=tuple(findings))
@@ -1063,6 +1241,27 @@ def _validation_item(finding: ValidationFinding) -> ValidationItem:
         severity=finding.severity.value,
         path=finding.path,
         message=finding.message,
+    )
+
+
+def _remap_backend_result(
+    result: BackendResult, source_root: Path, destination_root: Path
+) -> BackendResult:
+    """Map validation paths from an isolated candidate tree to its future destination."""
+
+    source_prefix = str(source_root.resolve())
+    destination_prefix = str(destination_root.resolve())
+    return BackendResult(
+        project=None,
+        validation=tuple(
+            ValidationItem(
+                code=item.code,
+                severity=item.severity,
+                path=item.path.replace(source_prefix, destination_prefix, 1),
+                message=item.message,
+            )
+            for item in result.validation
+        ),
     )
 
 
