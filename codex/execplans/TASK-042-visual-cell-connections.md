@@ -84,9 +84,9 @@ can authorize physical operation or replace rated safety hardware.
 4. [x] 2026-08-22 — Add backward-compatible modeled-safety schema semantics, documentation, locked probe scripts,
    Make target, and transaction/reopen/hash tests. Acceptance: canonical examples remain valid,
    Save failure leaves both files unchanged, and the real Kit OpenUSD probe runs when available.
-5. [ ] Run all required and focused checks, inspect the complete diff, commit only Task 042, push,
-   open a ready PR, and wait for green checks. Stop at the clean green PR checkpoint for the parent
-   controller's separate read-only Luna Max audit; do not merge in this phase.
+5. [x] 2026-08-22 — Run all required and focused checks, inspect the complete diff, commit only Task 042,
+   push, open ready PR #41, and wait for green checks. The clean green PR checkpoint is ready for the
+   parent controller's separate read-only Luna Max audit; do not merge in this phase.
 
 ## Validation
 
@@ -155,7 +155,10 @@ remain accepted.
 - [x] 2026-08-22 — Added docs, schema semantics, probes, Make target, and acceptance tests.
 - [x] 2026-08-22 — Completed locked checks and self-review; fixed optional-const form materialization
   so the safety marker is not synthesized on non-safety rows, and exported all new DTOs.
-- [ ] Commit/push/open ready PR and stop for the parent-controller Luna audit checkpoint.
+- [x] 2026-08-22 — Committed `b76bdf2` (`task(042): add visual cell connection canvas`), pushed
+  `codex/task-042-visual-cell-connections`, opened ready PR #41, and received green Python 3.12
+  and ROS 2 Jazzy checks. The audit base is the clean, mergeable head
+  `b76bdf2e3546096ee3b2c84d6d9bbbda4194e2de`; merge remains intentionally paused.
 
 ## Decisions
 
@@ -174,6 +177,7 @@ remain accepted.
 
 ## Results
 
-Implementation is complete and local checks are green. Commit, branch publication, ready PR, and
-the parent-controller audit checkpoint remain before Task 042 is fully complete; merge is explicitly
-deferred until the separate read-only Luna Max audit returns.
+Implementation and local validation are complete. PR #41 is open, ready (not draft), mergeable, and
+clean at `b76bdf2e3546096ee3b2c84d6d9bbbda4194e2de`; required GitHub checks are both passing:
+Python 3.12 validation and ROS 2 Jazzy build and test. The branch is intentionally paused here for
+the parent-controller's separate read-only Luna Max audit and has not been merged.
