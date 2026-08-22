@@ -115,9 +115,16 @@ def main() -> int:
         if saved.project is None or reopened.contents is None or reopened.validation:
             raise RuntimeError("Task 042 probe could not round-trip the staged edge")
 
-        safety = backend.StageCellConnection(
+        safety_base = backend.RemoveCellConnection(
             project,
             reopened.contents,
+            connection_id="safety-laser-permission",
+        )
+        if safety_base.contents is None:
+            raise RuntimeError("Task 042 probe could not prepare a unique safety endpoint")
+        safety = backend.StageCellConnection(
+            project,
+            safety_base.contents,
             kind="safety",
             from_component="safety-status-001",
             from_port="laser_emission_permitted",

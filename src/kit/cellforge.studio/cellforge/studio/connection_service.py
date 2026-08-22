@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -85,7 +86,12 @@ def deterministic_connection_id(
 ) -> str:
     """Return the stable edge ID generated from immutable endpoint identities."""
 
-    return "-".join((kind, from_component, from_port, to_component, to_port))
+    canonical = json.dumps(
+        [kind, from_component, from_port, to_component, to_port],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return f"{kind}-{hashlib.sha256(canonical).hexdigest()}"
 
 
 DeterministicConnectionId = deterministic_connection_id
@@ -134,9 +140,8 @@ class ConnectionAuthoringService:
             ExecutionMode.SIMULATION,
             source_name=str(root / "cell.yaml"),
         )
-        findings = tuple(_validation_item(item) for item in report.findings) + _safety_findings(
-            cell, root
-        )
+        findings = list(_validation_item(item) for item in report.findings)
+        findings.extend(_safety_findings(cell, root))
         ports: list[ConnectionPort] = []
         packages: dict[str, Any] = {}
         for instance in sorted(cell.components, key=lambda item: item.id):
@@ -175,6 +180,15 @@ class ConnectionAuthoringService:
                 if edge_port is not None:
                     port_type = edge_port.type
             edges.append(_edge(connection, port_type))
+        findings.extend(
+            _existing_mechanical_findings(
+                cell,
+                parsed.data,
+                packages,
+                contents.scene_usda,
+                root / "cell.yaml",
+            )
+        )
         sorted_ports = tuple(
             sorted(
                 ports,
@@ -197,7 +211,7 @@ class ConnectionAuthoringService:
         return ConnectionBrowserResult(
             ports=sorted_ports,
             edges=sorted_edges,
-            validation=findings,
+            validation=tuple(findings),
             safety_disclaimer=SAFETY_DISCLAIMER,
             canvas=canvas,
         )
@@ -399,6 +413,26 @@ class ConnectionAuthoringService:
             layout=layout,
         )
 
+    def ValidateCellConnectionsForSave(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+    ) -> tuple[ValidationItem, ...]:
+        """Return connection findings that must block canonical transactional replacement."""
+
+        result = self.ValidateCellConnections(project_path, contents)
+        save_codes = {
+            "resolver.duplicate-connection-id",
+            "resolver.duplicate-connection-endpoints",
+            "studio.connection-safety-kind-mismatch",
+            "studio.safety-edge-not-modeled-only",
+        }
+        return tuple(
+            item
+            for item in result.validation
+            if item.code in save_codes or item.code.startswith("studio.mechanical-")
+        )
+
     def validate_connections(
         self,
         project_path: Path,
@@ -507,6 +541,11 @@ class ConnectionAuthoringService:
                             "previous_target_prim": preview.current_target_prim,
                             "snapped_target_prim": preview.snapped_target_prim,
                             "transform": list(preview.transform),
+                            "authored_properties": list(
+                                _snap_metadata_properties(
+                                    candidate.connection.id, preview.transform
+                                )
+                            ),
                         },
                     }
                 }
@@ -822,6 +861,87 @@ def _edge(connection: Connection, port_type: str) -> ConnectionEdge:
     )
 
 
+def _existing_mechanical_findings(
+    cell: CellProject,
+    data: dict[str, Any],
+    packages: Mapping[str, Any],
+    scene_usda: str,
+    source: Path,
+) -> tuple[ValidationItem, ...]:
+    """Run the same non-mutating spatial checks for every persisted mechanical edge."""
+
+    findings: list[ValidationItem] = []
+    for index, connection in enumerate(cell.connections):
+        if connection.kind is not ConnectionKind.MECHANICAL:
+            continue
+        from_package = packages.get(connection.from_.component)
+        to_package = packages.get(connection.to.component)
+        if from_package is None or to_package is None:
+            continue
+        from_port = next(
+            (
+                port
+                for port in _ports_for_kind(from_package.manifest, connection.kind)
+                if port.id == connection.from_.port
+            ),
+            None,
+        )
+        to_port = next(
+            (
+                port
+                for port in _ports_for_kind(to_package.manifest, connection.kind)
+                if port.id == connection.to.port
+            ),
+            None,
+        )
+        if from_port is None or to_port is None:
+            continue
+        candidate = _ConnectionCandidate(
+            cell=cell,
+            data=data,
+            connection=connection,
+            from_port=from_port,
+            to_port=to_port,
+            scene_usda=scene_usda,
+            from_collision_asset=(
+                from_package.source_path.parent / from_package.manifest.assets.collision_usd
+            ),
+            to_collision_asset=(
+                to_package.source_path.parent / to_package.manifest.assets.collision_usd
+            ),
+            from_frames=tuple(frame.id for frame in from_package.manifest.frames),
+            to_frames=tuple(frame.id for frame in to_package.manifest.frames),
+        )
+        result = _mechanical_preview(candidate, source)
+        if isinstance(result, ValidationItem):
+            findings.append(
+                replace(
+                    result,
+                    path=f"{source.resolve()}#/connections/{index}",
+                )
+            )
+            continue
+        current_target = next(
+            item.usd_prim.rstrip("/")
+            for item in cell.components
+            if item.id == connection.to.component
+        )
+        if current_target != result.snapped_target_prim.rstrip("/"):
+            findings.append(
+                ValidationItem(
+                    code="studio.mechanical-snap-target-mismatch",
+                    severity="error",
+                    path=f"{source.resolve()}#/connections/{index}/to",
+                    message=(
+                        f"Mechanical connection '{connection.id}' expects target prim "
+                        f"'{result.snapped_target_prim}', but the canonical component path is "
+                        f"'{current_target}'."
+                    ),
+                )
+            )
+    return tuple(findings)
+
+
 def _connection_preview(
     connection: Connection,
     mechanical: MechanicalSnapPreview | None,
@@ -838,10 +958,12 @@ def _connection_preview(
         from_endpoint=ConnectionEndpointRef(
             component_instance_id=connection.from_.component,
             port_id=connection.from_.port,
+            kind=connection.kind.value,
         ),
         to_endpoint=ConnectionEndpointRef(
             component_instance_id=connection.to.component,
             port_id=connection.to.port,
+            kind=connection.kind.value,
         ),
         candidate_cell_sha256=hashlib.sha256(candidate.cell_yaml.encode("utf-8")).hexdigest(),
         candidate_scene_sha256=hashlib.sha256(candidate.scene_usda.encode("utf-8")).hexdigest(),
@@ -1208,7 +1330,7 @@ def _restore_mechanical_snap(
     cell: CellProject,
     connection: Connection,
 ) -> tuple[str, tuple[tuple[str, str], ...]]:
-    """Reverse a staged mechanical reparent using explicit or uniquely inferred paths."""
+    """Reverse a staged mechanical reparent using its immutable authored record."""
 
     source_instance = next(
         (item for item in cell.components if item.id == connection.from_.component), None
@@ -1222,20 +1344,45 @@ def _restore_mechanical_snap(
         )
     current_target = target_instance.usd_prim.rstrip("/")
     spatial = connection.config.get("_cellforge_spatial")
-    previous_target = spatial.get("previous_target_prim") if isinstance(spatial, Mapping) else None
-    if not isinstance(previous_target, str) or not previous_target:
-        source_prim = source_instance.usd_prim.rstrip("/")
-        if not current_target.startswith(f"{source_prim}/"):
-            raise ValueError(
-                "The mechanical edge has no reversible spatial record and its target is not nested "
-                "under the source prim."
-            )
-        parent_path = source_prim.rsplit("/", 1)[0] or "/"
-        leaf = current_target.rsplit("/", 1)[-1]
-        previous_target = f"{parent_path.rstrip('/')}/{leaf}" if parent_path != "/" else f"/{leaf}"
+    if not isinstance(spatial, Mapping):
+        raise ValueError("The mechanical edge has no recorded authored spatial edit.")
+    source_prim = spatial.get("source_prim")
+    previous_target = spatial.get("previous_target_prim")
+    snapped_target = spatial.get("snapped_target_prim")
+    authored_properties = spatial.get("authored_properties")
+    if (
+        not isinstance(source_prim, str)
+        or not source_prim
+        or not isinstance(previous_target, str)
+        or not previous_target
+        or not isinstance(snapped_target, str)
+        or not snapped_target
+    ):
+        raise ValueError("The mechanical edge has an incomplete authored spatial record.")
+    if not isinstance(authored_properties, Sequence) or isinstance(
+        authored_properties, (str, bytes)
+    ):
+        raise ValueError("The mechanical edge has no exact authored transform property record.")
+    authored_property_values: list[str] = []
+    for value in authored_properties:
+        if not isinstance(value, str) or not value:
+            raise ValueError("The mechanical edge has no exact authored transform property record.")
+        authored_property_values.append(value)
+    if source_instance.usd_prim.rstrip("/") != source_prim.rstrip("/"):
+        raise ValueError("The mechanical source prim no longer matches its recorded snap source.")
+    if current_target != snapped_target.rstrip("/"):
+        raise ValueError("The mechanical target prim no longer matches its recorded snap target.")
 
     if current_target == previous_target.rstrip("/"):
-        return _strip_snap_metadata(text, current_target), ()
+        return (
+            _strip_snap_metadata(
+                text,
+                current_target,
+                connection.id,
+                tuple(authored_property_values),
+            ),
+            (),
+        )
 
     spans = _prim_spans(text)
     current_matches = [item for item in spans if item.path == current_target]
@@ -1247,7 +1394,11 @@ def _restore_mechanical_snap(
         raise ValueError(f"The original target prim path '{previous_target}' is already occupied.")
     current = current_matches[0]
     block_end = _line_end_after(text, current.close_brace + 1)
-    block = _strip_snap_block(text[current.start : block_end])
+    block = _strip_snap_block(
+        text[current.start : block_end],
+        connection.id,
+        tuple(authored_property_values),
+    )
     without_target = f"{text[: current.start]}{text[block_end:]}"
     parents = [
         item
@@ -1269,27 +1420,68 @@ def _restore_mechanical_snap(
     return changed, ((current_target, previous_target.rstrip("/")),)
 
 
-def _strip_snap_metadata(text: str, path: str) -> str:
+def _strip_snap_metadata(
+    text: str,
+    path: str,
+    connection_id: str,
+    authored_properties: tuple[str, ...],
+) -> str:
     spans = [item for item in _prim_spans(text) if item.path == path.rstrip("/")]
     if len(spans) != 1:
         raise ValueError("The mechanically attached target prim is not editable exactly once.")
     span = spans[0]
     end = _line_end_after(text, span.close_brace + 1)
-    block = _strip_snap_block(text[span.start : end])
+    block = _strip_snap_block(text[span.start : end], connection_id, authored_properties)
     return f"{text[: span.start]}{block}{text[end:]}"
 
 
-def _strip_snap_block(block: str) -> str:
-    generated = (
+def _strip_snap_block(
+    block: str,
+    connection_id: str,
+    authored_properties: tuple[str, ...],
+) -> str:
+    top_level = _top_level_prim_lines(block)
+    marker = f'custom string cellforge:mechanicalConnection = "{connection_id}"'
+    if top_level.count(marker) != 1:
+        raise ValueError("The mechanical target prim does not carry the recorded snap marker.")
+    if any(top_level.count(property_line) != 1 for property_line in authored_properties):
+        raise ValueError("The recorded mechanical transform property block was changed.")
+    generated_tokens = (
         "cellforge:mechanicalConnection",
-        "matrix4d xformOp:transform",
-        "uniform token[] xformOpOrder",
+        "xformOp:transform",
+        "xformOpOrder",
     )
+    if any(
+        any(token in line for token in generated_tokens) and line not in authored_properties
+        for line in top_level
+    ):
+        raise ValueError("The mechanical target prim contains an unrecorded snap property.")
     return "".join(
-        line
-        for line in block.splitlines(keepends=True)
-        if not any(token in line for token in generated)
+        line for line in block.splitlines(keepends=True) if line.strip() not in authored_properties
     )
+
+
+def _snap_metadata_properties(connection_id: str, transform: tuple[float, ...]) -> tuple[str, ...]:
+    rows = [transform[index : index + 4] for index in range(0, 16, 4)]
+    matrix = ", ".join("(" + ", ".join(f"{value:.12g}" for value in row) + ")" for row in rows)
+    return (
+        f'custom string cellforge:mechanicalConnection = "{connection_id}"',
+        f"matrix4d xformOp:transform = ({matrix})",
+        'uniform token[] xformOpOrder = ["xformOp:transform"]',
+    )
+
+
+def _top_level_prim_lines(block: str) -> tuple[str, ...]:
+    """Return direct prim-body lines without confusing nested component properties."""
+
+    depth = 0
+    lines: list[str] = []
+    for line in block.splitlines():
+        stripped = line.strip()
+        if stripped and depth == 1:
+            lines.append(stripped)
+        depth += line.count("{") - line.count("}")
+    return tuple(lines)
 
 
 def _author_snap_metadata(block: str, connection_id: str, transform: tuple[float, ...]) -> str:
@@ -1300,12 +1492,19 @@ def _author_snap_metadata(block: str, connection_id: str, transform: tuple[float
     opening_line = block[line_start:opening]
     base_indent = opening_line[: len(opening_line) - len(opening_line.lstrip())]
     indent = f"{base_indent}    "
-    rows = [transform[index : index + 4] for index in range(0, 16, 4)]
-    matrix = ", ".join("(" + ", ".join(f"{value:.12g}" for value in row) + ")" for row in rows)
-    metadata = (
-        f'\n{indent}custom string cellforge:mechanicalConnection = "{connection_id}"'
-        f"\n{indent}matrix4d xformOp:transform = ({matrix})"
-        f'\n{indent}uniform token[] xformOpOrder = ["xformOp:transform"]'
+    existing = _top_level_prim_lines(block)
+    if any(
+        "cellforge:mechanicalConnection" in line
+        or "xformOp:transform" in line
+        or "xformOpOrder" in line
+        for line in existing
+    ):
+        raise ValueError(
+            "The target component prim already declares transform or snap metadata; "
+            "mechanical snap editing is not safe without an authored property block."
+        )
+    metadata = "".join(
+        f"\n{indent}{line}" for line in _snap_metadata_properties(connection_id, transform)
     )
     return f"{block[: opening + 1]}{metadata}{block[opening + 1 :]}"
 

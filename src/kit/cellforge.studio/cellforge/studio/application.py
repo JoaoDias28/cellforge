@@ -201,7 +201,7 @@ class ConnectionPort:
     def endpoint_id(self) -> str:
         """Return the immutable endpoint identity used by the canvas."""
 
-        return f"{self.component_instance}:{self.port}"
+        return f"{self.kind}:{self.component_instance}:{self.port}"
 
     @property
     def component_instance_id(self) -> str:
@@ -240,13 +240,13 @@ class ConnectionEdge:
     def from_endpoint_id(self) -> str:
         """Return the immutable source endpoint identity."""
 
-        return f"{self.from_component}:{self.from_port}"
+        return f"{self.kind}:{self.from_component}:{self.from_port}"
 
     @property
     def to_endpoint_id(self) -> str:
         """Return the immutable target endpoint identity."""
 
-        return f"{self.to_component}:{self.to_port}"
+        return f"{self.kind}:{self.to_component}:{self.to_port}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,12 +271,13 @@ class ConnectionEndpointRef:
 
     component_instance_id: str
     port_id: str
+    kind: str = "unknown"
 
     @property
     def endpoint_id(self) -> str:
         """Return a stable endpoint key independent of display aliases."""
 
-        return f"{self.component_instance_id}:{self.port_id}"
+        return f"{self.kind}:{self.component_instance_id}:{self.port_id}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -1871,6 +1872,7 @@ class StudioApplication:
         self._record_edit(contents, project)
         self._working_contents = result.contents
         graph = self._connection_graph(Path(project.path), self._working_contents)
+        spatial = self._spatial_graph(Path(project.path), self._working_contents)
         connection_key = result.connection_id or result.edge.connection_id
         self._snapshot = replace(
             self._snapshot,
@@ -1885,6 +1887,7 @@ class StudioApplication:
                 if graph.canvas is not None
                 else self._snapshot.connection_layout
             ),
+            spatial_components=spatial.components,
             safety_disclaimer=graph.safety_disclaimer,
             mechanical_preview=result.preview,
             connection_preview=result.connection_preview,
@@ -1920,6 +1923,7 @@ class StudioApplication:
         self._record_edit(contents, project)
         self._working_contents = result.contents
         graph = self._connection_graph(Path(project.path), self._working_contents)
+        spatial = self._spatial_graph(Path(project.path), self._working_contents)
         self._snapshot = replace(
             self._snapshot,
             project=replace(project, connection_count=max(0, project.connection_count - 1)),
@@ -1933,6 +1937,7 @@ class StudioApplication:
                 if graph.canvas is not None
                 else self._snapshot.connection_layout
             ),
+            spatial_components=spatial.components,
             safety_disclaimer=graph.safety_disclaimer,
             mechanical_preview=None,
             connection_preview=None,

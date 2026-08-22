@@ -374,14 +374,19 @@ Task 042 exposes the connection canvas through the application-service commands
 industrial-I/O, and modeled-safety layers, and provide a searchable port palette, endpoint
 highlighting, deterministic edge IDs, layout positions, route points, findings, and candidate
 SHA-256 hashes. Canvas coordinates, aliases, selection, and routes are derived presentation
-metadata; component instance IDs and port IDs remain the only endpoint identity.
+metadata; canonical edges use component instance IDs, port IDs, and kind, while presentation
+endpoint keys include the layer so same-named ports cannot collide.
 
 Preview returns a no-write candidate. Mechanical staging changes the `cell.yaml` component prim,
 USD reparent, snap transform, and connection edge as one in-memory pair. Logical and industrial
 I/O staging changes only the operational graph. Explicit Save is still required and uses the
 existing transactional recovery journal, so a replacement failure restores both canonical files.
 Removal reverses only an unambiguous recorded mechanical reparent and reports a review warning for
-modeled-safety edges.
+modeled-safety edges. Existing mechanical edges are revalidated non-mutatively on browse and Save.
+Mechanical authoring refuses to overwrite pre-existing transform properties; removal requires the
+recorded source/target paths, exact authored property block, and matching `cellforge:mechanicalConnection`
+marker, otherwise it fails closed. Rendered ports and edges are selectable and populate the preview
+form without moving domain compatibility rules into UI callbacks.
 
 The safety layer is colored and labeled `MODELED SAFETY (NON-EXECUTABLE)`. Its optional
 `modeled_only: true` marker is schema-constrained to `kind: safety`; the canvas never turns a

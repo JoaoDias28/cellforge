@@ -82,8 +82,9 @@ ros_ws/src/cellforge_adapters_*
 - Git stores component package source, cell source, schemas, tasks, and code.
 - `cell.yaml` stores operational component instances and connection semantics.
 - USD stores spatial transforms, geometry composition, physics properties, and visual variants.
-- Studio connection-canvas coordinates, aliases, selections, and routes are derived presentation
-  metadata; they never replace immutable instance/port IDs or become a third operational source.
+- Studio connection-canvas coordinates, aliases, selections, routes, and layer-qualified endpoint
+  keys are derived presentation metadata; they never replace immutable instance/port IDs or become
+  a third operational source.
 - PostgreSQL stores indexes, approvals, jobs, traces, and immutable release metadata.
 - Deployment bundles contain frozen copies required for runtime.
 - The runtime never queries Git during execution.

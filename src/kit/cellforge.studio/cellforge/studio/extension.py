@@ -9,6 +9,8 @@ import omni.ui as ui
 from cellforge.studio.application import (
     BrowserComponent,
     ComponentFilters,
+    ConnectionEdge,
+    ConnectionPort,
     SpatialComponent,
     StudioApplication,
 )
@@ -66,6 +68,7 @@ class CellForgeStudioExtension(omni.ext.IExt):
         self._to_component_model = ui.SimpleStringModel("")
         self._to_port_model = ui.SimpleStringModel("")
         self._connection_query_model = ui.SimpleStringModel("")
+        self._selected_endpoint_id: str | None = None
         self._scenario_path_model = ui.SimpleStringModel("")
         self._simulation_project_path_model = ui.SimpleStringModel("")
         self._step_count_model = ui.SimpleIntModel(1)
@@ -409,8 +412,56 @@ class CellForgeStudioExtension(omni.ext.IExt):
 
     def _on_validate_connections(self) -> None:
         if self._application is not None:
-            self._application.validate_cell_connections(self._connection_query_model.as_string)
+            self._application.validate_cell_connections(
+                self._connection_query_model.as_string,
+                selected_endpoint_id=self._selected_endpoint_id,
+            )
             self._render_all()
+
+    def _on_select_endpoint(self, port: ConnectionPort) -> None:
+        """Bind a rendered DTO endpoint to the preview/stage form without adding domain rules."""
+
+        application = self._application
+        if application is None:
+            return
+        self._selected_endpoint_id = port.endpoint_id
+        self._connection_kind_model.set_value(port.kind)
+        if port.direction == "input":
+            self._to_component_model.set_value(port.component_instance)
+            self._to_port_model.set_value(port.port)
+        elif port.direction == "output":
+            self._from_component_model.set_value(port.component_instance)
+            self._from_port_model.set_value(port.port)
+        elif not self._from_component_model.as_string:
+            self._from_component_model.set_value(port.component_instance)
+            self._from_port_model.set_value(port.port)
+        else:
+            self._to_component_model.set_value(port.component_instance)
+            self._to_port_model.set_value(port.port)
+        application.validate_cell_connections(
+            self._connection_query_model.as_string,
+            selected_endpoint_id=self._selected_endpoint_id,
+        )
+        self._render_all()
+
+    def _on_select_edge(self, edge: ConnectionEdge) -> None:
+        """Bind a rendered DTO edge to all connection form fields."""
+
+        application = self._application
+        if application is None:
+            return
+        self._selected_endpoint_id = edge.from_endpoint_id
+        self._connection_id_model.set_value(edge.connection_id)
+        self._connection_kind_model.set_value(edge.kind)
+        self._from_component_model.set_value(edge.from_component)
+        self._from_port_model.set_value(edge.from_port)
+        self._to_component_model.set_value(edge.to_component)
+        self._to_port_model.set_value(edge.to_port)
+        application.validate_cell_connections(
+            self._connection_query_model.as_string,
+            selected_endpoint_id=self._selected_endpoint_id,
+        )
+        self._render_all()
 
     def _on_preview_mechanical_connection(self) -> None:
         if self._application is not None:
@@ -996,20 +1047,20 @@ class CellForgeStudioExtension(omni.ext.IExt):
                                     else " "
                                 )
                                 x, y = positions.get(port.endpoint_id, (0.0, 0.0))
-                                ui.Label(
+                                ui.Button(
                                     f"{marker} {port.component_alias} "
                                     f"[{port.component_instance}] / "
                                     f"{port.port} {port.direction} : {port.port_type} "
                                     f"@ ({x:g}, {y:g})",
-                                    word_wrap=True,
+                                    clicked_fn=lambda port=port: self._on_select_endpoint(port),
                                     style=style,
                                 )
                             for edge in layer.edges:
                                 marker = "MODELED-ONLY SAFETY" if edge.modeled_only else edge.kind
-                                ui.Label(
+                                ui.Button(
                                     f"{marker}: {edge.edge_id} | "
                                     f"{edge.from_endpoint_id} -> {edge.to_endpoint_id}",
-                                    word_wrap=True,
+                                    clicked_fn=lambda edge=edge: self._on_select_edge(edge),
                                     style=style,
                                 )
                     else:
@@ -1020,11 +1071,11 @@ class CellForgeStudioExtension(omni.ext.IExt):
                             for port in (
                                 item for item in snapshot.connection_ports if item.kind == kind
                             ):
-                                ui.Label(
+                                ui.Button(
                                     f"{port.component_alias} [{port.component_instance}] / "
                                     f"{port.port} "
                                     f"{port.direction} : {port.port_type}",
-                                    word_wrap=True,
+                                    clicked_fn=lambda port=port: self._on_select_endpoint(port),
                                     style=style,
                                 )
                     ui.Separator(height=8)

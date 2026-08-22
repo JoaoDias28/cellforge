@@ -424,6 +424,7 @@ class ProjectCommandService:
         )
         project_findings = (
             *project_findings,
+            *self._connections.ValidateCellConnectionsForSave(root, contents),
             *self._spatial.validate_calibrations(root, contents),
             *self._tasks.browse(root, contents).validation,
             *self._recipes.browse(root, contents).validation,

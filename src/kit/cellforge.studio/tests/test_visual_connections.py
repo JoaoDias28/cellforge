@@ -12,6 +12,7 @@ import yaml
 from cellforge.studio.application import (
     ConnectionLayoutEntry,
     ConnectionLayoutMetadata,
+    ConnectionPort,
     ProjectContents,
     StudioApplication,
 )
@@ -91,7 +92,7 @@ def _canonical_pair(project: Path) -> tuple[bytes, bytes]:
 def test_canvas_layers_search_highlight_and_layout_use_dto_identity(tmp_path: Path) -> None:
     project = _project_copy(tmp_path)
     service = ConnectionAuthoringService(SCHEMAS)
-    endpoint = "robot-001:tool_flange"
+    endpoint = "mechanical:robot-001:tool_flange"
     layout = ConnectionLayoutMetadata(
         entries=(ConnectionLayoutEntry(endpoint_id=endpoint, x=77.0, y=88.0),),
         selected_endpoint_id=endpoint,
@@ -122,9 +123,35 @@ def test_canvas_layers_search_highlight_and_layout_use_dto_identity(tmp_path: Pa
         deterministic_connection_id(
             "software", "laser-001", "cycle_state", "camera-001", "process_state"
         )
-        == "software-laser-001-cycle_state-camera-001-process_state"
+        == "software-1f2775da93fb407c830957267fb52f9430d6dbc5c19ac60f1ea553b3734b61fd"
     )
     assert all(edge.edge_id == edge.connection_id for edge in result.edges)
+    assert deterministic_connection_id("software", "a-b", "c", "d", "e") != (
+        deterministic_connection_id("software", "a", "b-c", "d", "e")
+    )
+    mechanical_port = ConnectionPort(
+        component_instance="shared",
+        component_alias="shared",
+        kind="mechanical",
+        port="same-port",
+        direction="output",
+        port_type="same",
+        frame=None,
+        required=False,
+        modeled_only=False,
+    )
+    software_port = ConnectionPort(
+        component_instance="shared",
+        component_alias="shared",
+        kind="software",
+        port="same-port",
+        direction="output",
+        port_type="same",
+        frame=None,
+        required=False,
+        modeled_only=False,
+    )
+    assert mechanical_port.endpoint_id != software_port.endpoint_id
 
     aliases_changed = _contents(project).cell_yaml.replace("alias: robot", "alias: renamed-robot")
     renamed = service.ValidateCellConnections(
@@ -232,6 +259,13 @@ def test_preview_stage_save_remove_and_reopen_preserve_mechanical_pair(tmp_path:
         == "/World/Gripper"
     )
     assert "cellforge:mechanicalConnection" not in removed.contents.scene_usda
+    original_transform_lines = [
+        line.strip() for line in original.scene_usda.splitlines() if "xformOp:" in line
+    ]
+    removed_transform_lines = [
+        line.strip() for line in removed.contents.scene_usda.splitlines() if "xformOp:" in line
+    ]
+    assert removed_transform_lines == original_transform_lines
 
 
 def test_logical_io_and_safety_layers_have_distinct_persistence_semantics(tmp_path: Path) -> None:
@@ -409,6 +443,263 @@ def test_invalid_direction_capability_duplicate_and_spatial_inputs_fail_closed(
     assert singular.contents is None
     assert singular.validation, singular
     assert singular.validation[0].code == "studio.mechanical-snap-transform-invalid"
+
+
+def test_duplicate_endpoint_tuples_are_rejected_in_every_typed_layer(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    service = ConnectionAuthoringService(SCHEMAS)
+    contents = _without_connections(
+        _contents(project),
+        "mechanical-robot-gripper",
+        "safety-laser-permission",
+        "safety-robot-permission",
+    )
+    for kind, source, source_port, target, target_port in (
+        ("mechanical", "robot-001", "tool_flange", "gripper-001", "robot_mount"),
+        ("software", "laser-001", "cycle_state", "camera-001", "process_state"),
+        ("industrial_io", "fixture-001", "seated", "laser-001", "cycle_start"),
+        (
+            "safety",
+            "safety-status-001",
+            "laser_emission_permitted",
+            "laser-001",
+            "laser_emission_permitted",
+        ),
+    ):
+        staged = service.StageCellConnection(
+            project,
+            contents,
+            kind=kind,
+            from_component=source,
+            from_port=source_port,
+            to_component=target,
+            to_port=target_port,
+        )
+        assert staged.contents is not None, staged.validation
+        contents = staged.contents
+
+    cell = yaml.safe_load(contents.cell_yaml)
+    original_connections = list(cell["connections"])
+    for connection in original_connections:
+        duplicate = dict(connection)
+        duplicate["id"] = f"{connection['id']}-different-id"
+        cell["connections"].append(duplicate)
+    duplicated = ProjectContents(
+        cell_yaml=yaml.safe_dump(cell, sort_keys=False),
+        scene_usda=contents.scene_usda,
+    )
+
+    result = service.ValidateCellConnections(project, duplicated)
+    endpoint_findings = [
+        item for item in result.validation if item.code == "resolver.duplicate-connection-endpoints"
+    ]
+    assert len(endpoint_findings) == 8
+    reported_kinds = {
+        kind
+        for item in endpoint_findings
+        for kind in ("mechanical", "software", "industrial_io", "safety")
+        if f"({kind}," in item.message
+    }
+    assert reported_kinds == {"mechanical", "software", "industrial_io", "safety"}
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_code"),
+    (
+        ("missing-frame", "studio.mechanical-frame-missing"),
+        ("invalid-transform", "studio.mechanical-snap-transform-invalid"),
+        ("missing-prim", "studio.mechanical-snap-failed"),
+        ("collision", "studio.mechanical-collision-asset-missing"),
+        ("payload", "studio.mechanical-payload-exceeded"),
+    ),
+)
+def test_validate_existing_mechanical_edges_checks_all_spatial_metadata(
+    tmp_path: Path, case: str, expected_code: str
+) -> None:
+    case_root = tmp_path / case
+    case_root.mkdir()
+    project = _project_copy(case_root)
+    cell = yaml.safe_load((project / "cell.yaml").read_text(encoding="utf-8"))
+    if case == "missing-prim":
+        next(item for item in cell["components"] if item["id"] == "gripper-001")["usd_prim"] = (
+            "/World/Missing"
+        )
+        (project / "cell.yaml").write_text(
+            yaml.safe_dump(cell, sort_keys=False), encoding="utf-8", newline="\n"
+        )
+    else:
+        robot_path = project / "components" / "robot" / "component.yaml"
+        robot = yaml.safe_load(robot_path.read_text(encoding="utf-8"))
+        robot_port = robot["ports"]["mechanical"][0]
+        if case == "missing-frame":
+            robot_port["frame"] = "missing-frame"
+        elif case == "invalid-transform":
+            robot_port["metadata"]["snap_transform"] = [0] * 16
+        elif case == "collision":
+            robot["assets"]["collision_usd"] = "assets/missing_collision.usd"
+        else:
+            robot_port["metadata"]["payload_kg"] = 2
+            gripper_path = project / "components" / "gripper" / "component.yaml"
+            gripper = yaml.safe_load(gripper_path.read_text(encoding="utf-8"))
+            gripper["ports"]["mechanical"][0]["metadata"]["max_payload_kg"] = 1
+            gripper_path.write_text(
+                yaml.safe_dump(gripper, sort_keys=False), encoding="utf-8", newline="\n"
+            )
+        robot_path.write_text(
+            yaml.safe_dump(robot, sort_keys=False), encoding="utf-8", newline="\n"
+        )
+
+    result = ConnectionAuthoringService(SCHEMAS).ValidateCellConnections(
+        project, _contents(project)
+    )
+    assert expected_code in {item.code for item in result.validation}
+
+
+def test_mechanical_removal_requires_exact_recorded_target_and_marker(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    service = ConnectionAuthoringService(SCHEMAS)
+    staged = service.StageCellConnection(
+        project,
+        _detached_gripper(_contents(project)),
+        kind="mechanical",
+        from_component="robot-001",
+        from_port="tool_flange",
+        to_component="gripper-001",
+        to_port="robot_mount",
+    )
+    assert staged.contents is not None and staged.connection_id is not None
+    edge_id = staged.connection_id
+    cell = yaml.safe_load(staged.contents.cell_yaml)
+    record = next(item for item in cell["connections"] if item["id"] == edge_id)
+    record["config"]["_cellforge_spatial"]["snapped_target_prim"] = "/World/Robot/Other"
+    tampered_target = ProjectContents(
+        cell_yaml=yaml.safe_dump(cell, sort_keys=False),
+        scene_usda=staged.contents.scene_usda,
+    )
+    rejected_target = service.RemoveCellConnection(project, tampered_target, connection_id=edge_id)
+    assert [item.code for item in rejected_target.validation] == [
+        "studio.mechanical-removal-not-reversible"
+    ]
+
+    marker_tampered = staged.contents.scene_usda.replace(
+        f'cellforge:mechanicalConnection = "{edge_id}"',
+        'cellforge:mechanicalConnection = "another-edge"',
+    )
+    rejected_marker = service.RemoveCellConnection(
+        project,
+        ProjectContents(staged.contents.cell_yaml, marker_tampered),
+        connection_id=edge_id,
+    )
+    assert [item.code for item in rejected_marker.validation] == [
+        "studio.mechanical-removal-not-reversible"
+    ]
+
+    unrecorded = yaml.safe_load(staged.contents.cell_yaml)
+    unrecorded_record = next(item for item in unrecorded["connections"] if item["id"] == edge_id)
+    del unrecorded_record["config"]["_cellforge_spatial"]
+    rejected_unrecorded = service.RemoveCellConnection(
+        project,
+        ProjectContents(yaml.safe_dump(unrecorded, sort_keys=False), staged.contents.scene_usda),
+        connection_id=edge_id,
+    )
+    assert [item.code for item in rejected_unrecorded.validation] == [
+        "studio.mechanical-removal-not-reversible"
+    ]
+
+
+def test_preexisting_transform_properties_fail_closed_without_mutation(tmp_path: Path) -> None:
+    project = _project_copy(tmp_path)
+    service = ConnectionAuthoringService(SCHEMAS)
+    original = _detached_gripper(_contents(project))
+    before = _canonical_pair(project)
+    scene = original.scene_usda.replace(
+        '        custom string cellforge:instanceId = "gripper-001"\n',
+        "        matrix4d xformOp:transform = ((1, 0, 0, 0), (0, 1, 0, 0), "
+        "(0, 0, 1, 0), (0, 0, 0, 1))\n"
+        '        uniform token[] xformOpOrder = ["xformOp:transform"]\n'
+        '        custom string cellforge:instanceId = "gripper-001"\n',
+    )
+    candidate = ProjectContents(original.cell_yaml, scene)
+    preview = service.PreviewCellConnection(
+        project,
+        candidate,
+        kind="mechanical",
+        from_component="robot-001",
+        from_port="tool_flange",
+        to_component="gripper-001",
+        to_port="robot_mount",
+    )
+    assert preview.contents is None
+    assert [item.code for item in preview.validation] == ["studio.mechanical-snap-failed"]
+    assert _canonical_pair(project) == before
+
+
+def test_save_rejects_modeled_only_config_on_executable_edge_and_preserves_hashes(
+    tmp_path: Path,
+) -> None:
+    project = _project_copy(tmp_path)
+    service = ConnectionAuthoringService(SCHEMAS)
+    staged = service.StageCellConnection(
+        project,
+        _contents(project),
+        kind="software",
+        from_component="laser-001",
+        from_port="cycle_state",
+        to_component="camera-001",
+        to_port="process_state",
+    )
+    assert staged.contents is not None
+    cell = yaml.safe_load(staged.contents.cell_yaml)
+    software = next(item for item in cell["connections"] if item["kind"] == "software")
+    software.setdefault("config", {})["modeled_only"] = True
+    invalid = ProjectContents(yaml.safe_dump(cell, sort_keys=False), staged.contents.scene_usda)
+    before = _canonical_pair(project)
+    result = ProjectCommandService(SCHEMAS).save(project, invalid)
+    assert result.project is None
+    assert "studio.connection-safety-kind-mismatch" in {item.code for item in result.validation}
+    assert _canonical_pair(project) == before
+
+
+def test_application_refreshes_spatial_paths_after_connection_stage_remove_and_undo(
+    tmp_path: Path,
+) -> None:
+    project = _project_copy(tmp_path)
+    application = StudioApplication(ProjectCommandService(SCHEMAS))
+    assert application.open_project(project).project is not None
+    detached = _detached_gripper(_contents(project))
+    application.edit_cell_yaml(detached.cell_yaml)
+    application.edit_scene_usda(detached.scene_usda)
+    staged = application.stage_cell_connection(
+        "mechanical",
+        "robot-001",
+        "tool_flange",
+        "gripper-001",
+        "robot_mount",
+    )
+    assert staged.spatial_components
+    assert (
+        next(
+            item.usd_prim for item in staged.spatial_components if item.instance_id == "gripper-001"
+        )
+        == "/World/Robot/Gripper"
+    )
+    edge_id = next(edge.edge_id for edge in staged.connection_edges if edge.kind == "mechanical")
+    removed = application.remove_cell_connection(edge_id)
+    assert (
+        next(
+            item.usd_prim
+            for item in removed.spatial_components
+            if item.instance_id == "gripper-001"
+        )
+        == "/World/Gripper"
+    )
+    undone = application.undo()
+    assert (
+        next(
+            item.usd_prim for item in undone.spatial_components if item.instance_id == "gripper-001"
+        )
+        == "/World/Robot/Gripper"
+    )
 
 
 def test_application_preview_stage_undo_redo_remove_and_save_failure_are_transactional(

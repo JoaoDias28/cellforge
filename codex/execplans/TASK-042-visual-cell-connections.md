@@ -59,14 +59,24 @@ Mechanical staging records enough reversible spatial metadata to restore a detac
 mechanical edge is removed. Generated transforms are accepted only for unique finite affine snap
 matrices; generated prim paths require unique editable source/target prims and no existing target
 path. Existing Task 028 paired spatial validation is reused, and missing/singular/uneditable data
-fails closed. Collision assets are checked from registered manifests; optional payload metadata is
-validated without inventing a payload limit.
+fails closed. Existing mechanical edges are revalidated non-mutatingly during browse/Validate and
+through the Save gate. Snap edits record the exact authored property lines and marker; removal
+refuses mutable-path drift, missing markers, unrecorded edits, and pre-existing direct transform
+properties rather than inferring or overwriting them. Collision assets are checked from registered
+manifests; optional payload metadata is validated without inventing a payload limit.
 
 Logical and industrial-I/O stages append only an operational connection and preserve the exact USD
 buffer. Safety stages accept only the safety layer, persist `modeled_only: true` plus the existing
 external-rated-hardware review marker, are visibly distinct, and always expose
 `executable=False`. No connection, modeled status, validation result, or simulation fidelity label
 can authorize physical operation or replace rated safety hardware.
+
+Generated edge IDs are SHA-256 digests of an unambiguous canonical JSON tuple containing the layer
+and both component/port endpoints; endpoint presentation IDs likewise include the typed layer.
+Duplicate endpoint tuples are rejected in the shared resolver, including duplicates whose edge IDs
+differ. Save projects only the confirmed Task 042 blockers (duplicate IDs/endpoints, safety policy,
+and mechanical findings) so unrelated existing resolver diagnostics remain diagnostics rather than
+introducing a new Save policy outside this task.
 
 ## Work sequence
 
@@ -85,8 +95,15 @@ can authorize physical operation or replace rated safety hardware.
    Make target, and transaction/reopen/hash tests. Acceptance: canonical examples remain valid,
    Save failure leaves both files unchanged, and the real Kit OpenUSD probe runs when available.
 5. [x] 2026-08-22 — Run all required and focused checks, inspect the complete diff, commit only Task 042,
-   push, open ready PR #41, and wait for green checks. The clean green PR checkpoint is ready for the
-   parent controller's separate read-only Luna Max audit; do not merge in this phase.
+   push, open ready PR #41, and wait for green checks. The clean green PR checkpoint was audited by
+   Luna Max and returned FIX_FIRST; merge remains prohibited until the corrected head receives the
+   parent controller's separate follow-up read-only audit.
+6. [x] 2026-08-22 — Resolve the nine confirmed audit findings within Task 042: hash-based edge identity,
+   shared duplicate endpoint rejection, existing-edge mechanical validation through Save, exact
+   marker/property-aware reversible USD edits, Save-time safety-mode enforcement, layer-qualified
+   presentation IDs, derived spatial refresh after stage/remove/undo, and interactive Kit endpoint/
+   edge selection. Add focused regressions and rerun all applicable checks; stop again unmerged at
+   a clean, green, mergeable audit checkpoint.
 
 ## Validation
 
@@ -116,12 +133,14 @@ unavailable, with the exact attempted command, when Kit/OpenUSD is absent. Verif
 canonical YAML/USD identity before and after Save, byte/hash preservation on preview and injected
 transaction failure, deterministic reopen, and the clean working tree/PR check state.
 
-Observed check results on 2026-08-22: the Task 042 focused suite passed after the final hash and
-warning assertions, the non-Kit probe passed, legacy connection/spatial suites and probes passed,
-the full repository suite passed 507 tests with 2 documented skips, Ruff format/check passed,
-full mypy passed for 144 files, Studio mypy passed for 32 files, example validation passed 59
-documents, and `git diff --check` passed. The spatial suite was rerun serially after a parallel
-run raced on pytest's shared default temporary directory; the serial run passed 21 tests.
+Observed check results on 2026-08-22: the audit-fix focused visual/extension suite passed 22 tests;
+the focused connection/application/visual suite passed 30; the Studio suite passed 138 tests;
+the domain suite passed 52; the serial full repository suite passed 518 tests with 2 documented
+skips and 1 existing warning; the non-Kit visual probe, legacy connection/spatial suites and probes
+passed; Ruff format/check passed; full mypy passed for 144 files; Studio mypy passed for 32 files;
+example validation passed 59 documents; and `git diff --check` passed. The full suite was rerun
+serially with a task-scoped pytest base directory after an earlier parallel diagnostic raced on
+pytest's shared temporary directory.
 
 The exact Kit command attempted twice was:
 
@@ -159,6 +178,14 @@ remain accepted.
   `codex/task-042-visual-cell-connections`, opened ready PR #41, and received green Python 3.12
   and ROS 2 Jazzy checks. The audit base is the clean, mergeable head
   `b76bdf2e3546096ee3b2c84d6d9bbbda4194e2de`; merge remains intentionally paused.
+- [x] 2026-08-22 — Luna Max's separate read-only audit of PR #41 at `d6f1451` returned FIX_FIRST
+  with nine confirmed findings. Implemented all nine scoped corrections and added regressions for
+  hyphenated-ID collisions, typed-layer duplicate endpoints, existing mechanical validation,
+  fail-closed removal, transform/property round trips, Save hash preservation, stale spatial DTOs,
+  and Kit endpoint selection. No Task 043 work was started.
+- [ ] 2026-08-22 — Publish the audit-fix commit(s), wait for final-head CI, and append the exact
+  corrected head/commit/checkpoint details here before stopping for the parent controller's
+  follow-up Luna Max audit.
 
 ## Decisions
 
@@ -174,10 +201,20 @@ remain accepted.
 - 2026-08-22 — Optional JSON Schema `const` values are materialized only for required fields;
   optional constants remain constraints so conditional modeled-safety metadata cannot leak into
   unrelated connection rows.
+- 2026-08-22 — Canonical edge identity uses a full SHA-256 digest of the JSON tuple rather than a
+  delimiter encoding; endpoint tuple duplicates are rejected in the domain resolver across all four
+  layers. Presentation keys may qualify the typed layer without changing canonical cell IDs.
+- 2026-08-22 — Mechanical removal is fail-closed: only the recorded source, snapped target, marker,
+  and exact authored property lines may be restored. Pre-existing direct transform properties are
+  not overwritten, and unrecorded/mutated USDA edits are not inferred.
+- 2026-08-22 — `ValidateCellConnectionsForSave` projects only confirmed Task 042 Save blockers into
+  the existing transaction boundary, enforcing modeled-only safety policy and mechanical integrity
+  without changing unrelated Task 005 resolver diagnostics into new Save failures.
 
 ## Results
 
-Implementation and local validation are complete. PR #41 is open, ready (not draft), mergeable, and
-clean at `b76bdf2e3546096ee3b2c84d6d9bbbda4194e2de`; required GitHub checks are both passing:
-Python 3.12 validation and ROS 2 Jazzy build and test. The branch is intentionally paused here for
-the parent-controller's separate read-only Luna Max audit and has not been merged.
+The initial implementation was published at `b76bdf2` and audited at checkpoint `d6f1451`; that
+audit returned FIX_FIRST. All nine confirmed findings are now addressed locally and the focused,
+full, static, example, legacy, and non-Kit probe checks pass. The corrected task commit, final-head
+CI results, and clean mergeable PR state will be appended after publication. The PR must remain
+unmerged while the parent controller obtains the mandated follow-up Luna Max audit.
