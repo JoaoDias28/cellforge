@@ -127,7 +127,9 @@ schema introduces no Runtime migration.
 - [x] 2026-08-22 — Created this ExecPlan before implementation.
 - [x] 2026-08-22 — Implement readiness report/schema and delegated check inventory.
 - [x] 2026-08-22 — Implement no-write remediation preview and transactional explicit Save.
-- [x] 2026-08-22 — Add presentation/probe/docs and complete validation; publication and merge remain.
+- [x] 2026-08-22 — Add presentation/probe/docs and complete local validation/publication.
+- [x] 2026-08-22 — Opened ready PR #38; Python 3.12 validation and ROS 2 Jazzy build/test passed.
+- [ ] 2026-08-22 — Merge PR #38 and verify remote-main ancestry.
 
 ## Decisions
 
@@ -180,3 +182,6 @@ Validation completed on 2026-08-22:
   source files changed, so ROS build/test were not applicable.
 - `git diff --check` passed after excluding the generated qualification report. The complete
   implementation diff is ready for task-scoped staging and publication.
+- PR #38 (`https://github.com/JoaoDias28/cellforge/pull/38`) is ready for review and currently
+  reports both required GitHub checks passing; merge and remote-main verification remain the only
+  unfinished lifecycle steps.
