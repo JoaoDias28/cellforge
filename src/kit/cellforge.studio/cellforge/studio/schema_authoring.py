@@ -1882,7 +1882,10 @@ def _default_for(
             return _MISSING
     if "default" in schema:
         return _clone_json(schema["default"])
-    if "const" in schema:
+    # An optional const is a constraint, not an implicit value.  Materializing
+    # it would change an otherwise valid document and is especially dangerous
+    # for conditional metadata such as cell connection safety markers.
+    if required and "const" in schema:
         return _clone_json(schema["const"])
     enum = schema.get("enum")
     if isinstance(enum, list) and len(enum) == 1:

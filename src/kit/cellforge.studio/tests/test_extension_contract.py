@@ -119,6 +119,17 @@ def test_safety_connections_have_distinct_non_executable_presentation() -> None:
     assert "Modeled safety dependencies are never executable wiring." in source
 
 
+def test_connection_canvas_binds_ports_and_edges_to_selection_workflow() -> None:
+    source = (EXTENSION_ROOT / "cellforge" / "studio" / "extension.py").read_text(encoding="utf-8")
+
+    assert "_selected_endpoint_id" in source
+    assert "_on_select_endpoint" in source
+    assert "_on_select_edge" in source
+    assert "clicked_fn=lambda port=port: self._on_select_endpoint(port)" in source
+    assert "clicked_fn=lambda edge=edge: self._on_select_edge(edge)" in source
+    assert "selected_endpoint_id=self._selected_endpoint_id" in source
+
+
 def test_simulation_host_spins_ros_from_kit_update_stream() -> None:
     source = (EXTENSION_ROOT / "cellforge" / "studio" / "simulation_host.py").read_text(
         encoding="utf-8"

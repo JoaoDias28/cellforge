@@ -182,7 +182,10 @@ def test_incompatible_or_duplicate_connection_is_rejected_without_mutation(
     assert incompatible.contents is None
     assert [item.code for item in incompatible.validation] == ["resolver.port-missing"]
     assert duplicate.contents is None
-    assert [item.code for item in duplicate.validation] == ["resolver.duplicate-connection-id"]
+    assert set(item.code for item in duplicate.validation) == {
+        "resolver.duplicate-connection-id",
+        "resolver.duplicate-connection-endpoints",
+    }
     assert original == _contents(project)
 
 

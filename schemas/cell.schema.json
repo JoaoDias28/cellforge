@@ -320,8 +320,33 @@
         },
         "config": {
           "type": "object"
+        },
+        "modeled_only": {
+          "const": true,
+          "x-cellforge": {
+            "label": "Modeled-only safety metadata",
+            "group": "Safety review",
+            "order": 20,
+            "advanced": true
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "modeled_only"
+            ]
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": "safety"
+              }
+            }
+          }
+        }
+      ]
     },
     "endpoint": {
       "type": "object",

@@ -44,6 +44,12 @@ Declare direction, logical type, electrical/protocol constraints, normal state, 
 
 Declare required safety status or rated-output dependencies for review and validation. These are not ordinary executable connections.
 
+Connections use immutable component instance IDs, declared port IDs, and an explicit connection kind
+as canonical endpoints. A generated edge ID is a full digest of that unambiguous tuple; aliases and
+visual graph layout never participate in identity. A safety connection may carry the optional
+`modeled_only: true` marker, but that marker is descriptive review metadata and cannot authorize a
+physical process or replace rated safety hardware.
+
 ## 4. Frames
 
 Every component may declare frames:

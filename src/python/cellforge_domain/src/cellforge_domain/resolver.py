@@ -295,6 +295,17 @@ def _resolve_connections(
     findings: list[ValidationFinding] = []
     instance_ids = {instance.id for instance in cell.components}
     duplicate_ids = _duplicates(connection.id for connection in cell.connections)
+    endpoint_tuples = [
+        (
+            connection.kind.value,
+            connection.from_.component,
+            connection.from_.port,
+            connection.to.component,
+            connection.to.port,
+        )
+        for connection in cell.connections
+    ]
+    duplicate_endpoint_tuples = _duplicates(endpoint_tuples)
 
     for original_index, connection in sorted(
         enumerate(cell.connections), key=lambda item: (item[1].id, item[0])
@@ -306,6 +317,27 @@ def _resolve_connections(
                     "resolver.duplicate-connection-id",
                     f"{connection_path}/id",
                     f"Connection ID '{connection.id}' is not unique within the cell.",
+                )
+            )
+        endpoint_tuple = (
+            connection.kind.value,
+            connection.from_.component,
+            connection.from_.port,
+            connection.to.component,
+            connection.to.port,
+        )
+        if endpoint_tuple in duplicate_endpoint_tuples:
+            findings.append(
+                _finding(
+                    "resolver.duplicate-connection-endpoints",
+                    f"{connection_path}/from",
+                    (
+                        "Connection endpoint tuple "
+                        f"({connection.kind.value}, "
+                        f"{connection.from_.component}:{connection.from_.port}, "
+                        f"{connection.to.component}:{connection.to.port}) is not unique "
+                        "within the cell."
+                    ),
                 )
             )
 
@@ -544,9 +576,9 @@ def _resolve_capabilities(
     return resolved, edges, findings
 
 
-def _duplicates(values: Iterable[str]) -> set[str]:
-    seen: set[str] = set()
-    duplicates: set[str] = set()
+def _duplicates[T](values: Iterable[T]) -> set[T]:
+    seen: set[T] = set()
+    duplicates: set[T] = set()
     for value in values:
         if value in seen:
             duplicates.add(value)
