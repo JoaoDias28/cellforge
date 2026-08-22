@@ -23,8 +23,13 @@ FIXTURE_ROOT = REPOSITORY_ROOT / "tests" / "fixtures" / "validation"
 
 def test_registry_loads_every_canonical_schema_by_kind_and_version() -> None:
     registry = SchemaRegistry.from_directory(SCHEMA_ROOT)
+    canonical_schema_paths = tuple(
+        path
+        for path in SCHEMA_ROOT.glob("*.json")
+        if path.name != "studio_project_preview.schema.json"
+    )
 
-    assert len(registry) == len(tuple(SCHEMA_ROOT.glob("*.json"))) == 10
+    assert len(registry) == len(canonical_schema_paths) == 10
     assert SchemaKey(SchemaDocumentKind.RECIPE, "0.1.0") in registry.keys
     assert (
         registry.get(SchemaDocumentKind.CELL, "0.1.0").path

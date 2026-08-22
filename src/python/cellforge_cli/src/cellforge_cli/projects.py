@@ -24,6 +24,8 @@ from cellforge_domain.example_validation import (
 
 from cellforge_cli.exit_codes import ExitCode
 
+_AUXILIARY_SCHEMA_FILENAMES = frozenset({"studio_project_preview.schema.json"})
+
 
 class ProjectOperationError(Exception):
     """A sanitized, stable filesystem failure suitable for CLI output."""
@@ -106,8 +108,16 @@ def resolve_project_schema_directory(project: str | Path, canonical_schemas: str
     if not (project_schemas / "cell.schema.json").is_file():
         return canonical_directory
 
-    expected_names = {path.name for path in canonical_directory.glob("*.json")}
-    actual_names = {path.name for path in project_schemas.glob("*.json")}
+    expected_names = {
+        path.name
+        for path in canonical_directory.glob("*.json")
+        if path.name not in _AUXILIARY_SCHEMA_FILENAMES
+    }
+    actual_names = {
+        path.name
+        for path in project_schemas.glob("*.json")
+        if path.name not in _AUXILIARY_SCHEMA_FILENAMES
+    }
     if actual_names != expected_names:
         raise ProjectOperationError(
             exit_code=ExitCode.VALIDATION_FAILED,

@@ -22,6 +22,11 @@ if TYPE_CHECKING:
         SignatureVerificationResult,
         TargetCompatibilityResult,
     )
+    from cellforge.studio.guided_launcher import (
+        CreateProjectRequest,
+        GuidedProjectService,
+        ProjectPreview,
+    )
     from cellforge.studio.recipe_service import (
         RecipeBrowserResult,
         RecipeDetail,
@@ -609,6 +614,7 @@ class StudioSnapshot:
     validation: tuple[ValidationItem, ...] = ()
     logs: tuple[LogEntry, ...] = ()
     dirty: bool = False
+    guided_preview: ProjectPreview | None = None
     browser: tuple[BrowserComponent, ...] = ()
     spatial_components: tuple[SpatialComponent, ...] = ()
     connection_ports: tuple[ConnectionPort, ...] = ()
@@ -660,8 +666,10 @@ class StudioApplication:
         backend: ProjectBackend | None,
         *,
         backend_unavailable_message: str = "CellForge project services are unavailable.",
+        guided_service: GuidedProjectService | None = None,
     ) -> None:
         self._backend = backend
+        self._guided_service = guided_service
         if backend is None:
             self._snapshot = StudioSnapshot(
                 status=StudioStatus.BACKEND_UNAVAILABLE,
@@ -791,6 +799,216 @@ class StudioApplication:
         self.refresh_components()
         self.refresh_spatial()
         return self.refresh_connections()
+
+    def create_guided_project(self, request: CreateProjectRequest) -> StudioSnapshot:
+        """Stage a deterministic guided project preview without writing project files."""
+
+        if self._guided_service is None:
+            return self._operation_failure(
+                "Guided project preview",
+                RuntimeError("Guided Studio service is unavailable."),
+                preserve_project=True,
+            )
+        try:
+            preview = self._guided_service.CreateProject(request)
+        except Exception as error:
+            return self._operation_failure("Guided project preview", error, preserve_project=True)
+        self._snapshot = replace(
+            self._snapshot,
+            guided_preview=preview,
+            status=(
+                StudioStatus.PROJECT_INVALID if not preview.can_save else StudioStatus.NO_PROJECT
+            ),
+            headline="Guided project preview",
+            detail=(
+                f"Previewed {len(preview.generated_paths)} generated file(s); "
+                + (
+                    "Save is available after confirmation."
+                    if preview.can_save
+                    else "Save is blocked."
+                )
+            ),
+            validation=tuple(_guided_validation_item(item) for item in preview.findings),
+            dirty=self._snapshot.dirty,
+            logs=self._append_log(
+                LogLevel.INFO if preview.can_save else LogLevel.WARNING,
+                f"Guided preview {preview.draft_id} created without filesystem writes.",
+            ),
+        )
+        return self._snapshot
+
+    def preview_guided_project(self, draft: str | ProjectPreview) -> StudioSnapshot:
+        """Refresh a guided draft preview without mutating canonical source."""
+
+        if self._guided_service is None:
+            return self._operation_failure(
+                "Guided project preview",
+                RuntimeError("Guided Studio service is unavailable."),
+                preserve_project=True,
+            )
+        try:
+            preview = self._guided_service.PreviewProject(draft)
+        except Exception as error:
+            return self._operation_failure("Guided project preview", error, preserve_project=True)
+        self._snapshot = replace(
+            self._snapshot,
+            guided_preview=preview,
+            status=(
+                StudioStatus.PROJECT_INVALID if not preview.can_save else StudioStatus.NO_PROJECT
+            ),
+            headline="Guided project preview",
+            detail=(
+                f"Reviewed {preview.draft_id}; explicit Save is "
+                f"{'available' if preview.can_save else 'blocked'}."
+            ),
+            validation=tuple(_guided_validation_item(item) for item in preview.findings),
+            dirty=self._snapshot.dirty,
+        )
+        return self._snapshot
+
+    def open_guided_project(self, project_path: str | Path) -> StudioSnapshot:
+        """Open through the guided read-only command, then reuse the existing Studio state map."""
+
+        if self._guided_service is None:
+            return self.open_project(project_path)
+        result = self._guided_service.OpenProject(project_path)
+        if result.project is None or result.contents is None:
+            self._snapshot = replace(
+                self._snapshot,
+                status=StudioStatus.PROJECT_INVALID,
+                headline="Project is not ready",
+                detail="Guided Open found validation findings; no files were changed.",
+                project=None,
+                validation=tuple(_guided_validation_item(item) for item in result.findings),
+                dirty=False,
+                logs=self._append_log(
+                    LogLevel.WARNING,
+                    f"Guided Open rejected {Path(project_path).resolve()} without writes.",
+                ),
+            )
+            return self._snapshot
+        snapshot = self._apply_result(
+            BackendResult(
+                project=result.project,
+                contents=result.contents,
+                validation=tuple(_guided_validation_item(item) for item in result.findings),
+            ),
+            Path(project_path).expanduser().resolve(),
+            operation="Guided opened",
+        )
+        if snapshot.project is None:
+            return snapshot
+        self._snapshot = replace(snapshot, guided_preview=None)
+        self.refresh_components()
+        self.refresh_spatial()
+        return self.refresh_connections()
+
+    def confirm_guided_project_save(
+        self,
+        draft: str | ProjectPreview,
+        confirmation_token: str | None = None,
+        *,
+        confirmed: bool = False,
+    ) -> StudioSnapshot:
+        """Persist a reviewed guided candidate only after explicit confirmation."""
+
+        if self._guided_service is None:
+            return self._operation_failure(
+                "Guided project save",
+                RuntimeError("Guided Studio service is unavailable."),
+                preserve_project=True,
+            )
+        try:
+            result = self._guided_service.ConfirmProjectSave(
+                draft,
+                confirmation_token,
+                confirmed=confirmed,
+            )
+        except Exception as error:
+            return self._operation_failure("Guided project save", error, preserve_project=True)
+        if not result.success or result.project is None:
+            self._snapshot = replace(
+                self._snapshot,
+                status=StudioStatus.PROJECT_INVALID,
+                headline="Guided save blocked",
+                detail="The reviewed candidate was not persisted; canonical files were unchanged.",
+                guided_preview=result.preview,
+                validation=tuple(_guided_validation_item(item) for item in result.findings),
+                dirty=False,
+                logs=self._append_log(
+                    LogLevel.WARNING, "Guided Save was blocked or failed safely."
+                ),
+            )
+            return self._snapshot
+        snapshot = self.open_guided_project(result.project.path)
+        self._snapshot = replace(
+            snapshot,
+            guided_preview=None,
+            detail="Guided project saved and reopened with canonical validation.",
+            logs=self._append_log(
+                LogLevel.INFO, "Guided Save completed after explicit confirmation."
+            ),
+        )
+        return self._snapshot
+
+    def cancel_guided_project_draft(self, draft: str | ProjectPreview) -> StudioSnapshot:
+        """Cancel a guided draft without changing the current project or filesystem."""
+
+        if self._guided_service is None:
+            return self._operation_failure(
+                "Guided draft cancellation",
+                RuntimeError("Guided Studio service is unavailable."),
+                preserve_project=True,
+            )
+        result = self._guided_service.CancelProjectDraft(draft)
+        self._snapshot = replace(
+            self._snapshot,
+            guided_preview=None if result.cancelled else self._snapshot.guided_preview,
+            detail=(
+                "Guided project draft cancelled without filesystem writes."
+                if result.cancelled
+                else "Guided draft cancellation found no active draft."
+            ),
+            validation=tuple(_guided_validation_item(item) for item in result.findings),
+            logs=self._append_log(
+                LogLevel.INFO if result.cancelled else LogLevel.WARNING,
+                f"Guided draft {result.draft_id} cancellation: {result.cancelled}.",
+            ),
+        )
+        return self._snapshot
+
+    # Exact public command spellings from Task 039.  Kit callbacks use the snake-case methods
+    # above, while headless callers can discover the command names directly on the application.
+    def CreateProject(self, request: CreateProjectRequest) -> StudioSnapshot:
+        """Execute the guided CreateProject command."""
+
+        return self.create_guided_project(request)
+
+    def OpenProject(self, project_path: str | Path) -> StudioSnapshot:
+        """Execute the guided OpenProject command."""
+
+        return self.open_guided_project(project_path)
+
+    def PreviewProject(self, draft: str | ProjectPreview) -> StudioSnapshot:
+        """Execute the guided PreviewProject command."""
+
+        return self.preview_guided_project(draft)
+
+    def ConfirmProjectSave(
+        self,
+        draft: str | ProjectPreview,
+        confirmation_token: str | None = None,
+        *,
+        confirmed: bool = False,
+    ) -> StudioSnapshot:
+        """Execute the guided ConfirmProjectSave command."""
+
+        return self.confirm_guided_project_save(draft, confirmation_token, confirmed=confirmed)
+
+    def CancelProjectDraft(self, draft: str | ProjectPreview) -> StudioSnapshot:
+        """Execute the guided CancelProjectDraft command."""
+
+        return self.cancel_guided_project_draft(draft)
 
     def refresh_components(self, filters: ComponentFilters = ComponentFilters()) -> StudioSnapshot:
         """Query the project registry through the pure backend browser service."""
@@ -2101,3 +2319,14 @@ class StudioApplication:
         next_sequence = self._snapshot.logs[-1].sequence + 1 if self._snapshot.logs else 1
         entries = (*self._snapshot.logs, LogEntry(next_sequence, level, message))
         return entries[-200:]
+
+
+def _guided_validation_item(item: Any) -> ValidationItem:
+    """Map the pure launcher finding into the existing validation-panel DTO."""
+
+    return ValidationItem(
+        code=str(item.code),
+        severity=str(item.severity),
+        path=str(item.path),
+        message=str(item.message),
+    )

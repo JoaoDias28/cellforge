@@ -27,4 +27,7 @@ if manager.is_extension_enabled(EXTENSION_ID):
     raise RuntimeError(f"{EXTENSION_ID} did not unload")
 
 print("Cell Studio extension loaded, created all panels, and unloaded cleanly.")
-app.post_quit(0)
+if hasattr(app, "post_uncancellable_quit"):
+    app.post_uncancellable_quit(0)
+else:
+    app.post_quit(0)

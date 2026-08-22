@@ -64,6 +64,10 @@ _SCHEMA_FILENAMES: dict[SchemaDocumentKind, str] = {
     SchemaDocumentKind.EVIDENCE: "evidence.schema.json",
 }
 
+# Diagnostic/report contracts are validated by their owning application service and are not
+# document kinds that Cell Runtime loads as canonical project schemas.
+_AUXILIARY_SCHEMA_FILENAMES = frozenset({"studio_project_preview.schema.json"})
+
 
 @dataclass(frozen=True, slots=True)
 class SchemaKey:
@@ -129,6 +133,9 @@ class SchemaRegistry:
         for schema_path in schema_paths:
             kind = expected_by_name.get(schema_path.name)
             if kind is None:
+                if schema_path.name in _AUXILIARY_SCHEMA_FILENAMES:
+                    _load_schema(schema_path)
+                    continue
                 raise SchemaRegistryError(
                     schema_path, "Schema filename is not registered to a document kind."
                 )

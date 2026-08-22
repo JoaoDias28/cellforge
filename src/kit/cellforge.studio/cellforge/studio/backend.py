@@ -29,6 +29,7 @@ def create_default_application() -> StudioApplication:
         from cellforge_cli.resources import CliResources, ResourceUnavailableError
         from cellforge_domain import SchemaRegistry, SchemaRegistryError
 
+        from cellforge.studio.guided_launcher import GuidedProjectService
         from cellforge.studio.project_service import ProjectCommandService
     except ImportError:
         return StudioApplication(
@@ -51,4 +52,9 @@ def create_default_application() -> StudioApplication:
             ),
         )
 
-    return StudioApplication(ProjectCommandService(resources.schema_directory))
+    project_service = ProjectCommandService(resources.schema_directory)
+    guided_service = GuidedProjectService(
+        resources.schema_directory,
+        project_service=project_service,
+    )
+    return StudioApplication(project_service, guided_service=guided_service)
