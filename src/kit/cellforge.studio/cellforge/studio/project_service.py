@@ -74,6 +74,12 @@ from cellforge.studio.scenario_service import (
     ScenarioReplayResult,
 )
 from cellforge.studio.scene import inspect_scene, validate_scene_cross_references
+from cellforge.studio.schema_authoring import (
+    AuthoringCandidate,
+    AuthoringSaveResult,
+    SchemaAuthoringService,
+    SchemaFormModel,
+)
 from cellforge.studio.spatial_configuration import SpatialConfigurationService
 from cellforge.studio.task_service import (
     TaskAuthoringService,
@@ -117,6 +123,7 @@ class ProjectCommandService:
         recipe_service: RecipeAuthoringService | None = None,
         scenario_service: ScenarioEvidenceService | None = None,
         deployment_service: DeploymentService | None = None,
+        authoring_service: SchemaAuthoringService | None = None,
     ) -> None:
         self._canonical_schemas = canonical_schema_directory.resolve()
         self._replace_file = replace_file
@@ -129,6 +136,11 @@ class ProjectCommandService:
         self._recipes = recipe_service or RecipeAuthoringService(self._canonical_schemas)
         self._scenarios = scenario_service or ScenarioEvidenceService(self._canonical_schemas)
         self._deployments = deployment_service or DeploymentService(self._canonical_schemas)
+        self._authoring = authoring_service or SchemaAuthoringService(
+            self._canonical_schemas,
+            project_service=self,
+            replace_file=self._replace_file,
+        )
 
     def create(self, project_path: Path) -> BackendResult:
         """Explicitly create a starter project and return its validated buffers."""
@@ -449,6 +461,99 @@ class ProjectCommandService:
             project=summary,
             validation=(),
             contents=contents,
+        )
+
+    def build_schema_form(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        schema: Mapping[str, Any] | str | Path,
+        source_path: str | Path | None = None,
+        schema_kind: str | SchemaDocumentKind | None = None,
+        allocator_seed: str | None = None,
+        required_choices: Mapping[str, Sequence[str]] | None = None,
+        artifact_path: str | None = None,
+    ) -> SchemaFormModel:
+        """Build a schema form from staged project buffers without writing files."""
+
+        return self._authoring.BuildSchemaForm(
+            schema,
+            source_path=source_path,
+            schema_kind=schema_kind,
+            allocator_seed=allocator_seed,
+            required_choices=required_choices,
+            project_path=project_path,
+            project_contents=contents,
+            artifact_path=artifact_path,
+        )
+
+    def update_schema_form(
+        self,
+        form: SchemaFormModel,
+        values: Mapping[str, Any] | None = None,
+        *,
+        changes: Mapping[str, Any] | None = None,
+    ) -> SchemaFormModel:
+        """Apply deterministic form changes without changing project files."""
+
+        return self._authoring.UpdateSchemaForm(form, values, changes=changes)
+
+    def preview_source_edit(
+        self,
+        form_or_candidate: SchemaFormModel | AuthoringCandidate,
+        source: str | bytes | Path | None = None,
+        *,
+        source_path: str | Path | None = None,
+        artifact_path: str | None = None,
+        project_path: Path | None = None,
+        project_contents: ProjectContents | None = None,
+    ) -> AuthoringCandidate:
+        """Parse and validate advanced source text without changing project files."""
+
+        return self._authoring.PreviewSourceEdit(
+            form_or_candidate,
+            source,
+            source_path=source_path,
+            artifact_path=artifact_path,
+            project_path=project_path,
+            project_contents=project_contents,
+        )
+
+    def merge_source_edit(
+        self,
+        form_or_candidate: SchemaFormModel | AuthoringCandidate,
+        source_or_candidate: str | bytes | Path | AuthoringCandidate,
+        *,
+        project_path: Path | None = None,
+        project_contents: ProjectContents | None = None,
+    ) -> AuthoringCandidate:
+        """Three-way merge a source candidate and report conflicts without writing."""
+
+        return self._authoring.MergeSourceEdit(
+            form_or_candidate,
+            source_or_candidate,
+            project_path=project_path,
+            project_contents=project_contents,
+        )
+
+    def save_authoring_candidate(
+        self,
+        candidate: AuthoringCandidate,
+        confirmation_token: str | None = None,
+        *,
+        confirmed: bool = False,
+        project_path: Path | None = None,
+        project_contents: ProjectContents | None = None,
+    ) -> AuthoringSaveResult:
+        """Save a confirmed schema candidate through the existing paired transaction."""
+
+        return self._authoring.SaveAuthoringCandidate(
+            candidate,
+            confirmation_token,
+            confirmed=confirmed,
+            project_path=project_path,
+            project_contents=project_contents,
         )
 
     def recover(self, project_path: Path) -> None:

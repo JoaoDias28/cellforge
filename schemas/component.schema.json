@@ -2,6 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/schemas/component.schema.json",
   "title": "CellForge component type",
+  "x-cellforge": {
+    "label": "Component type",
+    "group": "Component",
+    "order": 0
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,10 +21,20 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.1.0",
+      "x-cellforge": {
+        "label": "Schema version",
+        "group": "Metadata",
+        "order": 10
+      }
     },
     "component": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Component identity",
+        "group": "Identity",
+        "order": 20
+      },
       "additionalProperties": false,
       "required": [
         "id",
@@ -30,11 +45,19 @@
       "properties": {
         "id": {
           "type": "string",
-          "pattern": "^[a-z0-9][a-z0-9._-]+$"
+          "pattern": "^[a-z0-9][a-z0-9._-]+$",
+          "x-cellforge": {
+            "label": "Component ID",
+            "order": 10
+          }
         },
         "version": {
           "type": "string",
-          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$"
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?$",
+          "x-cellforge": {
+            "label": "Version",
+            "order": 20
+          }
         },
         "kind": {
           "enum": [
@@ -49,14 +72,26 @@
             "product_carrier",
             "passive_geometry",
             "safety_device"
-          ]
+          ],
+          "x-cellforge": {
+            "label": "Component kind",
+            "order": 30
+          }
         },
         "name": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "x-cellforge": {
+            "label": "Name",
+            "order": 40
+          }
         },
         "manufacturer": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Manufacturer",
+            "order": 50
+          }
         },
         "model": {
           "type": "string"
@@ -71,6 +106,11 @@
     },
     "assets": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Assets",
+        "group": "Assets",
+        "order": 30
+      },
       "additionalProperties": false,
       "required": [
         "visual_usd",
@@ -96,6 +136,12 @@
     },
     "variants": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Variants",
+        "group": "Advanced",
+        "order": 40,
+        "advanced": true
+      },
       "additionalProperties": {
         "type": "array",
         "items": {
@@ -106,6 +152,11 @@
     },
     "frames": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Frames",
+        "group": "Spatial model",
+        "order": 50
+      },
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -137,6 +188,11 @@
     },
     "ports": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Ports",
+        "group": "Interfaces",
+        "order": 60
+      },
       "additionalProperties": false,
       "required": [
         "mechanical",
@@ -172,10 +228,20 @@
       }
     },
     "config_schema": {
-      "type": "string"
+      "type": "string",
+      "x-cellforge": {
+        "label": "Configuration schema",
+        "group": "Interfaces",
+        "order": 70
+      }
     },
     "capabilities": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Capabilities",
+        "group": "Interfaces",
+        "order": 80
+      },
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -218,6 +284,11 @@
     },
     "adapters": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Adapters",
+        "group": "Adapters",
+        "order": 90
+      },
       "additionalProperties": false,
       "required": [
         "simulation",
@@ -233,10 +304,21 @@
       }
     },
     "fault_catalog": {
-      "type": "string"
+      "type": "string",
+      "x-cellforge": {
+        "label": "Fault catalog",
+        "group": "Advanced",
+        "order": 100,
+        "advanced": true
+      }
     },
     "support": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Support status",
+        "group": "Support",
+        "order": 110
+      },
       "additionalProperties": false,
       "required": [
         "level",

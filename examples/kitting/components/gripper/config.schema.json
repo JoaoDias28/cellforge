@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/examples/kitting/gripper-config.schema.json",
+  "x-cellforge": {"label": "Gripper configuration", "group": "Gripper", "order": 0},
   "type": "object",
   "additionalProperties": false,
   "required": ["jaw_opening_mm"],
-  "properties": {"jaw_opening_mm": {"type": "number", "exclusiveMinimum": 0, "maximum": 100}}
+  "properties": {"jaw_opening_mm": {"type": "number", "exclusiveMinimum": 0, "maximum": 100, "x-cellforge": {"label": "Jaw opening", "order": 10, "unit": "mm"}}}
 }

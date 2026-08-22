@@ -2,6 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/schemas/cell.schema.json",
   "title": "CellForge cell project",
+  "x-cellforge": {
+    "label": "Cell project",
+    "group": "Cell",
+    "order": 0
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,10 +21,20 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.1.0",
+      "x-cellforge": {
+        "label": "Schema version",
+        "group": "Metadata",
+        "order": 10
+      }
     },
     "cell": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Cell identity",
+        "group": "Cell",
+        "order": 20
+      },
       "additionalProperties": false,
       "required": [
         "id",
@@ -27,34 +42,64 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Cell ID",
+            "order": 10
+          }
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Name",
+            "order": 20
+          }
         },
         "description": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Description",
+            "order": 30
+          }
         }
       }
     },
     "scene": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Spatial scene",
+        "group": "Scene",
+        "order": 30
+      },
       "additionalProperties": false,
       "required": [
         "usd"
       ],
       "properties": {
         "usd": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "USD stage",
+            "order": 10
+          }
         },
         "root_prim": {
           "type": "string",
-          "default": "/World"
+          "default": "/World",
+          "x-cellforge": {
+            "label": "Root prim",
+            "order": 20
+          }
         }
       }
     },
     "components": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Components",
+        "group": "Components",
+        "order": 40
+      },
       "items": {
         "$ref": "#/$defs/component_instance"
       },
@@ -62,12 +107,22 @@
     },
     "connections": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Connections",
+        "group": "Connections",
+        "order": 50
+      },
       "items": {
         "$ref": "#/$defs/connection"
       }
     },
     "tasks": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Tasks",
+        "group": "Behavior",
+        "order": 60
+      },
       "items": {
         "type": "object",
         "required": [
@@ -92,6 +147,11 @@
     },
     "recipes": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Recipes",
+        "group": "Authoring references",
+        "order": 70
+      },
       "items": {
         "type": "object",
         "required": [
@@ -110,18 +170,34 @@
     },
     "calibrations": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Calibrations",
+        "group": "Authoring references",
+        "order": 80,
+        "advanced": true
+      },
       "items": {
         "type": "string"
       }
     },
     "scenarios": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Scenarios",
+        "group": "Authoring references",
+        "order": 90
+      },
       "items": {
         "type": "string"
       }
     },
     "deployment_profiles": {
       "type": "array",
+      "x-cellforge": {
+        "label": "Deployment profiles",
+        "group": "Deployment",
+        "order": 100
+      },
       "items": {
         "type": "string"
       },
@@ -143,19 +219,39 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Component instance ID",
+            "order": 10
+          }
         },
         "alias": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Alias",
+            "order": 20
+          }
         },
         "component": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Component type",
+            "order": 30
+          }
         },
         "version": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Component version",
+            "order": 40
+          }
         },
         "usd_prim": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "USD prim",
+            "order": 50
+          }
         },
         "variants": {
           "type": "object",
@@ -168,10 +264,20 @@
             "simulation",
             "hardware",
             "target_selected"
-          ]
+          ],
+          "x-cellforge": {
+            "label": "Adapter mode",
+            "order": 60
+          }
         },
         "config": {
-          "type": "object"
+          "type": "object",
+          "x-cellforge": {
+            "label": "Configuration",
+            "group": "Component configuration",
+            "order": 70,
+            "advanced": true
+          }
         },
         "calibration_refs": {
           "type": "array",
@@ -200,7 +306,11 @@
             "software",
             "industrial_io",
             "safety"
-          ]
+          ],
+          "x-cellforge": {
+            "label": "Connection kind",
+            "order": 10
+          }
         },
         "from": {
           "$ref": "#/$defs/endpoint"

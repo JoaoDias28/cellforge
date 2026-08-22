@@ -246,3 +246,19 @@ The report is derived from canonical project sources and is never required by Ce
 not a runtime readiness authority, a safety function, a commissioning result, a physical process
 qualification, or functional-safety evidence. When Make is unavailable, use the exact locked `uv`
 commands documented in `docs/cell-studio.md` with the repository's offline cache if available.
+
+## 13. Task 041 schema-driven authoring acceptance
+
+`make studio-schema-authoring-check` runs the pure schema authoring contract suite and
+`scripts/verify_studio_schema_authoring.py`. The tests cover cell, component-configuration, recipe,
+and scenario forms; required/optional fields; `x-cellforge` units, ranges, enums, groups, and
+advanced metadata; deterministic defaults and IDs/paths; YAML/JSON parsing; invalid types, ranges,
+enums, versions, references, and validation keywords; ambiguity; structured exact diffs; byte-stable
+no-op previews; formatting/order warnings; released-recipe immutability; seed/fault/fidelity
+preservation; backend/UI failures; stale previews; and paired Save failure integrity.
+
+Preview commands are checked by comparing source bytes and SHA-256 hashes before and after the
+operation. Explicit Save is tested separately and must use the existing project recovery-journal
+transaction. These checks validate engineering authoring only: they do not authorize recipes,
+production execution, or any safety-rated function. If GNU Make is unavailable, run the exact locked
+`uv` command bodies in `docs/cell-studio.md` with the repository's offline cache where available.

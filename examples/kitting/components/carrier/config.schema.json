@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/examples/kitting/carrier-config.schema.json",
+  "x-cellforge": {"label": "Carrier configuration", "group": "Carrier", "order": 0},
   "type": "object",
   "additionalProperties": false,
   "required": ["modeled_only", "carrier_variant"],
   "properties": {
-    "modeled_only": {"const": true},
-    "carrier_variant": {"type": "string", "const": "two_part_input"}
+    "modeled_only": {"const": true, "x-cellforge": {"label": "Modeled only", "order": 10, "advanced": true}},
+    "carrier_variant": {"type": "string", "const": "two_part_input", "x-cellforge": {"label": "Carrier variant", "order": 20}}
   }
 }

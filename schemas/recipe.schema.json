@@ -2,6 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/schemas/recipe.schema.json",
   "title": "CellForge recipe",
+  "x-cellforge": {
+    "label": "Recipe",
+    "group": "Recipe",
+    "order": 0
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,10 +19,20 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "0.1.0"
+      "const": "0.1.0",
+      "x-cellforge": {
+        "label": "Schema version",
+        "group": "Metadata",
+        "order": 10
+      }
     },
     "recipe": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Recipe identity",
+        "group": "Identity",
+        "order": 20
+      },
       "additionalProperties": false,
       "required": [
         "id",
@@ -27,14 +42,26 @@
       ],
       "properties": {
         "id": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Recipe ID",
+            "order": 10
+          }
         },
         "version": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "x-cellforge": {
+            "label": "Version",
+            "order": 20
+          }
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "x-cellforge": {
+            "label": "Name",
+            "order": 30
+          }
         },
         "status": {
           "enum": [
@@ -43,12 +70,22 @@
             "TESTED",
             "APPROVED",
             "RETIRED"
-          ]
+          ],
+          "x-cellforge": {
+            "label": "Lifecycle status",
+            "group": "Lifecycle",
+            "order": 40
+          }
         }
       }
     },
     "compatibility": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Compatibility",
+        "group": "Compatibility",
+        "order": 30
+      },
       "additionalProperties": false,
       "required": [
         "cell_ids",
@@ -73,26 +110,64 @@
       }
     },
     "product": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Product",
+        "group": "Advanced",
+        "order": 40,
+        "advanced": true
+      }
     },
     "parameters": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Parameters",
+        "group": "Advanced",
+        "order": 50,
+        "advanced": true
+      }
     },
     "limits": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Limits",
+        "group": "Advanced",
+        "order": 60,
+        "advanced": true
+      }
     },
     "timeouts": {
       "type": "object",
+      "x-cellforge": {
+        "label": "Timeouts",
+        "group": "Timing",
+        "order": 70,
+        "unit": "s",
+        "advanced": true,
+        "help": "Positive timeout values are expressed in seconds."
+      },
       "additionalProperties": {
         "type": "number",
         "exclusiveMinimum": 0
       }
     },
     "retry_policy": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Retry policy",
+        "group": "Advanced",
+        "order": 80,
+        "advanced": true
+      }
     },
     "inspection": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Inspection",
+        "group": "Advanced",
+        "order": 90,
+        "advanced": true
+      }
     },
     "traceability": {
       "type": "object",
@@ -117,7 +192,13 @@
       }
     },
     "approval": {
-      "type": "object"
+      "type": "object",
+      "x-cellforge": {
+        "label": "Approval",
+        "group": "Advanced",
+        "order": 100,
+        "advanced": true
+      }
     }
   }
 }

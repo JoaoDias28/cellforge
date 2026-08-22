@@ -1,11 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/examples/kitting/fixture-config.schema.json",
+  "x-cellforge": {"label": "Fixture configuration", "group": "Fixture", "order": 0},
   "type": "object",
   "additionalProperties": false,
   "required": ["tray_variant", "seating_tolerance_mm"],
   "properties": {
-    "tray_variant": {"type": "string", "const": "two_slot"},
-    "seating_tolerance_mm": {"type": "number", "exclusiveMinimum": 0, "maximum": 5}
+    "tray_variant": {"type": "string", "const": "two_slot", "x-cellforge": {"label": "Tray variant", "order": 10}},
+    "seating_tolerance_mm": {"type": "number", "exclusiveMinimum": 0, "maximum": 5, "x-cellforge": {"label": "Seating tolerance", "order": 20, "unit": "mm"}}
   }
 }

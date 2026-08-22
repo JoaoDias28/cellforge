@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cellforge.local/examples/kitting/robot-config.schema.json",
+  "x-cellforge": {"label": "Robot configuration", "group": "Robot", "order": 0},
   "type": "object",
   "additionalProperties": false,
   "required": ["controller_namespace"],
-  "properties": {"controller_namespace": {"type": "string", "pattern": "^/[-a-z0-9_/]+$"}}
+  "properties": {"controller_namespace": {"type": "string", "pattern": "^/[-a-z0-9_/]+$", "x-cellforge": {"label": "Controller namespace", "order": 10}}}
 }

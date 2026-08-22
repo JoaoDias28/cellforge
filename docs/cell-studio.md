@@ -484,3 +484,51 @@ uv run --frozen python scripts/verify_studio_readiness.py
 The Isaac Sim probe remains an integration check when the Kit runtime is installed; the pure
 readiness report must display that integration as unavailable when it cannot prove higher-fidelity
 execution.
+
+## 15. Schema-driven authoring
+
+Task 041 adds one pure authoring service for cell documents, component configuration schemas,
+recipes, and simulation scenarios. `BuildSchemaForm` resolves Draft 2020-12 schemas and local
+`$ref` values into immutable `SchemaFormModel` data. `UpdateSchemaForm`, `PreviewSourceEdit`, and
+`MergeSourceEdit` return new in-memory models or candidates; none of these commands write a source.
+`SaveAuthoringCandidate` requires the reviewed confirmation token and delegates project saves to the
+existing paired validation and recovery-journal transaction.
+
+Schemas may add an `x-cellforge` annotation object with `label`, `group`, integer `order`, `unit`,
+`help`, `advanced`, and `generated`. These are presentation hints only. Unknown annotation members
+are ignored. Unknown validation keywords are reported as errors, so a schema author cannot
+accidentally rely on a keyword the authoring service does not implement. Required multi-value enums
+and other ambiguous choices remain explicit `AuthoringChoice` records until the caller selects one.
+IDs and authoring paths use a stable allocator seed; defaults, field ordering, groups, exact JSON
+Pointer diffs, canonical output, and candidate hashes are deterministic.
+
+The reusable renderer only maps service DTOs to widget-neutral fields. It does not import domain
+models, interpret schema keywords, choose defaults, enforce recipe lifecycle policy, or implement
+safety behavior. Released recipe versions remain immutable, and scenario seed, fault schedule, and
+requested fidelity stay explicit in the candidate. Unknown material or unapproved recipe state never
+authorizes a physical process; rated safety hardware and independent safety review remain outside
+Cell Studio.
+
+No-op previews preserve original source bytes. When a meaningful form edit requires regenerated YAML
+or JSON, the candidate carries an explicit formatting/order warning and the exact candidate text so
+comments and ordering are never silently rewritten. Save-after-preview rechecks the source hash and
+full project validation; stale, invalid, ambiguous, unavailable-backend, and transactional-failure
+paths leave canonical files unchanged.
+
+The deterministic non-Kit acceptance check is:
+
+```bash
+make studio-schema-authoring-check
+```
+
+If Make is unavailable, run the locked command bodies from the target:
+
+```bash
+uv sync --locked --all-packages
+uv run --frozen pytest src/kit/cellforge.studio/tests/test_schema_authoring.py
+uv run --frozen python scripts/verify_studio_schema_authoring.py
+```
+
+The optional Isaac Sim headless interaction probe is unavailable unless the Kit runtime is
+installed; the pure authoring contract does not claim viewport, OpenUSD, physics, hardware, or
+functional-safety evidence.

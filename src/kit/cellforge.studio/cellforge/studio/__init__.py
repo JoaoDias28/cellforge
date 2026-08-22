@@ -69,13 +69,53 @@ _READINESS_EXPORTS = frozenset(
     }
 )
 
+_AUTHORING_EXPORTS = frozenset(
+    {
+        "AuthoringCandidate",
+        "AuthoringChoice",
+        "AuthoringDiffEntry",
+        "AuthoringFinding",
+        "AuthoringSaveResult",
+        "BuildSchemaForm",
+        "MergeSourceEdit",
+        "PreviewSourceEdit",
+        "SaveAuthoringCandidate",
+        "SchemaAuthoringService",
+        "SchemaFinding",
+        "SchemaFormField",
+        "SchemaFormGroup",
+        "SchemaFormModel",
+        "UpdateSchemaForm",
+        "RenderedSchemaField",
+        "RenderedSchemaForm",
+        "RenderedSchemaGroup",
+        "SchemaFormRenderer",
+    }
+)
+
 
 def __getattr__(name: str) -> object:
     """Load guided services lazily so Kit can bootstrap its source workspace first."""
 
-    if name not in _GUIDED_EXPORTS and name not in _READINESS_EXPORTS:
+    if (
+        name not in _GUIDED_EXPORTS
+        and name not in _READINESS_EXPORTS
+        and name not in _AUTHORING_EXPORTS
+    ):
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    module_name = "guided_launcher" if name in _GUIDED_EXPORTS else "readiness"
+    if name in _GUIDED_EXPORTS:
+        module_name = "guided_launcher"
+    elif name in _READINESS_EXPORTS:
+        module_name = "readiness"
+    elif name in {
+        "RenderedSchemaField",
+        "RenderedSchemaForm",
+        "RenderedSchemaGroup",
+        "SchemaFormRenderer",
+    }:
+        module_name = "schema_form_renderer"
+    else:
+        module_name = "schema_authoring"
     module = importlib.import_module(f"{__name__}.{module_name}")
     value = getattr(module, name)
     globals()[name] = value
@@ -104,6 +144,25 @@ __all__ = [
     "StudioSnapshot",
     "StudioStatus",
     "ValidationItem",
+    "AuthoringCandidate",
+    "AuthoringChoice",
+    "AuthoringDiffEntry",
+    "AuthoringFinding",
+    "AuthoringSaveResult",
+    "BuildSchemaForm",
+    "MergeSourceEdit",
+    "PreviewSourceEdit",
+    "SaveAuthoringCandidate",
+    "SchemaAuthoringService",
+    "SchemaFinding",
+    "SchemaFormField",
+    "SchemaFormGroup",
+    "SchemaFormModel",
+    "UpdateSchemaForm",
+    "RenderedSchemaField",
+    "RenderedSchemaForm",
+    "RenderedSchemaGroup",
+    "SchemaFormRenderer",
     "CancelProjectDraft",
     "CancelProjectDraftResult",
     "CreateProject",
