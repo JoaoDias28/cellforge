@@ -183,9 +183,11 @@ remain accepted.
   hyphenated-ID collisions, typed-layer duplicate endpoints, existing mechanical validation,
   fail-closed removal, transform/property round trips, Save hash preservation, stale spatial DTOs,
   and Kit endpoint selection. No Task 043 work was started.
-- [ ] 2026-08-22 — Publish the audit-fix commit(s), wait for final-head CI, and append the exact
-  corrected head/commit/checkpoint details here before stopping for the parent controller's
-  follow-up Luna Max audit.
+- [x] 2026-08-22 — Published audit-fix commit `9a53675`
+  (`task(042): close audit gaps in visual connections`) and waited for final-head CI. PR #41 is
+  green and mergeable at `9a536759a61c018ccdfec0c7a48a6ff093c38bf4`; the corrected audit checkpoint
+  is based on `d6f1451e1edee08a9d652ff3be4cbb4583f16e7e` and remains intentionally unmerged for the
+  parent controller's follow-up Luna Max audit.
 
 ## Decisions
 
@@ -214,7 +216,9 @@ remain accepted.
 ## Results
 
 The initial implementation was published at `b76bdf2` and audited at checkpoint `d6f1451`; that
-audit returned FIX_FIRST. All nine confirmed findings are now addressed locally and the focused,
-full, static, example, legacy, and non-Kit probe checks pass. The corrected task commit, final-head
-CI results, and clean mergeable PR state will be appended after publication. The PR must remain
-unmerged while the parent controller obtains the mandated follow-up Luna Max audit.
+audit returned FIX_FIRST. All nine confirmed findings are addressed by `9a536759a61c018ccdfec0c7a48a6ff093c38bf4`.
+PR #41 (`https://github.com/JoaoDias28/cellforge/pull/41`) is open, ready (not draft), mergeable,
+and green at that head. Final-head run `32587756876` passed both required checks: Python 3.12
+validation (job `97066632623`) and ROS 2 Jazzy build and test (job `97066632490`). The branch and
+worktree are clean; the PR remains unmerged while the parent controller obtains the mandated
+follow-up Luna Max audit.
