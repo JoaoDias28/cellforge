@@ -366,6 +366,36 @@ The Isaac Sim environment must contain the locked CellForge Python workspace. Th
 the authored hierarchy, metadata, and transform through OpenUSD; deterministic non-Kit tests cover
 invalid inputs and filesystem-independent failure paths.
 
+### 10.1 Visual connection canvas contract
+
+Task 042 exposes the connection canvas through the application-service commands
+`PreviewCellConnection`, `StageCellConnection`, `RemoveCellConnection`, and
+`ValidateCellConnections`. The returned DTOs separate the mechanical, software/capability,
+industrial-I/O, and modeled-safety layers, and provide a searchable port palette, endpoint
+highlighting, deterministic edge IDs, layout positions, route points, findings, and candidate
+SHA-256 hashes. Canvas coordinates, aliases, selection, and routes are derived presentation
+metadata; component instance IDs and port IDs remain the only endpoint identity.
+
+Preview returns a no-write candidate. Mechanical staging changes the `cell.yaml` component prim,
+USD reparent, snap transform, and connection edge as one in-memory pair. Logical and industrial
+I/O staging changes only the operational graph. Explicit Save is still required and uses the
+existing transactional recovery journal, so a replacement failure restores both canonical files.
+Removal reverses only an unambiguous recorded mechanical reparent and reports a review warning for
+modeled-safety edges.
+
+The safety layer is colored and labeled `MODELED SAFETY (NON-EXECUTABLE)`. Its optional
+`modeled_only: true` marker is schema-constrained to `kind: safety`; the canvas never turns a
+safety edge into an executable connection, authorizes a process, or replaces independent rated
+hardware. The deterministic non-Kit Task 042 check is:
+
+```bash
+make studio-visual-connections-check
+```
+
+When Isaac Sim is installed, run the corresponding OpenUSD probe with
+`scripts/verify_kit_visual_connections.py` using the same headless `isaac-sim(.bat)` invocation
+shown above.
+
 ## 11. Simulation and scenario control
 
 Task 018 adds the **CellForge Simulation** panel. Its callbacks delegate configure, reset, start,

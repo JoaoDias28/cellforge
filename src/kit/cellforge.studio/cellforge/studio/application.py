@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 if TYPE_CHECKING:
     from cellforge.studio.deployment_service import (
@@ -197,6 +197,24 @@ class ConnectionPort:
     required: bool
     modeled_only: bool
 
+    @property
+    def endpoint_id(self) -> str:
+        """Return the immutable endpoint identity used by the canvas."""
+
+        return f"{self.component_instance}:{self.port}"
+
+    @property
+    def component_instance_id(self) -> str:
+        """Alias that makes the persistence identity explicit to UI consumers."""
+
+        return self.component_instance
+
+    @property
+    def port_id(self) -> str:
+        """Alias that makes the persistence identity explicit to UI consumers."""
+
+        return self.port
+
 
 @dataclass(frozen=True, slots=True)
 class ConnectionEdge:
@@ -212,6 +230,24 @@ class ConnectionEdge:
     modeled_only: bool
     executable: bool
 
+    @property
+    def edge_id(self) -> str:
+        """Return the canonical deterministic connection ID for this visual edge."""
+
+        return self.connection_id
+
+    @property
+    def from_endpoint_id(self) -> str:
+        """Return the immutable source endpoint identity."""
+
+        return f"{self.from_component}:{self.from_port}"
+
+    @property
+    def to_endpoint_id(self) -> str:
+        """Return the immutable target endpoint identity."""
+
+        return f"{self.to_component}:{self.to_port}"
+
 
 @dataclass(frozen=True, slots=True)
 class MechanicalSnapPreview:
@@ -225,6 +261,124 @@ class MechanicalSnapPreview:
     target_frame: str
     transform: tuple[float, ...]
     adapter_required: bool
+    collision_findings: tuple[ValidationItem, ...] = ()
+    payload_findings: tuple[ValidationItem, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionEndpointRef:
+    """Immutable component-instance/port identity used by preview DTOs."""
+
+    component_instance_id: str
+    port_id: str
+
+    @property
+    def endpoint_id(self) -> str:
+        """Return a stable endpoint key independent of display aliases."""
+
+        return f"{self.component_instance_id}:{self.port_id}"
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionPreview:
+    """A validated, write-free candidate for one typed connection."""
+
+    edge_id: str
+    kind: str
+    from_endpoint: ConnectionEndpointRef
+    to_endpoint: ConnectionEndpointRef
+    candidate_cell_sha256: str
+    candidate_scene_sha256: str
+    proposed_transform: tuple[float, ...] | None = None
+    source_prim: str | None = None
+    current_target_prim: str | None = None
+    proposed_target_prim: str | None = None
+    source_frame: str | None = None
+    target_frame: str | None = None
+    findings: tuple[ValidationItem, ...] = ()
+    collision_findings: tuple[ValidationItem, ...] = ()
+    payload_findings: tuple[ValidationItem, ...] = ()
+    modeled_only: bool = False
+    executable: bool = False
+    no_write: bool = True
+
+    @property
+    def endpoint_ids(self) -> tuple[str, str]:
+        """Return source and target endpoint keys in canonical direction."""
+
+        return (self.from_endpoint.endpoint_id, self.to_endpoint.endpoint_id)
+
+    @property
+    def candidate_hashes(self) -> tuple[tuple[str, str], ...]:
+        """Return deterministic canonical candidate hashes without exposing mutable state."""
+
+        return (
+            ("cell.yaml", self.candidate_cell_sha256),
+            ("scene.usda", self.candidate_scene_sha256),
+        )
+
+    @property
+    def transform(self) -> tuple[float, ...] | None:
+        """Compatibility alias for callers that consume spatial previews."""
+
+        return self.proposed_transform
+
+    @property
+    def proposed_prim_path(self) -> str | None:
+        """Compatibility alias for the generated target prim path."""
+
+        return self.proposed_target_prim
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionLayoutEntry:
+    """Derived screen position for one immutable endpoint."""
+
+    endpoint_id: str
+    x: float
+    y: float
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionLayoutMetadata:
+    """Non-canonical canvas positions and edge routes."""
+
+    entries: tuple[ConnectionLayoutEntry, ...] = ()
+    routes: tuple[tuple[str, tuple[tuple[float, float], ...]], ...] = ()
+    selected_endpoint_id: str | None = None
+
+    def position_for(self, endpoint_id: str) -> tuple[float, float] | None:
+        """Return a derived position without treating it as an operational identity."""
+
+        for entry in self.entries:
+            if entry.endpoint_id == endpoint_id:
+                return (entry.x, entry.y)
+        return None
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionLayerView:
+    """One visually distinct connection layer assembled from service DTOs."""
+
+    kind: str
+    label: str
+    ports: tuple[ConnectionPort, ...]
+    edges: tuple[ConnectionEdge, ...]
+    modeled_only: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionCanvas:
+    """Dockable-canvas model containing only derived presentation state."""
+
+    layers: tuple[ConnectionLayerView, ...]
+    ports: tuple[ConnectionPort, ...]
+    edges: tuple[ConnectionEdge, ...]
+    palette_ports: tuple[ConnectionPort, ...]
+    query: str = ""
+    highlighted_endpoint_ids: tuple[str, ...] = ()
+    layout: ConnectionLayoutMetadata = ConnectionLayoutMetadata()
+    safety_disclaimer: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -235,6 +389,8 @@ class ConnectionBrowserResult:
     edges: tuple[ConnectionEdge, ...]
     validation: tuple[ValidationItem, ...] = ()
     safety_disclaimer: str = ""
+    canvas: ConnectionCanvas | None = None
+    warnings: tuple[ValidationItem, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,6 +402,8 @@ class ConnectionEditResult:
     connection_id: str | None = None
     edge: ConnectionEdge | None = None
     preview: MechanicalSnapPreview | None = None
+    connection_preview: ConnectionPreview | None = None
+    warnings: tuple[ValidationItem, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -633,8 +791,12 @@ class StudioSnapshot:
     spatial_components: tuple[SpatialComponent, ...] = ()
     connection_ports: tuple[ConnectionPort, ...] = ()
     connection_edges: tuple[ConnectionEdge, ...] = ()
+    connection_canvas: ConnectionCanvas | None = None
+    connection_layout: ConnectionLayoutMetadata = ConnectionLayoutMetadata()
+    connection_query: str = ""
     safety_disclaimer: str = ""
     mechanical_preview: MechanicalSnapPreview | None = None
+    connection_preview: ConnectionPreview | None = None
     tasks: tuple[TaskSummary, ...] = ()
     available_node_specs: tuple[TaskNodeSpec, ...] = ()
     recipes: tuple[RecipeSummary, ...] = ()
@@ -662,8 +824,12 @@ class _EditState:
     spatial_components: tuple[SpatialComponent, ...]
     connection_ports: tuple[ConnectionPort, ...]
     connection_edges: tuple[ConnectionEdge, ...]
+    connection_canvas: ConnectionCanvas | None
+    connection_layout: ConnectionLayoutMetadata
+    connection_query: str
     safety_disclaimer: str
     mechanical_preview: MechanicalSnapPreview | None
+    connection_preview: ConnectionPreview | None
     tasks: tuple[TaskSummary, ...] = ()
     available_node_specs: tuple[TaskNodeSpec, ...] = ()
     recipes: tuple[RecipeSummary, ...] = ()
@@ -1523,13 +1689,19 @@ class StudioApplication:
                 f"Placed component instance {result.instance_id}; save to commit both artifacts."
             ),
             project=replace(project, component_count=project.component_count + 1),
-            validation=(),
             dirty=self._working_contents != self._saved_contents,
             spatial_components=spatial.components,
             connection_ports=connection_graph.ports,
             connection_edges=connection_graph.edges,
+            connection_canvas=connection_graph.canvas,
+            connection_layout=(
+                connection_graph.canvas.layout
+                if connection_graph.canvas is not None
+                else self._snapshot.connection_layout
+            ),
             safety_disclaimer=connection_graph.safety_disclaimer,
             mechanical_preview=None,
+            connection_preview=None,
             can_undo=True,
             can_redo=False,
             logs=self._append_log(
@@ -1548,7 +1720,17 @@ class StudioApplication:
         if project is None or contents is None:
             return self._no_open_project("Cannot browse connections without a valid open project.")
         try:
-            result = self._backend.browse_connections(Path(project.path), contents)
+            validator = getattr(self._backend, "ValidateCellConnections", None)
+            if callable(validator):
+                result = validator(
+                    Path(project.path),
+                    contents,
+                    query=self._snapshot.connection_query,
+                    selected_endpoint_id=self._snapshot.connection_layout.selected_endpoint_id,
+                    layout=self._snapshot.connection_layout,
+                )
+            else:
+                result = self._backend.browse_connections(Path(project.path), contents)
         except Exception as error:
             return self._operation_failure(
                 "Connection browser refresh", error, preserve_project=True
@@ -1557,13 +1739,253 @@ class StudioApplication:
             self._snapshot,
             connection_ports=result.ports,
             connection_edges=result.edges,
+            connection_canvas=result.canvas,
+            connection_layout=(
+                result.canvas.layout
+                if result.canvas is not None
+                else self._snapshot.connection_layout
+            ),
             safety_disclaimer=result.safety_disclaimer,
-            validation=result.validation,
+            validation=(*result.validation, *result.warnings),
             mechanical_preview=None,
+            connection_preview=None,
             logs=self._append_log(
                 LogLevel.INFO,
                 f"Refreshed connection graph with {len(result.edges)} edge(s).",
             ),
+        )
+        return self._snapshot
+
+    def preview_cell_connection(
+        self,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+        connection_id: str | None = None,
+    ) -> StudioSnapshot:
+        """Preview any typed edge through the project command boundary without staging it."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot preview a connection without a valid project.")
+        command = getattr(self._backend, "PreviewCellConnection", None)
+        if not callable(command):
+            if kind == "mechanical" and connection_id is not None:
+                return self.preview_mechanical_connection(
+                    connection_id, from_component, from_port, to_component, to_port
+                )
+            return self._operation_failure(
+                "Connection preview",
+                AttributeError("Project backend does not expose PreviewCellConnection"),
+                preserve_project=True,
+            )
+        try:
+            result = command(
+                Path(project.path),
+                contents,
+                kind=kind,
+                from_component=from_component,
+                from_port=from_port,
+                to_component=to_component,
+                to_port=to_port,
+                connection_id=connection_id,
+            )
+        except Exception as error:
+            return self._operation_failure("Connection preview", error, preserve_project=True)
+        if result.connection_preview is None and result.edge is None and result.preview is None:
+            return self._edit_rejected("Connection preview", result.validation)
+        preview_id = result.connection_id
+        if preview_id is None and result.connection_preview is not None:
+            preview_id = result.connection_preview.edge_id
+        self._snapshot = replace(
+            self._snapshot,
+            validation=(*result.validation, *result.warnings),
+            mechanical_preview=result.preview,
+            connection_preview=result.connection_preview,
+            detail=(f"Previewed {kind} connection {preview_id or ''}; no sources changed."),
+            logs=self._append_log(
+                LogLevel.INFO, f"Previewed {kind} connection; no sources changed."
+            ),
+        )
+        return self._snapshot
+
+    def stage_cell_connection(
+        self,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+        connection_id: str | None = None,
+    ) -> StudioSnapshot:
+        """Stage any typed edge in both canonical buffers where the contract requires it."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot create a connection without a valid project.")
+        command = getattr(self._backend, "StageCellConnection", None)
+        if callable(command):
+            try:
+                result = command(
+                    Path(project.path),
+                    contents,
+                    kind=kind,
+                    from_component=from_component,
+                    from_port=from_port,
+                    to_component=to_component,
+                    to_port=to_port,
+                    connection_id=connection_id,
+                )
+            except Exception as error:
+                return self._operation_failure("Connection staging", error, preserve_project=True)
+        elif connection_id is not None:
+            try:
+                result = self._backend.connect_ports(
+                    Path(project.path),
+                    contents,
+                    connection_id=connection_id,
+                    kind=kind,
+                    from_component=from_component,
+                    from_port=from_port,
+                    to_component=to_component,
+                    to_port=to_port,
+                )
+            except Exception as error:
+                return self._operation_failure("Connection staging", error, preserve_project=True)
+        else:
+            return self._operation_failure(
+                "Connection staging",
+                AttributeError("Project backend does not expose StageCellConnection"),
+                preserve_project=True,
+            )
+        if result.contents is None or result.edge is None:
+            return self._edit_rejected("Connection staging", result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        graph = self._connection_graph(Path(project.path), self._working_contents)
+        connection_key = result.connection_id or result.edge.connection_id
+        self._snapshot = replace(
+            self._snapshot,
+            project=replace(project, connection_count=project.connection_count + 1),
+            validation=result.warnings,
+            dirty=self._working_contents != self._saved_contents,
+            connection_ports=graph.ports,
+            connection_edges=graph.edges,
+            connection_canvas=graph.canvas,
+            connection_layout=(
+                graph.canvas.layout
+                if graph.canvas is not None
+                else self._snapshot.connection_layout
+            ),
+            safety_disclaimer=graph.safety_disclaimer,
+            mechanical_preview=result.preview,
+            connection_preview=result.connection_preview,
+            can_undo=True,
+            can_redo=False,
+            detail=f"Staged {kind} connection {connection_key}; save to commit canonical sources.",
+            logs=self._append_log(LogLevel.INFO, f"Staged {kind} connection {connection_key}."),
+        )
+        return self._snapshot
+
+    def remove_cell_connection(self, connection_id: str) -> StudioSnapshot:
+        """Stage removal of one edge and any paired mechanical scene reparent."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot remove a connection without a valid project.")
+        command = getattr(self._backend, "RemoveCellConnection", None)
+        if not callable(command):
+            return self._operation_failure(
+                "Connection removal",
+                AttributeError("Project backend does not expose RemoveCellConnection"),
+                preserve_project=True,
+            )
+        try:
+            result = command(Path(project.path), contents, connection_id=connection_id)
+        except Exception as error:
+            return self._operation_failure("Connection removal", error, preserve_project=True)
+        if result.contents is None:
+            return self._edit_rejected("Connection removal", result.validation)
+        self._record_edit(contents, project)
+        self._working_contents = result.contents
+        graph = self._connection_graph(Path(project.path), self._working_contents)
+        self._snapshot = replace(
+            self._snapshot,
+            project=replace(project, connection_count=max(0, project.connection_count - 1)),
+            validation=result.warnings,
+            dirty=self._working_contents != self._saved_contents,
+            connection_ports=graph.ports,
+            connection_edges=graph.edges,
+            connection_canvas=graph.canvas,
+            connection_layout=(
+                graph.canvas.layout
+                if graph.canvas is not None
+                else self._snapshot.connection_layout
+            ),
+            safety_disclaimer=graph.safety_disclaimer,
+            mechanical_preview=None,
+            connection_preview=None,
+            can_undo=True,
+            can_redo=False,
+            detail=f"Removed connection {connection_id}; save to commit canonical sources.",
+            logs=self._append_log(LogLevel.INFO, f"Removed connection {connection_id}."),
+        )
+        return self._snapshot
+
+    def validate_cell_connections(
+        self,
+        query: str = "",
+        selected_endpoint_id: str | None = None,
+        layout: ConnectionLayoutMetadata | None = None,
+    ) -> StudioSnapshot:
+        """Validate and render all connection layers without changing canonical buffers."""
+
+        project = self._snapshot.project
+        contents = self._working_contents
+        if self._backend is None:
+            return self._snapshot
+        if project is None or contents is None:
+            return self._no_open_project("Cannot validate connections without a valid project.")
+        command = getattr(self._backend, "ValidateCellConnections", None)
+        if not callable(command):
+            self._snapshot = replace(self._snapshot, connection_query=query)
+            return self.refresh_connections()
+        current_layout = layout or self._snapshot.connection_layout
+        try:
+            result = command(
+                Path(project.path),
+                contents,
+                query=query,
+                selected_endpoint_id=selected_endpoint_id,
+                layout=current_layout,
+            )
+        except Exception as error:
+            return self._operation_failure("Connection validation", error, preserve_project=True)
+        self._snapshot = replace(
+            self._snapshot,
+            connection_query=query,
+            connection_ports=result.ports,
+            connection_edges=result.edges,
+            connection_canvas=result.canvas,
+            connection_layout=(
+                result.canvas.layout if result.canvas is not None else current_layout
+            ),
+            safety_disclaimer=result.safety_disclaimer,
+            validation=(*result.validation, *result.warnings),
+            mechanical_preview=None,
+            connection_preview=None,
+            logs=self._append_log(LogLevel.INFO, "Validated connection layers."),
         )
         return self._snapshot
 
@@ -1601,6 +2023,7 @@ class StudioApplication:
             self._snapshot,
             validation=(),
             mechanical_preview=result.preview,
+            connection_preview=result.connection_preview,
             detail=(
                 f"Preview: snap {result.preview.current_target_prim} to "
                 f"{result.preview.snapped_target_prim}."
@@ -1647,17 +2070,27 @@ class StudioApplication:
         self._record_edit(contents, project)
         self._working_contents = result.contents
         spatial = self._spatial_graph(Path(project.path), self._working_contents)
+        connection_graph = self._connection_graph(Path(project.path), self._working_contents)
+        connection_edges = connection_graph.edges or (result.edge,)
         self._snapshot = replace(
             self._snapshot,
             status=StudioStatus.PROJECT_READY,
             headline=project.name,
             detail=f"Created connection {connection_id}; save to commit canonical sources.",
             project=replace(project, connection_count=project.connection_count + 1),
-            validation=(),
             dirty=self._working_contents != self._saved_contents,
             spatial_components=spatial.components,
-            connection_edges=(*self._snapshot.connection_edges, result.edge),
+            connection_ports=connection_graph.ports,
+            connection_edges=connection_edges,
+            connection_canvas=connection_graph.canvas,
+            connection_layout=(
+                connection_graph.canvas.layout
+                if connection_graph.canvas is not None
+                else self._snapshot.connection_layout
+            ),
             mechanical_preview=result.preview,
+            connection_preview=result.connection_preview,
+            validation=result.warnings,
             can_undo=True,
             can_redo=False,
             logs=self._append_log(
@@ -1712,8 +2145,15 @@ class StudioApplication:
             spatial_components=spatial.components,
             connection_ports=connection_graph.ports,
             connection_edges=connection_graph.edges,
+            connection_canvas=connection_graph.canvas,
+            connection_layout=(
+                connection_graph.canvas.layout
+                if connection_graph.canvas is not None
+                else self._snapshot.connection_layout
+            ),
             safety_disclaimer=connection_graph.safety_disclaimer,
             mechanical_preview=None,
+            connection_preview=None,
             can_undo=True,
             can_redo=False,
             logs=self._append_log(
@@ -1809,8 +2249,12 @@ class StudioApplication:
             spatial_components=previous.spatial_components,
             connection_ports=previous.connection_ports,
             connection_edges=previous.connection_edges,
+            connection_canvas=previous.connection_canvas,
+            connection_layout=previous.connection_layout,
+            connection_query=previous.connection_query,
             safety_disclaimer=previous.safety_disclaimer,
             mechanical_preview=previous.mechanical_preview,
+            connection_preview=previous.connection_preview,
             tasks=previous.tasks,
             available_node_specs=previous.available_node_specs,
             recipes=previous.recipes,
@@ -1839,8 +2283,12 @@ class StudioApplication:
             spatial_components=next_state.spatial_components,
             connection_ports=next_state.connection_ports,
             connection_edges=next_state.connection_edges,
+            connection_canvas=next_state.connection_canvas,
+            connection_layout=next_state.connection_layout,
+            connection_query=next_state.connection_query,
             safety_disclaimer=next_state.safety_disclaimer,
             mechanical_preview=next_state.mechanical_preview,
+            connection_preview=next_state.connection_preview,
             tasks=next_state.tasks,
             available_node_specs=next_state.available_node_specs,
             recipes=next_state.recipes,
@@ -1931,6 +2379,10 @@ class StudioApplication:
                 spatial_components=(),
                 connection_ports=(),
                 connection_edges=(),
+                connection_canvas=None,
+                connection_layout=ConnectionLayoutMetadata(),
+                connection_query="",
+                connection_preview=None,
                 safety_disclaimer="",
                 mechanical_preview=None,
                 can_undo=False,
@@ -1976,7 +2428,14 @@ class StudioApplication:
             authoring_form=None,
             authoring_candidate=None,
             spatial_components=(),
+            connection_ports=(),
+            connection_edges=(),
+            connection_canvas=None,
+            connection_layout=ConnectionLayoutMetadata(),
+            connection_query="",
+            safety_disclaimer="",
             mechanical_preview=None,
+            connection_preview=None,
             tasks=task_graph.tasks,
             available_node_specs=task_graph.available_node_specs,
             recipes=recipe_graph.recipes,
@@ -2241,8 +2700,12 @@ class StudioApplication:
             spatial_components=self._snapshot.spatial_components,
             connection_ports=self._snapshot.connection_ports,
             connection_edges=self._snapshot.connection_edges,
+            connection_canvas=self._snapshot.connection_canvas,
+            connection_layout=self._snapshot.connection_layout,
+            connection_query=self._snapshot.connection_query,
             safety_disclaimer=self._snapshot.safety_disclaimer,
             mechanical_preview=self._snapshot.mechanical_preview,
+            connection_preview=self._snapshot.connection_preview,
             tasks=self._snapshot.tasks,
             available_node_specs=self._snapshot.available_node_specs,
             recipes=self._snapshot.recipes,
@@ -2690,6 +3153,18 @@ class StudioApplication:
                 safety_disclaimer=self._snapshot.safety_disclaimer,
             )
         try:
+            validator = getattr(self._backend, "ValidateCellConnections", None)
+            if callable(validator):
+                return cast(
+                    ConnectionBrowserResult,
+                    validator(
+                        project_path,
+                        contents,
+                        query=self._snapshot.connection_query,
+                        selected_endpoint_id=self._snapshot.connection_layout.selected_endpoint_id,
+                        layout=self._snapshot.connection_layout,
+                    ),
+                )
             return self._backend.browse_connections(project_path, contents)
         except Exception:
             return ConnectionBrowserResult(

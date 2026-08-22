@@ -242,6 +242,17 @@ class Connection(DomainModel):
     from_: ConnectionEndpoint = Field(alias="from")
     to: ConnectionEndpoint
     config: JsonObject = Field(default_factory=dict)
+    modeled_only: bool | None = None
+
+    @model_validator(mode="after")
+    def modeled_only_is_safety_metadata(self) -> Self:
+        """Keep the optional marker descriptive and restricted to modeled safety edges."""
+
+        if self.modeled_only is not None and (
+            self.kind is not ConnectionKind.SAFETY or self.modeled_only is not True
+        ):
+            raise ValueError("modeled_only is only valid as true on safety connections")
+        return self
 
 
 class TaskDefinition(DomainModel):

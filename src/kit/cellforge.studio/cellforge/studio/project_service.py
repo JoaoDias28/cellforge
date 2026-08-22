@@ -35,6 +35,7 @@ from cellforge.studio.application import (
     ComponentFilters,
     ConnectionBrowserResult,
     ConnectionEditResult,
+    ConnectionLayoutMetadata,
     ProjectContents,
     SpatialBrowserResult,
     SpatialEditResult,
@@ -664,6 +665,90 @@ class ProjectCommandService:
             from_port=from_port,
             to_component=to_component,
             to_port=to_port,
+        )
+
+    def PreviewCellConnection(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+        connection_id: str | None = None,
+    ) -> ConnectionEditResult:
+        """Preview a typed connection through the pure connection service."""
+
+        return self._connections.PreviewCellConnection(
+            project_path,
+            contents,
+            kind=kind,
+            from_component=from_component,
+            from_port=from_port,
+            to_component=to_component,
+            to_port=to_port,
+            connection_id=connection_id,
+        )
+
+    def StageCellConnection(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        kind: str,
+        from_component: str,
+        from_port: str,
+        to_component: str,
+        to_port: str,
+        connection_id: str | None = None,
+    ) -> ConnectionEditResult:
+        """Stage a typed connection through the pure connection service."""
+
+        return self._connections.StageCellConnection(
+            project_path,
+            contents,
+            kind=kind,
+            from_component=from_component,
+            from_port=from_port,
+            to_component=to_component,
+            to_port=to_port,
+            connection_id=connection_id,
+        )
+
+    def RemoveCellConnection(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        connection_id: str,
+    ) -> ConnectionEditResult:
+        """Stage removal of one typed connection without writing canonical files."""
+
+        return self._connections.RemoveCellConnection(
+            project_path,
+            contents,
+            connection_id=connection_id,
+        )
+
+    def ValidateCellConnections(
+        self,
+        project_path: Path,
+        contents: ProjectContents,
+        *,
+        query: str = "",
+        selected_endpoint_id: str | None = None,
+        layout: ConnectionLayoutMetadata | None = None,
+    ) -> ConnectionBrowserResult:
+        """Validate the complete typed connection graph through the pure service."""
+
+        return self._connections.ValidateCellConnections(
+            project_path,
+            contents,
+            query=query,
+            selected_endpoint_id=selected_endpoint_id,
+            layout=layout,
         )
 
     def set_component_transform(
