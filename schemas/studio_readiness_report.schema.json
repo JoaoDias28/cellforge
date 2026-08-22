@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cellforge.dev/schemas/studio-readiness-report.schema.json",
+  "title": "CellForge Studio readiness diagnostic report",
+  "description": "Diagnostic/evidence data only; never a canonical Cell Runtime source or safety authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_schema_version",
+    "project_identity",
+    "checks",
+    "summary",
+    "requested_fidelity",
+    "observed_fidelity"
+  ],
+  "properties": {
+    "report_schema_version": {"const": "0.1.0"},
+    "project_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "cell_id", "name", "scene_path", "source_hashes"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "cell_id": {"type": ["string", "null"]},
+        "name": {"type": ["string", "null"]},
+        "scene_path": {"type": ["string", "null"]},
+        "source_hashes": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/check"}
+    },
+    "summary": {"$ref": "#/$defs/summary"},
+    "requested_fidelity": {"enum": ["L0", "L1", "L2", "L3"]},
+    "observed_fidelity": {"enum": ["L0", "L1", "L2", "L3", "unavailable"]}
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "check_id",
+        "category",
+        "status",
+        "severity",
+        "source_reference",
+        "message",
+        "remediation_id",
+        "evidence_references",
+        "validator_link",
+        "finding_id"
+      ],
+      "properties": {
+        "check_id": {"type": "string", "pattern": "^readiness\\.[a-z0-9._-]+$"},
+        "category": {"type": "string", "minLength": 1},
+        "status": {"enum": ["pass", "blocked", "advisory", "unavailable"]},
+        "severity": {"enum": ["info", "warning", "error"]},
+        "source_reference": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "remediation_id": {"type": ["string", "null"]},
+        "evidence_references": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "validator_link": {"type": ["string", "null"]},
+        "finding_id": {"type": ["string", "null"]}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "overall_status",
+        "total",
+        "pass_count",
+        "blocked_count",
+        "advisory_count",
+        "unavailable_count",
+        "ready_for_simulation",
+        "safety_disclaimer"
+      ],
+      "properties": {
+        "overall_status": {"enum": ["pass", "blocked", "advisory", "unavailable"]},
+        "total": {"type": "integer", "minimum": 0},
+        "pass_count": {"type": "integer", "minimum": 0},
+        "blocked_count": {"type": "integer", "minimum": 0},
+        "advisory_count": {"type": "integer", "minimum": 0},
+        "unavailable_count": {"type": "integer", "minimum": 0},
+        "ready_for_simulation": {"type": "boolean"},
+        "safety_disclaimer": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

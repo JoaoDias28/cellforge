@@ -26,7 +26,8 @@ def test_registry_loads_every_canonical_schema_by_kind_and_version() -> None:
     canonical_schema_paths = tuple(
         path
         for path in SCHEMA_ROOT.glob("*.json")
-        if path.name != "studio_project_preview.schema.json"
+        if path.name
+        not in {"studio_project_preview.schema.json", "studio_readiness_report.schema.json"}
     )
 
     assert len(registry) == len(canonical_schema_paths) == 10

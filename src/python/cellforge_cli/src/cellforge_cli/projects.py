@@ -24,7 +24,12 @@ from cellforge_domain.example_validation import (
 
 from cellforge_cli.exit_codes import ExitCode
 
-_AUXILIARY_SCHEMA_FILENAMES = frozenset({"studio_project_preview.schema.json"})
+_AUXILIARY_SCHEMA_FILENAMES = frozenset(
+    {
+        "studio_project_preview.schema.json",
+        "studio_readiness_report.schema.json",
+    }
+)
 
 
 class ProjectOperationError(Exception):

@@ -442,3 +442,45 @@ Tasks 029 and 030 complete the Studio authoring and deployment workflow:
   checksum inventories, and deployment profile target preflight verification.
 - **Software release qualification:** automated qualification workflow proving that all Studio
   outputs feed directly into deterministic L0/L2 runtime execution.
+
+## 14. Studio readiness guidance
+
+Task 040 adds the **CellForge Readiness** panel and the pure `EvaluateStudioReadiness` application
+service. It evaluates the selected canonical project through the existing project validator,
+registry/resolver, task, recipe, scenario, calibration, deployment, evidence, and simulation
+fidelity services. Each result has a deterministic check ID, status (`pass`, `blocked`, `advisory`,
+or `unavailable`), severity, source reference, validator link, remediation ID, and evidence
+references. The normalized report is diagnostic/evidence data only and is validated against
+`schemas/studio_readiness_report.schema.json`; it is not a Cell Runtime source.
+
+The panel keeps requested and actually observed fidelity separate. The CPU/mock path is explicitly
+L0. An L2/L3 result requires an available backend and proof of the corresponding Isaac Sim, GPU,
+and actual PhysX execution; missing capability is `unavailable`, never a synthetic pass. Modeled
+safety dependencies are shown in a separate **safety review** category. Readiness is engineering
+guidance, not functional-safety validation, commissioning approval, physical authorization, or a
+replacement for rated hardware and independent safety review.
+
+Remediation actions are preview-only. They may stage in-memory `ProjectContents` and expose a
+confirmation token, but they cannot write `cell.yaml`, the paired USDA scene, BehaviorTree.CPP XML,
+recipes, scenarios, or diagnostic reports. **Save after preview** re-evaluates the complete
+candidate and delegates persistence to the existing Task 015/039 transactional paired-artifact
+boundary. Validation failures and injected replacement failures preserve the previous canonical
+source hashes.
+
+The deterministic non-Kit acceptance check is:
+
+```bash
+make studio-readiness-check
+```
+
+If Make is unavailable, run the locked command bodies from the target:
+
+```bash
+uv sync --locked --all-packages
+uv run --frozen pytest src/kit/cellforge.studio/tests/test_readiness.py
+uv run --frozen python scripts/verify_studio_readiness.py
+```
+
+The Isaac Sim probe remains an integration check when the Kit runtime is installed; the pure
+readiness report must display that integration as unavailable when it cannot prove higher-fidelity
+execution.

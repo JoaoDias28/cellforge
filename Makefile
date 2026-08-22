@@ -10,14 +10,14 @@ ROS_WINDOWS_UNDERLAY ?= C:/IsaacSim-ros-workspaces/jazzy_ws/install
 ROS_WINDOWS_LLVM_BIN ?= C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin
 PYTEST_BASETEMP ?= .pytest-tmp
 
-.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check studio-guided-launcher-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check simulation-demo-check kitting-simulation-check simulation-demo-l0 simulation-demo-l2 kitting-simulation-l0 kitting-simulation-l2 ros-build ros-test
+.PHONY: lint test validate-examples kit-extension-check studio-project-scene-check studio-component-placement-check studio-connections-check studio-spatial-configuration-check studio-task-recipe-authoring-check studio-deployment-evidence-check studio-guided-launcher-check studio-readiness-check platform-registry-artifacts-check studio-simulation-check motion-service-check pen-physical-sim-check bundle-agent-check bundle-assembly-check operator-api-check integrated-runtime-check release-qualification-check isaac-l2-gpu-check simulation-demo-check kitting-simulation-check simulation-demo-l0 simulation-demo-l2 kitting-simulation-l0 kitting-simulation-l2 ros-build ros-test
 
 lint:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen ruff format --check .
 	$(UV) run --frozen ruff check .
 	$(UV) run --frozen mypy src/python/cellforge_domain/src src/python/cellforge_domain/tests src/python/cellforge_bundle/src src/python/cellforge_bundle/tests src/python/cellforge_cli/src src/python/cellforge_cli/tests src/python/cellforge_platform/src src/python/cellforge_platform/tests ros_ws/src/cellforge_device_sdk/cellforge_device_sdk ros_ws/src/cellforge_mock_adapters/cellforge_mock_adapters ros_ws/src/cellforge_hardware_adapters/cellforge_hardware_adapters ros_ws/src/cellforge_state_trace/cellforge_state_trace ros_ws/src/cellforge_job_gateway/cellforge_job_gateway ros_ws/src/cellforge_operator_api/cellforge_operator_api ros_ws/src/cellforge_simulation/cellforge_simulation ros_ws/src/cellforge_bringup/cellforge_bringup tests
-	$(UV) run --frozen mypy --explicit-package-bases src/kit/cellforge.studio/cellforge/studio/application.py src/kit/cellforge.studio/cellforge/studio/backend.py src/kit/cellforge.studio/cellforge/studio/component_service.py src/kit/cellforge.studio/cellforge/studio/connection_service.py src/kit/cellforge.studio/cellforge/studio/deployment_service.py src/kit/cellforge.studio/cellforge/studio/project_service.py src/kit/cellforge.studio/cellforge/studio/recipe_service.py src/kit/cellforge.studio/cellforge/studio/scenario_service.py src/kit/cellforge.studio/cellforge/studio/scene.py src/kit/cellforge.studio/cellforge/studio/spatial_configuration.py src/kit/cellforge.studio/cellforge/studio/task_service.py src/kit/cellforge.studio/cellforge/studio/simulation_application.py src/kit/cellforge.studio/cellforge/studio/simulation_backend.py src/kit/cellforge.studio/cellforge/studio/simulation_host.py src/kit/cellforge.studio/tests
+	$(UV) run --frozen mypy --explicit-package-bases src/kit/cellforge.studio/cellforge/studio/application.py src/kit/cellforge.studio/cellforge/studio/backend.py src/kit/cellforge.studio/cellforge/studio/component_service.py src/kit/cellforge.studio/cellforge/studio/connection_service.py src/kit/cellforge.studio/cellforge/studio/deployment_service.py src/kit/cellforge.studio/cellforge/studio/project_service.py src/kit/cellforge.studio/cellforge/studio/readiness.py src/kit/cellforge.studio/cellforge/studio/recipe_service.py src/kit/cellforge.studio/cellforge/studio/scenario_service.py src/kit/cellforge.studio/cellforge/studio/scene.py src/kit/cellforge.studio/cellforge/studio/spatial_configuration.py src/kit/cellforge.studio/cellforge/studio/task_service.py src/kit/cellforge.studio/cellforge/studio/simulation_application.py src/kit/cellforge.studio/cellforge/studio/simulation_backend.py src/kit/cellforge.studio/cellforge/studio/simulation_host.py src/kit/cellforge.studio/tests
 
 test:
 	$(UV) sync --locked --all-packages
@@ -66,6 +66,11 @@ studio-guided-launcher-check:
 	$(UV) sync --locked --all-packages
 	$(UV) run --frozen pytest src/kit/cellforge.studio/tests/test_guided_launcher.py
 	$(UV) run --frozen python scripts/verify_studio_guided_launcher.py
+
+studio-readiness-check:
+	$(UV) sync --locked --all-packages
+	$(UV) run --frozen pytest src/kit/cellforge.studio/tests/test_readiness.py
+	$(UV) run --frozen python scripts/verify_studio_readiness.py
 
 platform-registry-artifacts-check:
 	$(UV) sync --locked --all-packages
